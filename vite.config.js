@@ -53,7 +53,7 @@ export default defineConfig({
         theme_color: '#263238',
         background_color: '#ffffff',
         display: 'standalone',
-        start_url: '/',
+        start_url: '/my_forward/',
         lang: 'ja',
         icons: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
