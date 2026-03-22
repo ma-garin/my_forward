@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>資産管理アプリ 開発ガイド</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+body {
+  font-family: "Noto Sans JP", "Helvetica Neue", Arial, sans-serif;
+  background: #f5f7f9;
+  color: #263238;
+  line-height: 1.8;
+}
+
+/* ナビ */
+nav {
+  position: sticky;
+  top: 0;
+  background: #37474f;
+  color: #fff;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  height: 52px;
+  z-index: 100;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+nav h1 { font-size: 15px; font-weight: 600; flex: 1 }
+nav .nav-links { display: flex; gap: 20px }
+nav a { color: rgba(255,255,255,.75); text-decoration: none; font-size: 13px }
+nav a:hover { color: #fff }
+
+/* メイン */
+.container { max-width: 860px; margin: 0 auto; padding: 40px 20px 80px }
+
+/* セクション */
+section { margin-bottom: 56px }
+h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #263238;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 3px solid #37474f;
+}
+h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #37474f;
+  margin: 24px 0 10px;
+}
+p { margin-bottom: 14px; font-size: 14px; color: #455a64 }
+
+/* ヒーロー */
+.hero {
+  background: linear-gradient(135deg, #37474f 0%, #263238 100%);
+  color: #fff;
+  border-radius: 16px;
+  padding: 36px 32px;
+  margin-bottom: 48px;
+  text-align: center;
+}
+.hero h2 {
+  font-size: 26px;
+  border: none;
+  color: #fff;
+  margin-bottom: 10px;
+}
+.hero p { color: rgba(255,255,255,.8); font-size: 15px; margin-bottom: 0 }
+
+/* ステップカード */
+.steps { display: flex; flex-direction: column; gap: 16px }
+.step-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+.step-num {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: #37474f;
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.step-body h3 { margin: 0 0 6px; font-size: 15px }
+.step-body p { margin: 0; font-size: 13px; color: #607d8b }
+
+/* カードグリッド */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px }
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+}
+.card .icon { font-size: 28px; margin-bottom: 10px }
+.card h3 { font-size: 14px; margin: 0 0 8px }
+.card p { font-size: 13px; color: #607d8b; margin: 0 }
+
+/* バッジ */
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 20px;
+  margin-right: 6px;
+}
+.badge-green  { background: #e8f5e9; color: #2e7d32 }
+.badge-blue   { background: #e3f2fd; color: #1565c0 }
+.badge-orange { background: #fff3e0; color: #e65100 }
+.badge-grey   { background: #eceff1; color: #546e7a }
+
+/* コードブロック */
+.cmd {
+  background: #263238;
+  color: #b2dfdb;
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-family: monospace;
+  font-size: 13px;
+  margin: 10px 0 16px;
+  overflow-x: auto;
+  white-space: pre;
+}
+.cmd .comment { color: #546e7a }
+
+/* フロー図 */
+.flow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+.flow-item {
+  background: #fff;
+  border: 2px solid #cfd8dc;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #37474f;
+}
+.flow-item.active {
+  background: #37474f;
+  border-color: #37474f;
+  color: #fff;
+}
+.flow-arrow { color: #90a4ae; font-size: 18px }
+
+/* テーブル */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+}
+th {
+  background: #37474f;
+  color: #fff;
+  padding: 10px 16px;
+  text-align: left;
+  font-weight: 600;
+}
+td { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #455a64 }
+tr:last-child td { border-bottom: none }
+
+/* FAQ */
+.faq { display: flex; flex-direction: column; gap: 12px }
+details.faq-item {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+  overflow: hidden;
+}
+details.faq-item summary {
+  padding: 14px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #37474f;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+details.faq-item summary::after { content: '＋'; font-size: 18px; color: #90a4ae }
+details.faq-item[open] summary::after { content: '－' }
+details.faq-item .faq-body { padding: 0 20px 16px; font-size: 13px; color: #607d8b }
+
+/* 注意ボックス */
+.note {
+  background: #fff8e1;
+  border-left: 4px solid #ffa000;
+  border-radius: 0 8px 8px 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #5d4037;
+  margin: 16px 0;
+}
+.tip {
+  background: #e8f5e9;
+  border-left: 4px solid #43a047;
+  border-radius: 0 8px 8px 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #1b5e20;
+  margin: 16px 0;
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <h1>📋 資産管理アプリ 開発ガイド</h1>
+  <div class="nav-links">
+    <a href="#overview">概要</a>
+    <a href="#app">アプリ</a>
+    <a href="#ccsdd">cc-sdd</a>
+    <a href="#dashboard">ダッシュボード</a>
+    <a href="#howto">使い方</a>
+    <a href="#faq">FAQ</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <div class="hero">
+    <h2>このプロジェクトで何をやっているのか</h2>
+    <p>スマートフォン向けのお金管理アプリを、AIと一緒に設計・開発しています。<br>
+    このガイドでは「何が作られていて」「どう進んでいるか」をわかりやすく説明します。</p>
+  </div>
+
+  <!-- 概要 -->
+  <section id="overview">
+    <h2>🗺 全体の流れ</h2>
+    <p>このプロジェクトは大きく3つのものが組み合わさっています。</p>
+    <div class="grid">
+      <div class="card">
+        <div class="icon">📱</div>
+        <h3>資産管理アプリ</h3>
+        <p>給与・カード・口座を管理するスマホ向けWebアプリ。実際に使えるものを作っています。</p>
+      </div>
+      <div class="card">
+        <div class="icon">🤖</div>
+        <h3>cc-sdd（開発の進め方）</h3>
+        <p>AIに実装させる前に「要件→設計→タスク」を順番に固める仕組み。手戻りを減らします。</p>
+      </div>
+      <div class="card">
+        <div class="icon">📊</div>
+        <h3>ダッシュボード</h3>
+        <p>開発の進捗をブラウザで確認・承認できるツール。このHTMLの隣で動いています。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- アプリ -->
+  <section id="app">
+    <h2>📱 資産管理アプリについて</h2>
+    <p>スマートフォン（iPhone / Android）で使えるWebアプリです。4つのタブで構成されています。</p>
+
+    <table>
+      <tr>
+        <th>タブ</th>
+        <th>何ができるか</th>
+        <th>状態</th>
+      </tr>
+      <tr>
+        <td>① 給与シミュレーション</td>
+        <td>残業時間を入力すると手取り額をリアルタイム計算。固定項目は昇給時に編集可能</td>
+        <td><span class="badge badge-green">✅ 完成</span></td>
+      </tr>
+      <tr>
+        <td>② クレジットカード管理</td>
+        <td>JCB・VISAの固定費・変動費を登録し、締め日ごとに集計</td>
+        <td><span class="badge badge-orange">🔨 開発中</span></td>
+      </tr>
+      <tr>
+        <td>③ 銀行口座・証券口座</td>
+        <td>複数口座の残高をイベントで管理し、推移を見る</td>
+        <td><span class="badge badge-grey">🔜 未着手</span></td>
+      </tr>
+      <tr>
+        <td>④ 過去データ</td>
+        <td>源泉徴収票・月別給与・残業時間のグラフ表示</td>
+        <td><span class="badge badge-grey">🔜 未着手</span></td>
+      </tr>
+    </table>
+
+    <h3>アプリを起動するには</h3>
+    <div class="cmd"><span class="comment"># ターミナルで asset-mgmt フォルダに移動してから実行</span>
+npm run dev</div>
+    <p>起動後、ブラウザで <strong>http://localhost:5173</strong> を開くと表示されます。</p>
+
+    <div class="tip">💡 データはすべてブラウザ内に保存されます。インターネット接続不要・外部への送信ゼロです。</div>
+  </section>
+
+  <!-- cc-sdd -->
+  <section id="ccsdd">
+    <h2>🤖 cc-sdd とは何か</h2>
+    <p>
+      AIにコードを書かせるとき、いきなり「作って」と言うと意図と違うものができることがあります。
+      <strong>cc-sdd</strong> は「先に設計書を固めてから実装する」というルールを守るための仕組みです。
+    </p>
+
+    <h3>なぜ使うのか</h3>
+    <div class="grid">
+      <div class="card">
+        <div class="icon">✋</div>
+        <h3>手戻りを減らす</h3>
+        <p>「こんなつもりじゃなかった」を防ぐために、要件と設計を先に人間が確認します。</p>
+      </div>
+      <div class="card">
+        <div class="icon">📝</div>
+        <h3>記録が残る</h3>
+        <p>何を作ると決めたか・なぜそう設計したかが`.kiro/specs/`フォルダにファイルとして残ります。</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔄</div>
+        <h3>段階的に進める</h3>
+        <p>要件→設計→タスク→実装の4段階。各段階でOKを出してから次へ進みます。</p>
+      </div>
+    </div>
+
+    <h3>cc-sdd の流れ（1機能を作るとき）</h3>
+    <div class="flow">
+      <div class="flow-item">① spec-init<br><small>機能を登録</small></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-item">② spec-requirements<br><small>要件を作る</small></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-item active">③ spec-design<br><small>設計を作る</small></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-item">④ spec-tasks<br><small>タスク分解</small></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-item">⑤ spec-impl<br><small>実装</small></div>
+    </div>
+    <p style="font-size:13px;color:#78909c">※ 水色ハイライトは現在のフェーズのイメージ</p>
+
+    <h3>ファイルはどこに保存されるか</h3>
+    <div class="cmd">asset-mgmt/
+└── .kiro/
+    ├── steering/          ← プロジェクト全体のルール（AIへの説明書）
+    │   ├── product.md     　 アプリの目的・機能
+    │   ├── tech.md        　 使っている技術・ルール
+    │   └── structure.md   　 フォルダ構成のルール
+    └── specs/             ← 各機能の仕様書
+        └── credit-card/   　 クレジットカード管理タブ
+            ├── spec.json  　 進捗状態（承認済みかどうか）
+            ├── requirements.md  要件定義
+            ├── design.md        設計
+            └── tasks.md         タスク一覧</div>
+  </section>
+
+  <!-- ダッシュボード -->
+  <section id="dashboard">
+    <h2>📊 進捗ダッシュボードについて</h2>
+    <p>開発の進み具合をブラウザで確認・操作できるツールです。</p>
+
+    <h3>起動方法</h3>
+    <div class="cmd"><span class="comment"># ターミナルで asset-mgmt フォルダに移動してから実行</span>
+node dashboard.js</div>
+    <p>起動後、ブラウザで <strong>http://localhost:4000</strong> を開きます。</p>
+
+    <h3>画面の見方</h3>
+    <div class="steps">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h3>ステッパー（横の進捗バー）</h3>
+          <p>初期化 → 要件定義 → 設計 → タスク分解 → 実装 → 完了 の順番で進みます。現在地が濃い色で表示されます。</p>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h3>承認状況のチェックボックス</h3>
+          <p>「生成済み」「承認」のチェックをONにすると、その場で保存されてフェーズが自動的に進みます。</p>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h3>ファイルプレビュー</h3>
+          <p>requirements.md / design.md / tasks.md の内容を折りたたんで確認できます。クリックで開きます。</p>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h3>実装OKボタン</h3>
+          <p>全フェーズが承認済みになったら「実装OK」にチェックを入れます。これでAIが実装を開始できる状態になります。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">⚠️ アプリ（port 5173）とダッシュボード（port 4000）は別々のサーバーです。両方同時に起動できます。</div>
+  </section>
+
+  <!-- 使い方 -->
+  <section id="howto">
+    <h2>🚀 今後の進め方</h2>
+    <p>新しいタブを開発するときは、毎回この手順で進めます。</p>
+
+    <div class="steps">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h3>Claude Code に指示する</h3>
+          <p>「/kiro:spec-requirements credit-card」のようにコマンドを入力すると、AIが要件定義の草案を作ります。</p>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h3>ダッシュボードで内容を確認する</h3>
+          <p>http://localhost:4000 を開いて、生成された requirements.md を読みます。内容が合っていればチェックをONにします。</p>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h3>次のフェーズへ進む</h3>
+          <p>承認したら Claude Code に「次へ」と伝えるだけ。設計・タスク分解も同じ手順で進めます。</p>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h3>実装OKを押す → 実装される</h3>
+          <p>ダッシュボードで「実装OK」にチェックを入れ、Claude Code に「実装してください」と伝えると実装が始まります。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <h2>❓ よくある疑問</h2>
+    <div class="faq">
+      <details class="faq-item">
+        <summary>このアプリを使うのに料金はかかりますか？</summary>
+        <div class="faq-body">
+          アプリ自体・ダッシュボード・cc-sdd はすべて無料です。費用が発生するのは Claude Code（AI）の利用料のみで、Anthropic のプラン料金に含まれます。
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>入力したデータはどこに保存されますか？</summary>
+        <div class="faq-body">
+          すべてお使いのブラウザ内（localStorage）に保存されます。外部のサーバーには一切送信されません。ただしブラウザのデータ削除・別の端末では引き継がれません。
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>ダッシュボードで承認したのにAIが動かないのはなぜですか？</summary>
+        <div class="faq-body">
+          ダッシュボードはファイルを更新するだけです。承認後は Claude Code のチャット欄で「次のフェーズに進んでください」と入力してください。
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>port 5173 と port 4000 の違いは何ですか？</summary>
+        <div class="faq-body">
+          <strong>5173</strong> は実際に動くアプリです（npm run dev で起動）。<br>
+          <strong>4000</strong> は開発の進捗を確認するダッシュボードです（node dashboard.js で起動）。<br>
+          どちらも同時に起動できます。
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>.kiro フォルダや spec.json は何ですか？</summary>
+        <div class="faq-body">
+          cc-sdd が使う設定・仕様書のフォルダです。直接編集しなくても構いません。ダッシュボードの承認操作が spec.json を自動更新します。
+        </div>
+      </details>
+      <details class="faq-item">
+        <summary>アプリを他の人のスマホでも見られますか？</summary>
+        <div class="faq-body">
+          同じ Wi-Fi 内なら可能です。<code>npm run dev -- --host</code> で起動し、ターミナルに表示された「Network:」のURLを他の端末で開いてください。
+        </div>
+      </details>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

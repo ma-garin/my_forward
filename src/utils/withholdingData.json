@@ -1,0 +1,26 @@
+[
+  {
+    "year": 2023,
+    "totalPay": 7101922,
+    "afterDeduction": 5291729,
+    "deductionTotal": 1504845,
+    "incomeTax": 336600,
+    "socialInsurance": 997545
+  },
+  {
+    "year": 2024,
+    "totalPay": 7691493,
+    "afterDeduction": 5822343,
+    "deductionTotal": 1572009,
+    "incomeTax": 400700,
+    "socialInsurance": 1072168
+  },
+  {
+    "year": 2025,
+    "totalPay": 9147388,
+    "afterDeduction": 7197388,
+    "deductionTotal": 1877338,
+    "incomeTax": 649800,
+    "socialInsurance": 1278252
+  }
+]
