@@ -15,7 +15,7 @@ const TABS = [
   { label: '給与', icon: <AccountBalanceWalletIcon /> },
   { label: 'カード', icon: <CreditCardIcon /> },
   { label: '口座', icon: <SavingsIcon /> },
-  { label: '過去', icon: <HistoryIcon /> },
+  { label: '給与履歴', icon: <HistoryIcon /> },
 ]
 
 function PlaceholderTab({ label }) {
