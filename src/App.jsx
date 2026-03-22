@@ -6,12 +6,17 @@ import CreditCardIcon from '@mui/icons-material/CreditCard'
 import SavingsIcon from '@mui/icons-material/Savings'
 import HistoryIcon from '@mui/icons-material/History'
 import SettingsIcon from '@mui/icons-material/Settings'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import theme from './theme'
 import SalarySimulation from './tabs/SalarySimulation'
 import CreditCard from './tabs/CreditCard'
 import BankAccounts from './tabs/BankAccounts'
 import SalaryHistory from './tabs/SalaryHistory'
-import Settings from './tabs/Settings'
+import SettingsMain from './settings/SettingsMain'
+import SalarySettings from './settings/SalarySettings'
+import CardSettings from './settings/CardSettings'
+import AccountSettings from './settings/AccountSettings'
+import DataSettings from './settings/DataSettings'
 
 const TABS = [
   { label: '給与', icon: <AccountBalanceWalletIcon /> },
@@ -20,30 +25,35 @@ const TABS = [
   { label: '給与履歴', icon: <HistoryIcon /> },
 ]
 
+const SETTINGS_TITLES = {
+  salary:  '給与設定',
+  card:    'カード設定',
+  account: '口座設定',
+  data:    'データ管理',
+}
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState(0)
+  const [activeTab,    setActiveTab]    = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsPage, setSettingsPage] = useState(null) // null | 'salary' | 'card' | 'account' | 'data'
+
+  const openSettings = () => { setSettingsPage(null); setSettingsOpen(true) }
+  const closeSettings = () => setSettingsOpen(false)
+  const navigateTo = (page) => setSettingsPage(page)
+  const goBack = () => setSettingsPage(null)
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: '100svh',
-          maxWidth: 600,
-          mx: 'auto',
-          bgcolor: 'background.default',
-        }}
-      >
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100svh', maxWidth: 600, mx: 'auto', bgcolor: 'background.default' }}>
+
         {/* AppBar */}
         <AppBar position="static" color="primary" elevation={0}>
           <Toolbar variant="dense" sx={{ minHeight: 52 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, letterSpacing: 1, flex: 1 }}>
               資産管理
             </Typography>
-            <IconButton color="inherit" onClick={() => setSettingsOpen(true)}>
+            <IconButton color="inherit" onClick={openSettings}>
               <SettingsIcon />
             </IconButton>
           </Toolbar>
@@ -58,35 +68,38 @@ export default function App() {
         </Box>
 
         {/* Bottom Navigation */}
-        <Paper
-          sx={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 600, zIndex: 100 }}
-          elevation={3}
-        >
-          <BottomNavigation
-            value={activeTab}
-            onChange={(_, v) => setActiveTab(v)}
-            showLabels
-            sx={{ bgcolor: 'background.paper' }}
-          >
+        <Paper sx={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 600, zIndex: 100 }} elevation={3}>
+          <BottomNavigation value={activeTab} onChange={(_, v) => setActiveTab(v)} showLabels sx={{ bgcolor: 'background.paper' }}>
             {TABS.map((tab) => (
-              <BottomNavigationAction
-                key={tab.label}
-                label={tab.label}
-                icon={tab.icon}
-                sx={{ fontSize: 11 }}
-              />
+              <BottomNavigationAction key={tab.label} label={tab.label} icon={tab.icon} sx={{ fontSize: 11 }} />
             ))}
           </BottomNavigation>
         </Paper>
 
         {/* 設定ドロワー */}
-        <Drawer
-          anchor="right"
-          open={settingsOpen}
-          onClose={() => setSettingsOpen(false)}
-          slotProps={{ paper: { sx: { width: '85vw', maxWidth: 400 } } }}
-        >
-          <Settings />
+        <Drawer anchor="right" open={settingsOpen} onClose={closeSettings}
+          slotProps={{ paper: { sx: { width: '100vw', maxWidth: 600 } } }}>
+
+          {/* 設定ヘッダー */}
+          <AppBar position="static" color="primary" elevation={0}>
+            <Toolbar variant="dense" sx={{ minHeight: 52 }}>
+              <IconButton color="inherit" edge="start" onClick={settingsPage ? goBack : closeSettings} sx={{ mr: 1 }}>
+                <ArrowBackIcon />
+              </IconButton>
+              <Typography variant="subtitle1" fontWeight={600}>
+                {settingsPage ? SETTINGS_TITLES[settingsPage] : '設定'}
+              </Typography>
+            </Toolbar>
+          </AppBar>
+
+          {/* 設定コンテンツ */}
+          <Box sx={{ flex: 1, overflowY: 'auto' }}>
+            {!settingsPage && <SettingsMain onNavigate={navigateTo} />}
+            {settingsPage === 'salary'  && <SalarySettings />}
+            {settingsPage === 'card'    && <CardSettings />}
+            {settingsPage === 'account' && <AccountSettings />}
+            {settingsPage === 'data'    && <DataSettings />}
+          </Box>
         </Drawer>
       </Box>
     </ThemeProvider>

@@ -1,0 +1,40 @@
+import { List, ListItem, ListItemButton, ListItemText, ListItemIcon, Divider, Typography, Box } from '@mui/material'
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
+import CreditCardIcon from '@mui/icons-material/CreditCard'
+import SavingsIcon from '@mui/icons-material/Savings'
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+
+const ITEMS = [
+  { key: 'salary',  label: '給与設定',   sub: '基本給・支給項目・控除項目',  icon: <AccountBalanceWalletIcon /> },
+  { key: 'card',    label: 'カード設定',  sub: '保有カード・締め日・支払い日', icon: <CreditCardIcon /> },
+  { key: 'account', label: '口座設定',   sub: '口座の追加・削除・名称変更',   icon: <SavingsIcon /> },
+  { key: 'data',    label: 'データ管理', sub: 'エクスポート・インポート',      icon: <CloudDownloadIcon /> },
+]
+
+export default function SettingsMain({ onNavigate }) {
+  return (
+    <Box>
+      <Box sx={{ px: 2, py: 2, borderBottom: '1px solid #eee' }}>
+        <Typography variant="h6" fontWeight={700}>設定</Typography>
+      </Box>
+      <List disablePadding>
+        {ITEMS.map((item, i) => (
+          <Box key={item.key}>
+            <ListItem disablePadding>
+              <ListItemButton onClick={() => onNavigate(item.key)} sx={{ py: 1.5 }}>
+                <ListItemIcon sx={{ minWidth: 40, color: 'primary.main' }}>{item.icon}</ListItemIcon>
+                <ListItemText
+                  primary={<Typography fontWeight={600} fontSize={14}>{item.label}</Typography>}
+                  secondary={<Typography fontSize={11} color="text.secondary">{item.sub}</Typography>}
+                />
+                <ChevronRightIcon sx={{ color: 'text.disabled' }} />
+              </ListItemButton>
+            </ListItem>
+            {i < ITEMS.length - 1 && <Divider />}
+          </Box>
+        ))}
+      </List>
+    </Box>
+  )
+}

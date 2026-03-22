@@ -134,6 +134,21 @@ export const DEFAULT_CATEGORIES = [
   '食費', '日用品', '医療', '衣類', 'その他',
 ]
 
+// ─── カードストレージ ────────────────────────────────────────
+
+export const DEFAULT_CARDS = []
+
+export function loadCards() {
+  try {
+    const s = localStorage.getItem('cc_cards')
+    return s ? JSON.parse(s) : []
+  } catch { return [] }
+}
+
+export function saveCards(list) {
+  localStorage.setItem('cc_cards', JSON.stringify(list))
+}
+
 // ─── JCBデフォルト固定費 ────────────────────────────────────
 
 export const DEFAULT_JCB_FIXED = []
