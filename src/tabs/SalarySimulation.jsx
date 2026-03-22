@@ -142,31 +142,45 @@ function QuadAutoRow({ label, valueC, valueX, valueR, valueF }) {
   )
 }
 
-// ─── 残業時間入力（時間・分の2ボックス）─────────────────────
+// ─── 残業時間入力（±ボタン）────────────────────────────────
 
 function OvertimeInput({ overtime, onChange }) {
   const hours   = Math.floor(overtime)
   const minutes = Math.round((overtime - hours) * 60)
 
-  const handleHours   = (e) => { const h = Math.max(0, parseInt(e.target.value, 10) || 0); onChange(h + minutes / 60) }
-  const handleMinutes = (e) => { const m = Math.min(59, Math.max(0, parseInt(e.target.value, 10) || 0)); onChange(hours + m / 60) }
+  const addHours = (d) => { const h = Math.max(0, hours + d); onChange(h + minutes / 60) }
+  const addMins  = (d) => {
+    let m = minutes + d
+    let h = hours
+    if (m >= 60) { h += 1; m -= 60 }
+    if (m < 0)   { h = Math.max(0, h - 1); m = h < 0 ? 0 : 59 }
+    onChange(Math.max(0, h) + m / 60)
+  }
+
+  const btnSx = { minWidth: 36, height: 36, fontSize: 18, fontWeight: 700 }
 
   return (
-    <Stack direction="row" alignItems="center" spacing={1}>
-      <TextField
-        size="small" type="number"
-        inputProps={{ min: 0, max: 999, style: { width: 52, textAlign: 'right', fontSize: 15, fontWeight: 600 } }}
-        value={hours} onChange={handleHours}
-        sx={{ '& .MuiInputBase-root': { height: 40 } }}
-        InputProps={{ endAdornment: <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>時間</Typography> }}
-      />
-      <TextField
-        size="small" type="number"
-        inputProps={{ min: 0, max: 59, style: { width: 36, textAlign: 'right', fontSize: 15, fontWeight: 600 } }}
-        value={minutes} onChange={handleMinutes}
-        sx={{ '& .MuiInputBase-root': { height: 40 } }}
-        InputProps={{ endAdornment: <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>分</Typography> }}
-      />
+    <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" gap={1}>
+      {/* 時間 */}
+      <Stack direction="row" alignItems="center" spacing={0.5}>
+        <Button variant="outlined" size="small" sx={btnSx} onClick={() => addHours(-1)}>−</Button>
+        <Box sx={{ minWidth: 52, textAlign: 'center' }}>
+          <Typography fontWeight={700} fontSize={18}>{hours}</Typography>
+          <Typography variant="caption" color="text.secondary">時間</Typography>
+        </Box>
+        <Button variant="outlined" size="small" sx={btnSx} onClick={() => addHours(1)}>＋</Button>
+      </Stack>
+
+      {/* 分 */}
+      <Stack direction="row" alignItems="center" spacing={0.5}>
+        <Button variant="outlined" size="small" sx={btnSx} onClick={() => addMins(-1)}>−</Button>
+        <Box sx={{ minWidth: 40, textAlign: 'center' }}>
+          <Typography fontWeight={700} fontSize={18}>{String(minutes).padStart(2, '0')}</Typography>
+          <Typography variant="caption" color="text.secondary">分</Typography>
+        </Box>
+        <Button variant="outlined" size="small" sx={btnSx} onClick={() => addMins(1)}>＋</Button>
+      </Stack>
+
       <Box sx={{ px: 1.5, py: 0.5, bgcolor: '#f1f8e9', borderRadius: 1, border: '1px solid #c8e6c9' }}>
         <Typography variant="body2" fontWeight={600} color="primary.dark" sx={{ fontFamily: 'monospace' }}>
           {overtime.toFixed(2)}h

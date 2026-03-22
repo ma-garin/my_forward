@@ -60,7 +60,7 @@ export default function App() {
         </AppBar>
 
         {/* Content */}
-        <Box sx={{ flex: 1, overflowY: 'auto', pb: '56px' }}>
+        <Box sx={{ flex: 1, overflowY: 'auto', pb: 'calc(56px + env(safe-area-inset-bottom))' }}>
           {activeTab === 0 && <SalarySimulation />}
           {activeTab === 1 && <CreditCard />}
           {activeTab === 2 && <BankAccounts />}
@@ -68,7 +68,7 @@ export default function App() {
         </Box>
 
         {/* Bottom Navigation */}
-        <Paper sx={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 600, zIndex: 100 }} elevation={3}>
+        <Paper sx={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 600, zIndex: 100, pb: 'env(safe-area-inset-bottom)' }} elevation={3}>
           <BottomNavigation value={activeTab} onChange={(_, v) => setActiveTab(v)} showLabels sx={{ bgcolor: 'background.paper' }}>
             {TABS.map((tab) => (
               <BottomNavigationAction key={tab.label} label={tab.label} icon={tab.icon} sx={{ fontSize: 11 }} />
