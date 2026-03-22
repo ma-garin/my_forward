@@ -1,39 +1,51 @@
-import { Box, Typography, Button, Stack } from '@mui/material'
+import { Box, Typography, Button, Stack, Divider } from '@mui/material'
 import DownloadIcon from '@mui/icons-material/Download'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 
-const ALL_KEYS = [
-  'salary_simulation',
-  'salary_base_data',
-  'salary_base_withholding',
-  'salary_extra_data',
-  'salary_extra_withholding',
-  'cc_cards',
-  'cc_categories',
-  'bank_accounts',
-  'bank_accounts_v2',
-  'bank_fixed_events',
-  'bank_fixed_events_v1',
-  'bank_events',
-]
+// ─── キー定義 ────────────────────────────────────────────────
+const KEY_GROUPS = {
+  salary: {
+    label: '給与',
+    keys: (keys) => keys.filter(k => k.startsWith('salary_')),
+  },
+  card: {
+    label: 'カード',
+    keys: (keys) => keys.filter(k => k.startsWith('cc_')),
+  },
+  account: {
+    label: '口座',
+    keys: (keys) => keys.filter(k => k.startsWith('bank_')),
+  },
+  salaryHistory: {
+    label: '給与履歴',
+    keys: (keys) => keys.filter(k => k.startsWith('salary_base_') || k.startsWith('salary_extra_')),
+  },
+}
 
-function exportAll() {
-  const data = {}
-  // cc_var と bank_opening は動的キーなので全件スキャン
+function getAllKeys() {
+  const keys = []
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i)
-    if (k) data[k] = JSON.parse(localStorage.getItem(k))
+    if (k) keys.push(k)
   }
+  return keys
+}
+
+function exportKeys(keys, filename) {
+  const data = {}
+  keys.forEach(k => {
+    try { data[k] = JSON.parse(localStorage.getItem(k)) } catch {}
+  })
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `myforward_backup_${new Date().toISOString().slice(0, 10)}.json`
+  a.download = `${filename}_${new Date().toISOString().slice(0, 10)}.json`
   a.click()
   URL.revokeObjectURL(url)
 }
 
-function importAll(file) {
+function importFile(file, onDone) {
   const reader = new FileReader()
   reader.onload = (ev) => {
     try {
@@ -50,35 +62,73 @@ function importAll(file) {
   reader.readAsText(file)
 }
 
+// ─── 汎用行コンポーネント ────────────────────────────────────
+function DataRow({ label, exportFilename, exportKeys: getExportKeys }) {
+  const allKeys = getAllKeys()
+  const keys = getExportKeys(allKeys)
+
+  return (
+    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 1 }}>
+      <Typography fontSize={14} fontWeight={500}>{label}</Typography>
+      <Stack direction="row" gap={1}>
+        <Button size="small" variant="outlined" startIcon={<DownloadIcon />}
+          onClick={() => exportKeys(keys, exportFilename)}
+          sx={{ fontSize: 12 }}>
+          出力
+        </Button>
+        <Button size="small" variant="outlined" startIcon={<UploadFileIcon />}
+          component="label" sx={{ fontSize: 12 }}>
+          読込
+          <input type="file" accept=".json" hidden
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = '' }} />
+        </Button>
+      </Stack>
+    </Stack>
+  )
+}
+
+// ─── メイン ─────────────────────────────────────────────────
 export default function DataSettings() {
+  const allKeys = getAllKeys()
+
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>データ管理</Typography>
 
-      <Stack gap={2}>
-        <Box sx={{ p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
-          <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>エクスポート</Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-            全データをJSONファイルとして保存します。機種変更・バックアップにご利用ください。
-          </Typography>
-          <Button variant="contained" startIcon={<DownloadIcon />} onClick={exportAll} fullWidth
-            sx={{ bgcolor: '#43a047', '&:hover': { bgcolor: '#388e3c' } }}>
-            データをエクスポート
+      {/* 全データ */}
+      <Box sx={{ p: 2, bgcolor: '#e8f5e9', borderRadius: 2, mb: 2 }}>
+        <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>全データ一括</Typography>
+        <Stack direction="row" gap={1}>
+          <Button variant="contained" startIcon={<DownloadIcon />} fullWidth
+            sx={{ bgcolor: '#43a047', '&:hover': { bgcolor: '#388e3c' } }}
+            onClick={() => exportKeys(allKeys, 'myforward_backup')}>
+            一括エクスポート
           </Button>
-        </Box>
-
-        <Box sx={{ p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
-          <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>インポート</Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-            エクスポートしたJSONファイルを読み込みます。現在のデータは上書きされます。
-          </Typography>
-          <Button variant="contained" startIcon={<UploadFileIcon />} component="label" fullWidth>
-            データをインポート
+          <Button variant="contained" startIcon={<UploadFileIcon />} fullWidth component="label">
+            一括インポート
             <input type="file" accept=".json" hidden
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) importAll(f); e.target.value = '' }} />
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = '' }} />
           </Button>
-        </Box>
-      </Stack>
+        </Stack>
+      </Box>
+
+      {/* 個別 */}
+      <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', mb: 0.5 }}>
+        個別データ
+      </Typography>
+      <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 2, px: 2 }}>
+        <DataRow label="給与シミュレーション" exportFilename="myforward_salary"
+          exportKeys={(keys) => keys.filter(k => k === 'salary_simulation')} />
+        <Divider />
+        <DataRow label="カード" exportFilename="myforward_card"
+          exportKeys={(keys) => keys.filter(k => k.startsWith('cc_'))} />
+        <Divider />
+        <DataRow label="口座" exportFilename="myforward_account"
+          exportKeys={(keys) => keys.filter(k => k.startsWith('bank_'))} />
+        <Divider />
+        <DataRow label="給与履歴" exportFilename="myforward_salary_history"
+          exportKeys={(keys) => keys.filter(k => k.startsWith('salary_base_') || k.startsWith('salary_extra_'))} />
+      </Box>
     </Box>
   )
 }
