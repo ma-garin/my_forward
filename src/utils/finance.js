@@ -1,19 +1,19 @@
 // ─── 共有定数 ────────────────────────────────────────────────
 
 export const DEFAULT_FIXED = {
-  shokunokyuu:    344140,
-  jyuutakuteate:   26000,
-  tsuukinteate:    11910,
-  shinyateate:         0,
-  tokumei:         40000,
-  kenkouhoken:     24380,
-  kouseinenkin:    48495,
-  jyuuminzei:      36000,
-  kumiaifi:         2500,
-  shokuhi:          2500,
+  shokunokyuu:    0,
+  jyuutakuteate:  0,
+  tsuukinteate:   0,
+  shinyateate:    0,
+  tokumei:        0,
+  kenkouhoken:    0,
+  kouseinenkin:   0,
+  jyuuminzei:     0,
+  kumiaifi:       0,
+  shokuhi:        0,
 }
 
-export const UNIT_PRICE_RAW = 3308.5
+export const UNIT_PRICE_RAW = 0
 
 // ─── 給与計算ロジック（SalarySimulationと共有）──────────────
 
@@ -136,19 +136,7 @@ export const DEFAULT_CATEGORIES = [
 
 // ─── JCBデフォルト固定費 ────────────────────────────────────
 
-export const DEFAULT_JCB_FIXED = [
-  { id: 'jcb_f01', name: 'ガス代',        payee: '東京ガス',       amount: 11749, category: '水道光熱費', day: 10 },
-  { id: 'jcb_f02', name: 'YouTube Premium', payee: 'Google',       amount:  1280, category: '通信費',     day: 10 },
-  { id: 'jcb_f03', name: 'moneyForward ME', payee: 'マネーフォワード', amount: 540, category: '通信費',   day: 10 },
-  { id: 'jcb_f04', name: '乃木坂46メンバーシップ', payee: '乃木坂46',  amount: 550, category: '遊興費',  day: 10 },
-  { id: 'jcb_f05', name: '梅澤美波チャンネル', payee: '梅澤美波',    amount:   350, category: '遊興費',   day: 10 },
-  { id: 'jcb_f06', name: '小川彩チャンネル',  payee: '小川彩',      amount:   350, category: '遊興費',   day: 10 },
-  { id: 'jcb_f07', name: 'Nintendo Switch Online', payee: '任天堂', amount: 306, category: '通信費',     day: 10 },
-  { id: 'jcb_f08', name: 'Google One',     payee: 'Google',        amount:   290, category: '通信費',    day: 10 },
-  { id: 'jcb_f09', name: 'ChatGPT Plus',   payee: 'OpenAI',        amount:  3541, category: '通信費',   day: 10 },
-  { id: 'jcb_f10', name: '通勤定期',       payee: '東京メトロ',    amount: 11910, category: '交通費',   day: 10 },
-  { id: 'jcb_f11', name: 'コンタクトレンズ', payee: 'コンタクト店', amount: 7540, category: '美容',     day: 10 },
-]
+export const DEFAULT_JCB_FIXED = []
 
 export function loadCategories() {
   try {
@@ -165,25 +153,11 @@ export function saveCategories(list) {
 
 // ─── 口座ストレージ ──────────────────────────────────────────
 
-export const DEFAULT_ACCOUNTS = [
-  { id: 'wallet',   name: '財布' },
-  { id: 'aupay',    name: 'au Pay' },
-  { id: 'mitsu',    name: '三菱' },
-  { id: 'sony',     name: 'SONY' },
-  { id: 'sonyfx',   name: 'SONY外貨' },
-  { id: 'smbc',     name: 'SMBC' },
-  { id: 'sbi_main', name: 'メイン',     group: 'sbi', groupName: '住信SBI' },
-  { id: 'sbi_gad',  name: 'ガジェット', group: 'sbi', groupName: '住信SBI' },
-  { id: 'sbi_life', name: '生活防衛',   group: 'sbi', groupName: '住信SBI' },
-  { id: 'sbi_rsv',  name: '予備費',     group: 'sbi', groupName: '住信SBI' },
-  { id: 'yucho',    name: 'ゆうちょ' },
-  { id: 'stock',    name: '有価証券' },
-  { id: 'invest',   name: '積立投資' },
-]
+export const DEFAULT_ACCOUNTS = []
 
 // CC支払い・給与の自動連動先口座ID
-export const AUTO_ACCOUNT_CC   = 'mitsu'    // JCB/SMBC支払い口座
-export const AUTO_ACCOUNT_SAL  = 'sbi_main' // 給与受取口座
+export const AUTO_ACCOUNT_CC   = ''
+export const AUTO_ACCOUNT_SAL  = ''
 
 const ACCOUNTS_INIT_FLAG = 'bank_accounts_v2'
 
@@ -232,13 +206,7 @@ export function saveManualEvents(ym, list) {
 // ─── 固定イベントストレージ（毎月/毎週繰り返し）────────────
 // { id, name, frequency:'monthly'|'weekly', day?, dayOfWeek?, amount, accountId, sign }
 
-export const DEFAULT_FIXED_EVENTS = [
-  { id: 'fe_01', name: '家賃',     frequency: 'monthly', day: 27, amount: 82330,  accountId: 'mitsu', sign: -1 },
-  { id: 'fe_02', name: '奨学金',   frequency: 'monthly', day: 27, amount: 13262,  accountId: 'mitsu', sign: -1 },
-  { id: 'fe_03', name: '都民共済', frequency: 'monthly', day: 15, amount: 3000,   accountId: 'mitsu', sign: -1 },
-  { id: 'fe_04', name: '都民共済', frequency: 'monthly', day: 10, amount: 12500,  accountId: 'mitsu', sign: -1 },
-  { id: 'fe_05', name: '生活費',   frequency: 'weekly',  dayOfWeek: 5, amount: 10000, accountId: 'mitsu', sign: -1 },
-]
+export const DEFAULT_FIXED_EVENTS = []
 
 const FIXED_EVENTS_INIT_FLAG = 'bank_fixed_events_v1'
 
