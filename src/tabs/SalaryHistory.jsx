@@ -5,12 +5,14 @@ import {
   ToggleButtonGroup, ToggleButton, IconButton,
 } from '@mui/material'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
-import baseRawData    from '../utils/salaryData.json'
-import baseWithholding from '../utils/withholdingData.json'
 
 // ─── localStorage ─────────────────────────────────────────
+const BASE_KEY     = 'salary_base_data'
+const BASE_WH_KEY  = 'salary_base_withholding'
 const EXTRA_KEY    = 'salary_extra_data'
 const EXTRA_WH_KEY = 'salary_extra_withholding'
+function loadBase()    { try { return JSON.parse(localStorage.getItem(BASE_KEY)     || '[]') } catch { return [] } }
+function loadBaseWH()  { try { return JSON.parse(localStorage.getItem(BASE_WH_KEY)  || '[]') } catch { return [] } }
 function loadExtra()   { try { return JSON.parse(localStorage.getItem(EXTRA_KEY)    || '[]') } catch { return [] } }
 function loadExtraWH() { try { return JSON.parse(localStorage.getItem(EXTRA_WH_KEY) || '[]') } catch { return [] } }
 function saveExtra(d)   { localStorage.setItem(EXTRA_KEY,    JSON.stringify(d)) }
@@ -310,7 +312,7 @@ export default function SalaryHistory() {
   const [yoyField,    setYoyField]    = useState('takeHome')  // 'takeHome' | 'totalPay' | 'totalDed'
 
   const allSalary = useMemo(() => {
-    const merged = [...baseRawData]
+    const merged = [...loadBase()]
     extraSalary.forEach(ex => {
       if (!merged.some(b => b.year === ex.year && b.month === ex.month && b.type === ex.type))
         merged.push(ex)
@@ -319,7 +321,7 @@ export default function SalaryHistory() {
   }, [extraSalary])
 
   const allWH = useMemo(() => {
-    const merged = [...baseWithholding]
+    const merged = [...loadBaseWH()]
     extraWH.forEach(ex => { if (!merged.some(b => b.year === ex.year)) merged.push(ex) })
     return merged.sort((a, b) => a.year - b.year)
   }, [extraWH])

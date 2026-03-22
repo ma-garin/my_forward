@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# 給与データ（個人情報）
+src/utils/salaryData.json
+src/utils/withholdingData.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
