@@ -1,0 +1,74 @@
+{
+  "salary_simulation": {
+    "fixed": {
+      "shokunokyuu": 344140,
+      "jyuutakuteate": 26000,
+      "tsuukinteate": 11910,
+      "shinyateate": 0,
+      "tokumei": 40000,
+      "kenkouhoken": 24380,
+      "kouseinenkin": 48495,
+      "jyuuminzei": 36000,
+      "kumiaifi": 2500,
+      "shokuhi": 2500
+    },
+    "overtime": 20.0,
+    "unitPrice": 3308.5
+  },
+  "cc_cards": [
+    {
+      "id": "jcb",
+      "name": "JCBゴールド",
+      "shortName": "JCB",
+      "cutoffDay": 15,
+      "paymentDay": 10,
+      "color": "#37474f"
+    },
+    {
+      "id": "smbc",
+      "name": "三井住友VISAナンバーレスゴールド",
+      "shortName": "SMBC",
+      "cutoffDay": 0,
+      "paymentDay": 26,
+      "color": "#1b5e20"
+    }
+  ],
+  "cc_fixed_jcb": [
+    { "id": "jcb_f01", "name": "ガス代",              "payee": "東京ガス",         "amount": 11749, "category": "水道光熱費", "day": 10 },
+    { "id": "jcb_f02", "name": "YouTube Premium",      "payee": "Google",           "amount": 1280,  "category": "通信費" ,    "day": 10 },
+    { "id": "jcb_f03", "name": "moneyForward ME",      "payee": "マネーフォワード", "amount": 540,   "category": "通信費",     "day": 10 },
+    { "id": "jcb_f04", "name": "乃木坂46メンバーシップ", "payee": "乃木坂46",      "amount": 550,   "category": "遊興費",     "day": 10 },
+    { "id": "jcb_f05", "name": "梅澤美波チャンネル",   "payee": "梅澤美波",         "amount": 350,   "category": "遊興費",     "day": 10 },
+    { "id": "jcb_f06", "name": "小川彩チャンネル",     "payee": "小川彩",           "amount": 350,   "category": "遊興費",     "day": 10 },
+    { "id": "jcb_f07", "name": "Nintendo Switch Online","payee": "任天堂",          "amount": 306,   "category": "通信費",     "day": 10 },
+    { "id": "jcb_f08", "name": "Google One",           "payee": "Google",           "amount": 290,   "category": "通信費",     "day": 10 },
+    { "id": "jcb_f09", "name": "ChatGPT Plus",         "payee": "OpenAI",           "amount": 3541,  "category": "通信費",     "day": 10 },
+    { "id": "jcb_f10", "name": "通勤定期",             "payee": "東京メトロ",       "amount": 11910, "category": "交通費",     "day": 10 },
+    { "id": "jcb_f11", "name": "コンタクトレンズ",     "payee": "コンタクト店",     "amount": 7540,  "category": "美容",       "day": 10 }
+  ],
+  "bank_accounts": [
+    { "id": "wallet",   "name": "財布" },
+    { "id": "aupay",    "name": "au Pay" },
+    { "id": "mitsu",    "name": "三菱" },
+    { "id": "sony",     "name": "SONY" },
+    { "id": "sonyfx",   "name": "SONY外貨" },
+    { "id": "smbc",     "name": "SMBC" },
+    { "id": "sbi_main", "name": "メイン",     "group": "sbi", "groupName": "住信SBI" },
+    { "id": "sbi_gad",  "name": "ガジェット", "group": "sbi", "groupName": "住信SBI" },
+    { "id": "sbi_life", "name": "生活防衛",   "group": "sbi", "groupName": "住信SBI" },
+    { "id": "sbi_rsv",  "name": "予備費",     "group": "sbi", "groupName": "住信SBI" },
+    { "id": "yucho",    "name": "ゆうちょ" },
+    { "id": "stock",    "name": "有価証券" },
+    { "id": "invest",   "name": "積立投資" }
+  ],
+  "bank_accounts_v2": "1",
+  "bank_fixed_events": [
+    { "id": "fe_01", "name": "家賃",     "frequency": "monthly", "day": 27, "amount": 82330,  "accountId": "mitsu", "sign": -1 },
+    { "id": "fe_02", "name": "奨学金",   "frequency": "monthly", "day": 27, "amount": 13262,  "accountId": "mitsu", "sign": -1 },
+    { "id": "fe_03", "name": "都民共済", "frequency": "monthly", "day": 15, "amount": 3000,   "accountId": "mitsu", "sign": -1 },
+    { "id": "fe_04", "name": "都民共済", "frequency": "monthly", "day": 10, "amount": 12500,  "accountId": "mitsu", "sign": -1 },
+    { "id": "fe_05", "name": "生活費",   "frequency": "weekly",  "dayOfWeek": 5, "amount": 10000, "accountId": "mitsu", "sign": -1 }
+  ],
+  "bank_fixed_events_v1": "1",
+  "cc_init_v3": "1"
+}

@@ -4,8 +4,6 @@ import {
   Table, TableHead, TableBody, TableRow, TableCell,
   ToggleButtonGroup, ToggleButton, IconButton,
 } from '@mui/material'
-import UploadFileIcon from '@mui/icons-material/UploadFile'
-import DownloadIcon from '@mui/icons-material/Download'
 
 // ─── localStorage ─────────────────────────────────────────
 const BASE_KEY     = 'salary_base_data'
@@ -312,48 +310,6 @@ export default function SalaryHistory() {
   const [monthlyView, setMonthlyView] = useState('summary')   // 'summary' | 'detail'
   const [yoyField,    setYoyField]    = useState('takeHome')  // 'takeHome' | 'totalPay' | 'totalDed'
 
-  // エクスポート
-  const handleExport = () => {
-    const data = {
-      salary: [...loadBase(), ...loadExtra()],
-      withholding: [...loadBaseWH(), ...loadExtraWH()],
-    }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `salary_export_${new Date().toISOString().slice(0,10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  // インポート
-  const handleImport = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      try {
-        const data = JSON.parse(ev.target.result)
-        if (data.salary) {
-          localStorage.setItem(BASE_KEY, JSON.stringify(data.salary))
-          setExtraSalary([])
-          localStorage.setItem(EXTRA_KEY, '[]')
-        }
-        if (data.withholding) {
-          localStorage.setItem(BASE_WH_KEY, JSON.stringify(data.withholding))
-          setExtraWH([])
-          localStorage.setItem(EXTRA_WH_KEY, '[]')
-        }
-        alert('インポート完了しました')
-      } catch {
-        alert('ファイルの読み込みに失敗しました')
-      }
-    }
-    reader.readAsText(file)
-    e.target.value = ''
-  }
-
   const allSalary = useMemo(() => {
     const merged = [...loadBase()]
     extraSalary.forEach(ex => {
@@ -418,17 +374,6 @@ export default function SalaryHistory() {
             ))}
           </Stack>
         </Box>
-        <Stack direction="row" gap={0.5} sx={{ ml: 1, flexShrink: 0 }}>
-          <IconButton size="small" onClick={handleExport}
-            sx={{ bgcolor: '#43a047', color: '#fff', '&:hover': { bgcolor: '#388e3c' } }}>
-            <DownloadIcon fontSize="small" />
-          </IconButton>
-          <IconButton size="small" component="label"
-            sx={{ bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }}>
-            <UploadFileIcon fontSize="small" />
-            <input type="file" accept=".json" hidden onChange={handleImport} />
-          </IconButton>
-        </Stack>
       </Stack>
 
       {/* ① サマリー */}
