@@ -39,6 +39,7 @@ function salaryWatchPlugin() {
 }
 
 export default defineConfig({
+  base: '/my_forward/',
   plugins: [
     react(),
     salaryWatchPlugin(),
