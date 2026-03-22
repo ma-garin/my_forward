@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { ThemeProvider, CssBaseline } from '@mui/material'
-import { Box, AppBar, Toolbar, Typography, BottomNavigation, BottomNavigationAction, Paper } from '@mui/material'
+import { Box, AppBar, Toolbar, Typography, BottomNavigation, BottomNavigationAction, Paper, IconButton, Drawer } from '@mui/material'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
 import CreditCardIcon from '@mui/icons-material/CreditCard'
 import SavingsIcon from '@mui/icons-material/Savings'
 import HistoryIcon from '@mui/icons-material/History'
+import SettingsIcon from '@mui/icons-material/Settings'
 import theme from './theme'
 import SalarySimulation from './tabs/SalarySimulation'
 import CreditCard from './tabs/CreditCard'
 import BankAccounts from './tabs/BankAccounts'
 import SalaryHistory from './tabs/SalaryHistory'
+import Settings from './tabs/Settings'
 
 const TABS = [
   { label: '給与', icon: <AccountBalanceWalletIcon /> },
@@ -18,16 +20,9 @@ const TABS = [
   { label: '給与履歴', icon: <HistoryIcon /> },
 ]
 
-function PlaceholderTab({ label }) {
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
-      <Typography color="text.secondary" variant="body2">{label}（未実装）</Typography>
-    </Box>
-  )
-}
-
 export default function App() {
   const [activeTab, setActiveTab] = useState(0)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
     <ThemeProvider theme={theme}>
@@ -45,9 +40,12 @@ export default function App() {
         {/* AppBar */}
         <AppBar position="static" color="primary" elevation={0}>
           <Toolbar variant="dense" sx={{ minHeight: 52 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, letterSpacing: 1 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, letterSpacing: 1, flex: 1 }}>
               資産管理
             </Typography>
+            <IconButton color="inherit" onClick={() => setSettingsOpen(true)}>
+              <SettingsIcon />
+            </IconButton>
           </Toolbar>
         </AppBar>
 
@@ -80,6 +78,16 @@ export default function App() {
             ))}
           </BottomNavigation>
         </Paper>
+
+        {/* 設定ドロワー */}
+        <Drawer
+          anchor="right"
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          slotProps={{ paper: { sx: { width: '85vw', maxWidth: 400 } } }}
+        >
+          <Settings />
+        </Drawer>
       </Box>
     </ThemeProvider>
   )
