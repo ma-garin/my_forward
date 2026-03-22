@@ -67,6 +67,7 @@ export default function App() {
           <BottomNavigation
             value={activeTab}
             onChange={(_, v) => setActiveTab(v)}
+            showLabels
             sx={{ bgcolor: 'background.paper' }}
           >
             {TABS.map((tab) => (
