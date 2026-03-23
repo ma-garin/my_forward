@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import {
   Box, Card, CardContent, Typography, Stack, Chip, Divider,
   IconButton, Button, TextField, Dialog, DialogTitle, DialogContent,
@@ -112,11 +112,28 @@ const AMOUNT_STEPS = [
  *   inputSx    : TextField sx 追記
  */
 function AmountField({ value, onChange, large = false, dark = false, label, placeholder = '0', autoFocus = false, inputSx = {} }) {
+  const [editing, setEditing] = useState(false)
+  const [localVal, setLocalVal] = useState('')
+  const composing = useRef(false)
+
+  const handleFocus = () => {
+    setEditing(true)
+    setLocalVal(String(parseAmount(value) || ''))
+  }
+  const handleBlur = () => {
+    setEditing(false)
+    onChange(localVal.replace(/[^0-9]/g, ''))
+  }
   const handleChange = (e) => {
-    onChange(e.target.value.replace(/[^0-9]/g, ''))
+    if (composing.current) return
+    const raw = e.target.value.replace(/[^0-9]/g, '')
+    setLocalVal(raw)
+    onChange(raw)
   }
   const handleStep = (step) => {
-    onChange(String(parseAmount(value) + step))
+    const next = String(parseAmount(value) + step)
+    setLocalVal(next)
+    onChange(next)
   }
 
   const darkSx = dark ? {
@@ -135,8 +152,12 @@ function AmountField({ value, onChange, large = false, dark = false, label, plac
         inputMode="numeric"
         placeholder={placeholder}
         autoFocus={autoFocus}
-        value={fmtInput(value)}
+        value={editing ? localVal : fmtInput(value)}
         onChange={handleChange}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onCompositionStart={() => { composing.current = true }}
+        onCompositionEnd={(e) => { composing.current = false; handleChange(e) }}
         inputProps={{
           style: large
             ? { fontSize: 32, fontWeight: 700, textAlign: 'center', color: dark ? '#fff' : undefined }
