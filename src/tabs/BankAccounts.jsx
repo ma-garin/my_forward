@@ -655,9 +655,72 @@ function InlineEditName({ value, onSave, fontSize = 12, fontWeight = 400 }) {
   )
 }
 
+// ─── InlineEditAmount: 金額インライン編集（CalcPad） ─────
+
+function InlineEditAmount({ value, sign, isTransfer, onSave, fontSize = 12 }) {
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  const handleOpen = () => { setDraft(String(value || '')); setOpen(true) }
+  const handleConfirm = () => {
+    const a = parseAmount(draft)
+    if (a > 0 && a !== value) onSave(a)
+    setOpen(false)
+  }
+
+  const color = isTransfer ? '#1565c0' : sign > 0 ? '#2e7d32' : '#c62828'
+  const prefix = isTransfer ? '' : sign > 0 ? '+' : '−'
+
+  return (
+    <>
+      <Typography
+        variant="caption"
+        onClick={handleOpen}
+        sx={{
+          fontSize, color, cursor: 'pointer',
+          '&:hover': { bgcolor: '#f5f5f5', borderRadius: 0.5 },
+        }}
+      >
+        {prefix}¥{fmt(value)}
+      </Typography>
+      <SwipeableDrawer
+        anchor="bottom"
+        open={open}
+        onClose={() => setOpen(false)}
+        onOpen={() => {}}
+        disableSwipeToOpen
+        disableScrollLock
+        sx={{ zIndex: 1500 }}
+        PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
+      >
+        <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>金額</Typography>
+        <Box sx={{
+          bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
+          display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
+        }}>
+          <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
+          <Typography sx={{
+            color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+            minHeight: 44,
+          }}>
+            {parseAmount(draft) > 0 ? fmt(parseAmount(draft)) : '0'}
+          </Typography>
+        </Box>
+        <CalcPad
+          value={draft}
+          onChange={setDraft}
+          onConfirm={handleConfirm}
+          disabled={parseAmount(draft) <= 0}
+        />
+      </SwipeableDrawer>
+    </>
+  )
+}
+
 // ─── F: タイムライン表示（手動イベント編集付き）──────────
 
-function TimelineView({ accounts, openingBalances, events, onEdit, onDelete, onNameEdit }) {
+function TimelineView({ accounts, openingBalances, events, onEdit, onDelete, onNameEdit, onAmountEdit }) {
   const accMap = Object.fromEntries(accounts.map((a) => [a.id, a.name]))
 
   const runBal = {}
@@ -735,12 +798,20 @@ function TimelineView({ accounts, openingBalances, events, onEdit, onDelete, onN
                       )}
                     </Stack>
                     <Stack alignItems="flex-end">
-                      <Typography variant="subtitle2" fontWeight={700} sx={{
-                        fontSize: 14, whiteSpace: 'nowrap',
-                        color: isTransfer ? '#1565c0' : ev.sign === 1 ? '#2e7d32' : '#c62828',
-                      }}>
-                        {isTransfer ? '' : ev.sign === 1 ? '+' : '−'}¥{fmt(ev.amount)}
-                      </Typography>
+                      {(isManual || ev.source === 'fixed') ? (
+                        <InlineEditAmount
+                          value={ev.amount} sign={ev.sign} isTransfer={isTransfer}
+                          onSave={(a) => onAmountEdit(ev.id, ev.source, a, ev.fixedId)}
+                          fontSize={14}
+                        />
+                      ) : (
+                        <Typography variant="subtitle2" fontWeight={700} sx={{
+                          fontSize: 14, whiteSpace: 'nowrap',
+                          color: isTransfer ? '#1565c0' : ev.sign === 1 ? '#2e7d32' : '#c62828',
+                        }}>
+                          {isTransfer ? '' : ev.sign === 1 ? '+' : '−'}¥{fmt(ev.amount)}
+                        </Typography>
+                      )}
                       {/* F: 手動イベントのみ編集・削除 */}
                       {isManual && (
                         <Stack direction="row" sx={{ mt: 0.25 }}>
@@ -808,7 +879,7 @@ function buildGroupedHeader(accounts) {
   return headerCells
 }
 
-function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, onDelete, onNameEdit, ym }) {
+function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, onDelete, onNameEdit, onAmountEdit, ym }) {
   const initBal = {}
   accounts.forEach((a) => { initBal[a.id] = openingBalances[a.id] ?? 0 })
 
@@ -1003,12 +1074,20 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
                         fontSize={12}
                         fontWeight={isManual ? 600 : 400}
                       />
-                      <Typography variant="caption" sx={{
-                        fontSize: 10,
-                        color: isTransfer ? '#1565c0' : row.sign > 0 ? '#2e7d32' : '#c62828',
-                      }}>
-                        {isTransfer ? '振替' : row.sign > 0 ? '+' : '−'}¥{fmt(row.amount)}
-                      </Typography>
+                      {(isManual || row.source === 'fixed') ? (
+                        <InlineEditAmount
+                          value={row.amount} sign={row.sign} isTransfer={isTransfer}
+                          onSave={(a) => onAmountEdit(row.id, row.source, a, row.fixedId)}
+                          fontSize={10}
+                        />
+                      ) : (
+                        <Typography variant="caption" sx={{
+                          fontSize: 10,
+                          color: isTransfer ? '#1565c0' : row.sign > 0 ? '#2e7d32' : '#c62828',
+                        }}>
+                          {isTransfer ? '振替' : row.sign > 0 ? '+' : '−'}¥{fmt(row.amount)}
+                        </Typography>
+                      )}
                       {isManual && (
                         <Stack direction="row" sx={{ mt: 0.125 }}>
                           <IconButton size="small" onClick={() => onEdit(row)} sx={{ p: 0.25 }}>
@@ -1447,6 +1526,17 @@ export default function BankAccounts() {
     }
   }, [manualEvents, fixedEvents, nameOverrides, ym])
 
+  // 金額インライン編集ハンドラ
+  const handleInlineAmountEdit = useCallback((eventId, source, newAmount, fixedId) => {
+    if (source === 'manual') {
+      const next = manualEvents.map((x) => x.id === eventId ? { ...x, amount: newAmount } : x)
+      setManualEvents(next); saveManualEvents(ym, next)
+    } else if (source === 'fixed' && fixedId) {
+      const next = fixedEvents.map((x) => x.id === fixedId ? { ...x, amount: newAmount } : x)
+      setFixedEvents(next); saveFixedEvents(next)
+    }
+  }, [manualEvents, fixedEvents, ym])
+
   // B + F: テーブル・タイムラインからの編集用ハンドラ
   const handleEditEvent  = useCallback((ev) => setEvDlg({ type: 'edit', initial: ev }), [])
   const handleDeleteEvent = deleteEvent
@@ -1502,14 +1592,14 @@ export default function BankAccounts() {
           <CashFlowTable
             accounts={accounts} openingBalances={openingBalances} events={allEvents}
             colorMap={colorMap} onEdit={handleEditEvent} onDelete={handleDeleteEvent}
-            onNameEdit={handleInlineNameEdit} ym={ym}
+            onNameEdit={handleInlineNameEdit} onAmountEdit={handleInlineAmountEdit} ym={ym}
           />
         ) : (
           <CardContent sx={{ px: 1.5, py: 1.5, '&:last-child': { pb: 1.5 } }}>
             <TimelineView
               accounts={accounts} openingBalances={openingBalances} events={allEvents}
               onEdit={handleEditEvent} onDelete={handleDeleteEvent}
-              onNameEdit={handleInlineNameEdit}
+              onNameEdit={handleInlineNameEdit} onAmountEdit={handleInlineAmountEdit}
             />
           </CardContent>
         )}
