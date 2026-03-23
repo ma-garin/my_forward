@@ -337,6 +337,7 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
         </Typography>
       </Box>
       <CalcPad
+        compact
         value={String(amount)}
         onChange={setAmount}
         onConfirm={handleSave}
@@ -363,12 +364,12 @@ const CATEGORY_COLORS = {
 
 // ─── 電卓パッド ─────────────────────────────────────────
 
-const CALC_BTN = { minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0, py: 1.8, color: '#fff' }
 const CALC_BG  = '#424242'
 const CALC_BG2 = '#616161'
 const CALC_OP  = '#555'
 
-function CalcPad({ value, onChange, onConfirm, disabled }) {
+function CalcPad({ value, onChange, onConfirm, disabled, compact = false }) {
+  const CALC_BTN = { minWidth: 0, fontSize: compact ? 16 : 20, fontWeight: 500, borderRadius: 0, py: compact ? 0.8 : 1.8, color: '#fff' }
   const [stored, setStored]   = useState(null)
   const [op, setOp]           = useState(null)
   const [fresh, setFresh]     = useState(false)  // 演算子直後か
@@ -470,7 +471,7 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
         bgcolor: disabled ? '#bdbdbd' : '#f57c00',
         color: '#fff',
         fontWeight: 700,
-        fontSize: 18,
+        fontSize: compact ? 14 : 18,
         '&:hover': { bgcolor: disabled ? '#bdbdbd' : '#ef6c00' },
         '&:active': { bgcolor: disabled ? '#bdbdbd' : '#e65100' },
       })}
@@ -478,7 +479,7 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
       {btn('=', pressEquals, {
         bgcolor: '#ff9800',
         fontWeight: 700,
-        fontSize: 24,
+        fontSize: compact ? 20 : 24,
         '&:hover': { bgcolor: '#ffa726' },
         '&:active': { bgcolor: '#e65100' },
       })}
