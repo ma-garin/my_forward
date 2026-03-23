@@ -342,13 +342,132 @@ const CATEGORY_COLORS = {
   'その他':     '#eceff1',
 }
 
+// ─── 電卓パッド ─────────────────────────────────────────
+
+const CALC_BTN = { minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0, py: 1.8, color: '#fff' }
+const CALC_BG  = '#424242'
+const CALC_BG2 = '#616161'
+const CALC_OP  = '#555'
+
+function CalcPad({ value, onChange, onConfirm, disabled }) {
+  const [stored, setStored]   = useState(null)
+  const [op, setOp]           = useState(null)
+  const [fresh, setFresh]     = useState(false)  // 演算子直後か
+
+  const calc = (a, b, operator) => {
+    switch (operator) {
+      case '+': return a + b
+      case '−': return a - b
+      case '×': return a * b
+      case '÷': return b !== 0 ? Math.floor(a / b) : a
+      default:  return b
+    }
+  }
+
+  const pressDigit = (d) => {
+    if (fresh) { onChange(d); setFresh(false) }
+    else {
+      const cur = value === '0' ? '' : (value ?? '')
+      onChange(cur + d)
+    }
+  }
+
+  const pressOp = (next) => {
+    const cur = parseAmount(value)
+    if (stored !== null && op && !fresh) {
+      const result = calc(stored, cur, op)
+      setStored(result)
+      onChange(String(result))
+    } else {
+      setStored(cur)
+    }
+    setOp(next)
+    setFresh(true)
+  }
+
+  const pressClear = () => {
+    onChange('')
+    setStored(null)
+    setOp(null)
+    setFresh(false)
+  }
+
+  const pressConfirm = () => {
+    if (stored !== null && op) {
+      const result = calc(stored, parseAmount(value), op)
+      onChange(String(result))
+      setStored(null)
+      setOp(null)
+      setFresh(false)
+    }
+    onConfirm()
+  }
+
+  const btn = (label, onClick, sx = {}) => (
+    <Button key={label} onClick={onClick}
+      sx={{ ...CALC_BTN, bgcolor: CALC_BG, '&:hover': { bgcolor: CALC_BG2 }, '&:active': { bgcolor: '#757575' }, ...sx }}>
+      {label}
+    </Button>
+  )
+
+  const opBtn = (label) => btn(label, () => pressOp(label), {
+    bgcolor: op === label && fresh ? '#ff9800' : CALC_OP,
+    '&:hover': { bgcolor: op === label && fresh ? '#ffa726' : CALC_BG2 },
+  })
+
+  return (
+    <Box sx={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, 1fr)',
+      gridTemplateRows: 'repeat(5, 1fr)',
+      gap: '1px',
+      bgcolor: '#333',
+      borderRadius: 2,
+      overflow: 'hidden',
+    }}>
+      {btn('C', pressClear, { gridColumn: 'span 2', bgcolor: '#555', '&:hover': { bgcolor: '#666' } })}
+      {opBtn('÷')}
+      {opBtn('×')}
+
+      {btn('7', () => pressDigit('7'))}
+      {btn('8', () => pressDigit('8'))}
+      {btn('9', () => pressDigit('9'))}
+      {opBtn('−')}
+
+      {btn('4', () => pressDigit('4'))}
+      {btn('5', () => pressDigit('5'))}
+      {btn('6', () => pressDigit('6'))}
+      {opBtn('+')}
+
+      {btn('1', () => pressDigit('1'))}
+      {btn('2', () => pressDigit('2'))}
+      {btn('3', () => pressDigit('3'))}
+      {btn('確定', pressConfirm, {
+        gridRow: 'span 2',
+        bgcolor: disabled ? '#bdbdbd' : '#f57c00',
+        color: '#fff',
+        fontWeight: 700,
+        fontSize: 18,
+        '&:hover': { bgcolor: disabled ? '#bdbdbd' : '#ef6c00' },
+        '&:active': { bgcolor: disabled ? '#bdbdbd' : '#e65100' },
+      })}
+
+      {btn('.',  () => {}, { bgcolor: CALC_BG, pointerEvents: 'none', opacity: 0.3 })}
+      {btn('0',  () => pressDigit('0'))}
+      {btn('00', () => pressDigit('00'))}
+    </Box>
+  )
+}
+
+// ─── 変動費クイック入力（ボトムシート）──────────────────
+
 function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEditCategories }) {
   const [amount,   setAmount]   = useState('')
   const [category, setCategory] = useState(categories[0] ?? 'その他')
   const [name,     setName]     = useState('')
   const [payee,    setPayee]    = useState('')
   const [date,     setDate]     = useState(defaultDate)
-  const [confirm,  setConfirm]  = useState(false)  // Enter確認ダイアログ
+  const [showDetail, setShowDetail] = useState(false)
 
   const reset = () => {
     setDate(defaultDate)
@@ -356,10 +475,9 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
     setName('')
     setPayee('')
     setCategory(categories[0] ?? 'その他')
-    setConfirm(false)
+    setShowDetail(false)
   }
 
-  // drawerが開くたびにリセット
   const handleOpen = () => reset()
 
   const doSave = () => {
@@ -371,133 +489,91 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
   }
 
   return (
-    <>
-      <SwipeableDrawer
-        anchor="bottom"
-        open={open}
-        onClose={onClose}
-        onOpen={handleOpen}
-        disableSwipeToOpen
-        PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 4, maxWidth: 600, mx: 'auto' } }}
-      >
-        {/* ハンドル */}
-        <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 2 }} />
+    <SwipeableDrawer
+      anchor="bottom"
+      open={open}
+      onClose={onClose}
+      onOpen={handleOpen}
+      disableSwipeToOpen
+      PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
+    >
+      {/* ハンドル */}
+      <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
 
-        {/* 日付 */}
-        <TextField
-          type="date" size="small" fullWidth
-          InputLabelProps={{ shrink: true }}
-          label="日付"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          sx={{ mb: 2 }}
-        />
+      {/* 日付 */}
+      <TextField
+        type="date" size="small" fullWidth
+        InputLabelProps={{ shrink: true }}
+        label="日付"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        sx={{ mb: 1.5 }}
+      />
 
-        {/* カテゴリ選択 */}
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.75 }}>
-          <Typography variant="caption" color="text.secondary">カテゴリ</Typography>
-          <IconButton size="small" onClick={onEditCategories} sx={{ p: 0.25 }}>
-            <SettingsIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
-          </IconButton>
-        </Stack>
-        <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mb: 2 }}>
-          {categories.map((cat) => (
-            <Chip
-              key={cat}
-              label={cat}
-              onClick={() => setCategory(cat)}
-              sx={{
-                fontWeight: category === cat ? 700 : 400,
-                fontSize: 12,
-                bgcolor: category === cat
-                  ? (CATEGORY_COLORS[cat] ?? '#e0e0e0')
-                  : '#f5f5f5',
-                border: category === cat ? '2px solid' : '1px solid transparent',
-                borderColor: category === cat ? 'primary.main' : 'transparent',
-              }}
-            />
-          ))}
-        </Stack>
+      {/* カテゴリ選択 */}
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+        <Typography variant="caption" color="text.secondary">カテゴリ</Typography>
+        <IconButton size="small" onClick={onEditCategories} sx={{ p: 0.25 }}>
+          <SettingsIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
+        </IconButton>
+      </Stack>
+      <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mb: 1.5 }}>
+        {categories.map((cat) => (
+          <Chip
+            key={cat}
+            label={cat}
+            onClick={() => setCategory(cat)}
+            sx={{
+              fontWeight: category === cat ? 700 : 400,
+              fontSize: 12,
+              bgcolor: category === cat
+                ? (CATEGORY_COLORS[cat] ?? '#e0e0e0')
+                : '#f5f5f5',
+              border: category === cat ? '2px solid' : '1px solid transparent',
+              borderColor: category === cat ? 'primary.main' : 'transparent',
+            }}
+          />
+        ))}
+      </Stack>
 
-        {/* 金額（大きく表示） */}
-        <AmountField
-          large autoFocus
-          value={amount}
-          onChange={setAmount}
-          inputSx={{ mb: 0 }}
-        />
-
-        {/* 支払先（任意） */}
-        <TextField
-          size="small" fullWidth
-          label="支払先（省略可）"
-          placeholder="例: Google, Amazon"
-          value={payee}
-          onChange={(e) => setPayee(e.target.value)}
-          sx={{ mb: 1.5, mt: 1.5 }}
-        />
-
-        {/* 項目名（任意） */}
-        <TextField
-          size="small" fullWidth
-          label="項目名（省略可）"
-          placeholder={category}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-              if (parseAmount(amount) > 0) setConfirm(true)
-            }
-          }}
-          sx={{ mb: 2 }}
-        />
-
-        {/* 追加ボタン（クリック時は即登録） */}
-        <Button
-          variant="contained" fullWidth size="large"
-          onClick={doSave}
-          disabled={parseAmount(amount) <= 0}
-          sx={{ borderRadius: 3, fontWeight: 700, fontSize: 16, py: 1.5 }}
-        >
-          追加
+      {/* 詳細入力トグル */}
+      <Box sx={{ mb: 1 }}>
+        <Button size="small" onClick={() => setShowDetail(!showDetail)}
+          sx={{ fontSize: 11, color: 'text.secondary', textTransform: 'none', p: 0, minWidth: 0 }}>
+          {showDetail ? '▲ 詳細を閉じる' : '▼ 支払先・項目名'}
         </Button>
-      </SwipeableDrawer>
-
-      {/* Enter確定確認ダイアログ */}
-      <Dialog open={confirm} onClose={() => setConfirm(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ pb: 0.5, fontSize: 16 }}>登録確認</DialogTitle>
-        <DialogContent>
-          <Stack spacing={0.5} sx={{ mt: 0.5 }}>
-            <Stack direction="row" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">日付</Typography>
-              <Typography variant="body2">{date}</Typography>
-            </Stack>
-            <Stack direction="row" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">カテゴリ</Typography>
-              <Typography variant="body2">{category}</Typography>
-            </Stack>
-            {payee && (
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="body2" color="text.secondary">支払先</Typography>
-                <Typography variant="body2">{payee}</Typography>
-              </Stack>
-            )}
-            <Stack direction="row" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">項目名</Typography>
-              <Typography variant="body2">{name || category}</Typography>
-            </Stack>
-            <Stack direction="row" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">金額</Typography>
-              <Typography variant="body2" fontWeight={700}>¥{fmt(parseAmount(amount))}</Typography>
-            </Stack>
+        {showDetail && (
+          <Stack spacing={1.5} sx={{ mt: 1 }}>
+            <TextField size="small" fullWidth label="支払先（省略可）" placeholder="例: Google, Amazon"
+              value={payee} onChange={(e) => setPayee(e.target.value)} />
+            <TextField size="small" fullWidth label="項目名（省略可）" placeholder={category}
+              value={name} onChange={(e) => setName(e.target.value)} />
           </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirm(false)} color="inherit" size="small">戻る</Button>
-          <Button onClick={doSave} variant="contained" size="small">登録する</Button>
-        </DialogActions>
-      </Dialog>
-    </>
+        )}
+      </Box>
+
+      {/* 金額ディスプレイ */}
+      <Box sx={{
+        bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
+        display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
+      }}>
+        <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
+        <Typography sx={{
+          color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+          minHeight: 44,
+        }}>
+          {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
+        </Typography>
+      </Box>
+
+      {/* 電卓パッド */}
+      <CalcPad
+        value={amount}
+        onChange={setAmount}
+        onConfirm={doSave}
+        disabled={parseAmount(amount) <= 0}
+      />
+    </SwipeableDrawer>
   )
 }
 
