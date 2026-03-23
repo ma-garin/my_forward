@@ -285,10 +285,10 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs"
-      PaperProps={{ sx: { overflow: 'hidden' } }}>
-      <DialogTitle sx={{ pb: 1 }}>{title}</DialogTitle>
-      <DialogContent sx={{ pb: 0 }}>
-        <Stack spacing={1.5} sx={{ mt: 0.5 }}>
+      PaperProps={{ sx: { overflow: 'hidden', maxHeight: '95vh' } }}>
+      <DialogTitle sx={{ pb: 0.5, fontSize: 16 }}>{title}</DialogTitle>
+      <DialogContent sx={{ pb: 0, overflowY: 'auto', flexShrink: 1 }}>
+        <Stack spacing={1} sx={{ mt: 0.5 }}>
           {!isFixed && (
             <TextField label="日付" type="date" size="small" fullWidth
               InputLabelProps={{ shrink: true }}
@@ -325,13 +325,14 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
       </DialogContent>
       {/* 金額ディスプレイ + 電卓パッド（ダイアログ内埋め込み） */}
       <Box sx={{
-        bgcolor: '#333', px: 2, py: 1,
+        bgcolor: '#333', px: 2, py: 0.5,
         display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
+        flexShrink: 0,
       }}>
-        <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 18, mr: 0.5 }}>¥</Typography>
+        <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 14, mr: 0.5 }}>¥</Typography>
         <Typography sx={{
-          color: '#fff', fontSize: 32, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
-          minHeight: 40,
+          color: '#fff', fontSize: 24, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+          minHeight: 28,
         }}>
           {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
         </Typography>
@@ -369,7 +370,7 @@ const CALC_BG2 = '#616161'
 const CALC_OP  = '#555'
 
 function CalcPad({ value, onChange, onConfirm, disabled, compact = false }) {
-  const CALC_BTN = { minWidth: 0, fontSize: compact ? 16 : 20, fontWeight: 500, borderRadius: 0, py: compact ? 0.8 : 1.8, color: '#fff' }
+  const CALC_BTN = { minWidth: 0, fontSize: compact ? 15 : 20, fontWeight: 500, borderRadius: 0, py: compact ? 0.5 : 1.8, color: '#fff' }
   const [stored, setStored]   = useState(null)
   const [op, setOp]           = useState(null)
   const [fresh, setFresh]     = useState(false)  // 演算子直後か
