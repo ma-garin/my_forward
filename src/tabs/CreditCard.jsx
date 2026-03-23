@@ -162,6 +162,7 @@ function AmountField({ value, onChange, large = false, dark = false, label, plac
         onClose={() => setOpen(false)}
         onOpen={() => {}}
         disableSwipeToOpen
+        disableScrollLock
         sx={{ zIndex: 1500 }}
         PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
       >
@@ -283,10 +284,11 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs"
+      PaperProps={{ sx: { overflow: 'hidden' } }}>
       <DialogTitle sx={{ pb: 1 }}>{title}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 0.5 }}>
+      <DialogContent sx={{ pb: 0 }}>
+        <Stack spacing={1.5} sx={{ mt: 0.5 }}>
           {!isFixed && (
             <TextField label="日付" type="date" size="small" fullWidth
               InputLabelProps={{ shrink: true }}
@@ -306,24 +308,40 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
                 setDay(isNaN(d) ? '' : String(d))
               }} />
           )}
-          <FormControl size="small" fullWidth>
-            <InputLabel>カテゴリ</InputLabel>
-            <Select value={categories.includes(category) ? category : (categories[0] ?? '')}
-              label="カテゴリ" onChange={(e) => setCategory(e.target.value)}>
-              {categories.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-            </Select>
-          </FormControl>
-          <TextField label="支払先" size="small" fullWidth placeholder="例: Google, 東京ガス"
-            value={payee} onChange={(e) => setPayee(e.target.value)} />
+          <Stack direction="row" spacing={1.5}>
+            <FormControl size="small" sx={{ flex: 1 }}>
+              <InputLabel>カテゴリ</InputLabel>
+              <Select value={categories.includes(category) ? category : (categories[0] ?? '')}
+                label="カテゴリ" onChange={(e) => setCategory(e.target.value)}>
+                {categories.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField label="支払先" size="small" sx={{ flex: 1 }} placeholder="例: Google"
+              value={payee} onChange={(e) => setPayee(e.target.value)} />
+          </Stack>
           <TextField label="項目名" size="small" fullWidth placeholder="例: YouTube Premium"
             value={name} onChange={(e) => setName(e.target.value)} />
-          <AmountField label="金額" value={String(amount)} onChange={setAmount} />
         </Stack>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} color="inherit" size="small">キャンセル</Button>
-        <Button onClick={handleSave} variant="contained" size="small">保存</Button>
-      </DialogActions>
+      {/* 金額ディスプレイ + 電卓パッド（ダイアログ内埋め込み） */}
+      <Box sx={{
+        bgcolor: '#333', px: 2, py: 1,
+        display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
+      }}>
+        <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 18, mr: 0.5 }}>¥</Typography>
+        <Typography sx={{
+          color: '#fff', fontSize: 32, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+          minHeight: 40,
+        }}>
+          {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
+        </Typography>
+      </Box>
+      <CalcPad
+        value={String(amount)}
+        onChange={setAmount}
+        onConfirm={handleSave}
+        disabled={!name.trim() || parseAmount(amount) <= 0}
+      />
     </Dialog>
   )
 }
@@ -506,6 +524,7 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
       onClose={onClose}
       onOpen={handleOpen}
       disableSwipeToOpen
+      disableScrollLock
       PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
     >
       {/* ハンドル */}
