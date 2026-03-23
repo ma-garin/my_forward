@@ -4,6 +4,7 @@ import {
   IconButton, Button, TextField, Dialog, DialogTitle, DialogContent,
   DialogActions, Select, MenuItem, FormControl, InputLabel, InputAdornment,
   Table, TableHead, TableBody, TableRow, TableCell, Fab,
+  Snackbar, Alert,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -885,6 +886,9 @@ export default function CreditCard() {
   const [dlg,          setDlg]          = useState(null)
   const [catDlgOpen,   setCatDlgOpen]   = useState(false)
   const [limitInput,   setLimitInput]   = useState(() => loadLimit(cardId))
+  const [snack,        setSnack]        = useState({ open: false, severity: 'success', message: '' })
+
+  const notify = (severity, message) => setSnack({ open: true, severity, message })
 
   const todayStr = new Date().toISOString().slice(0, 10)
 
@@ -904,22 +908,36 @@ export default function CreditCard() {
   }
 
   // 固定費 CRUD
-  const addFixed  = (data) => { const next = [...fixedList, { id: newId(), ...data }]; setFixedList(next); saveFixed(cardId, next) }
-  const editFixed = (data) => { const next = fixedList.map((x) => x.id === dlg.initial.id ? { ...x, ...data } : x); setFixedList(next); saveFixed(cardId, next) }
+  const addFixed = (data) => {
+    try { const next = [...fixedList, { id: newId(), ...data }]; setFixedList(next); saveFixed(cardId, next); notify('success', '固定費を保存しました') }
+    catch { notify('error', '固定費の保存に失敗しました') }
+  }
+  const editFixed = (data) => {
+    try { const next = fixedList.map((x) => x.id === dlg.initial.id ? { ...x, ...data } : x); setFixedList(next); saveFixed(cardId, next); notify('success', '固定費を更新しました') }
+    catch { notify('error', '固定費の更新に失敗しました') }
+  }
   const deleteFixed = useCallback((id) => {
-    const next = fixedList.filter((x) => x.id !== id); setFixedList(next); saveFixed(cardId, next)
+    try { const next = fixedList.filter((x) => x.id !== id); setFixedList(next); saveFixed(cardId, next); notify('success', '固定費を削除しました') }
+    catch { notify('error', '固定費の削除に失敗しました') }
   }, [fixedList, cardId])
 
   // 変動費 CRUD
-  const addVar  = (data) => { const next = [...varList, { id: newId(), ...data }].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1); setVarList(next); saveVar(cardId, ym, next) }
-  const editVar = (data) => { const next = varList.map((x) => x.id === dlg.initial.id ? { ...x, ...data } : x).sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1); setVarList(next); saveVar(cardId, ym, next) }
+  const addVar = (data) => {
+    try { const next = [...varList, { id: newId(), ...data }].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1); setVarList(next); saveVar(cardId, ym, next); notify('success', '変動費を保存しました') }
+    catch { notify('error', '変動費の保存に失敗しました') }
+  }
+  const editVar = (data) => {
+    try { const next = varList.map((x) => x.id === dlg.initial.id ? { ...x, ...data } : x).sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1); setVarList(next); saveVar(cardId, ym, next); notify('success', '変動費を更新しました') }
+    catch { notify('error', '変動費の更新に失敗しました') }
+  }
   const deleteVar = useCallback((id) => {
-    const next = varList.filter((x) => x.id !== id); setVarList(next); saveVar(cardId, ym, next)
+    try { const next = varList.filter((x) => x.id !== id); setVarList(next); saveVar(cardId, ym, next); notify('success', '変動費を削除しました') }
+    catch { notify('error', '変動費の削除に失敗しました') }
   }, [varList, cardId, ym])
 
   const handleCategoryChange = (next) => {
-    setCategories(next)
-    saveCategories(next)
+    try { setCategories(next); saveCategories(next); notify('success', 'カテゴリを保存しました') }
+    catch { notify('error', 'カテゴリの保存に失敗しました') }
   }
 
   const fixedTotal = fixedList.reduce((s, x) => s + x.amount, 0)
@@ -1103,6 +1121,24 @@ export default function CreditCard() {
       >
         <AddIcon />
       </Fab>
+
+      {/* 保存通知 */}
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={2500}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{ bottom: { xs: 80 } }}
+      >
+        <Alert
+          onClose={() => setSnack((s) => ({ ...s, open: false }))}
+          severity={snack.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snack.message}
+        </Alert>
+      </Snackbar>
 
     </Box>
   )
