@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   Box, Card, CardContent, Typography, Slider, TextField,
   Divider, Stack, Button, Chip, InputAdornment,
@@ -147,6 +147,18 @@ function QuadAutoRow({ label, valueC, valueX, valueR, valueF }) {
 function OvertimeInput({ overtime, onChange }) {
   const hours   = Math.floor(overtime)
   const minutes = Math.round((overtime - hours) * 60)
+  const [hText, setHText] = useState(String(hours))
+  const [mText, setMText] = useState(String(minutes))
+  const [hFocus, setHFocus] = useState(false)
+  const [mFocus, setMFocus] = useState(false)
+
+  // 外部から overtime が変わった場合のみ同期（フォーカス中は除く）
+  useEffect(() => {
+    if (!hFocus) setHText(String(hours))
+  }, [hours, hFocus])
+  useEffect(() => {
+    if (!mFocus) setMText(String(minutes))
+  }, [minutes, mFocus])
 
   const addHours = (d) => { const h = Math.max(0, hours + d); onChange(h + minutes / 60) }
   const addMins  = (d) => {
@@ -168,8 +180,15 @@ function OvertimeInput({ overtime, onChange }) {
           <TextField
             size="small" type="number"
             inputProps={{ min: 0, max: 999, style: { width: 48, textAlign: 'center', fontSize: 16, fontWeight: 700 } }}
-            value={hours}
-            onChange={(e) => { const h = Math.max(0, parseInt(e.target.value, 10) || 0); onChange(h + minutes / 60) }}
+            value={hText}
+            onChange={(e) => setHText(e.target.value)}
+            onFocus={() => setHFocus(true)}
+            onBlur={() => {
+              setHFocus(false)
+              const h = Math.max(0, parseInt(hText, 10) || 0)
+              setHText(String(h))
+              onChange(h + minutes / 60)
+            }}
             sx={{ '& .MuiInputBase-root': { height: 36 } }}
             InputProps={{ endAdornment: <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5, whiteSpace: 'nowrap' }}>時間</Typography> }}
           />
@@ -182,8 +201,15 @@ function OvertimeInput({ overtime, onChange }) {
           <TextField
             size="small" type="number"
             inputProps={{ min: 0, max: 59, style: { width: 36, textAlign: 'center', fontSize: 16, fontWeight: 700 } }}
-            value={minutes}
-            onChange={(e) => { const m = Math.min(59, Math.max(0, parseInt(e.target.value, 10) || 0)); onChange(hours + m / 60) }}
+            value={mText}
+            onChange={(e) => setMText(e.target.value)}
+            onFocus={() => setMFocus(true)}
+            onBlur={() => {
+              setMFocus(false)
+              const m = Math.min(59, Math.max(0, parseInt(mText, 10) || 0))
+              setMText(String(m))
+              onChange(hours + m / 60)
+            }}
             sx={{ '& .MuiInputBase-root': { height: 36 } }}
             InputProps={{ endAdornment: <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>分</Typography> }}
           />
