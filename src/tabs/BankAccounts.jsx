@@ -126,7 +126,7 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
     setFresh(false)
   }
 
-  const pressConfirm = () => {
+  const pressEquals = () => {
     if (stored !== null && op) {
       const result = calc(stored, parseAmount(value), op)
       onChange(String(result))
@@ -134,6 +134,10 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
       setOp(null)
       setFresh(false)
     }
+  }
+
+  const pressConfirm = () => {
+    pressEquals()
     onConfirm()
   }
 
@@ -153,7 +157,7 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
     <Box sx={{
       display: 'grid',
       gridTemplateColumns: 'repeat(4, 1fr)',
-      gridTemplateRows: 'repeat(5, 1fr)',
+      gridTemplateRows: 'repeat(6, 1fr)',
       gap: '1px',
       bgcolor: '#333',
       borderRadius: 2,
@@ -176,8 +180,18 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
       {btn('1', () => pressDigit('1'))}
       {btn('2', () => pressDigit('2'))}
       {btn('3', () => pressDigit('3'))}
+      {btn('=', pressEquals, {
+        bgcolor: '#ff9800',
+        fontWeight: 700,
+        fontSize: 24,
+        '&:hover': { bgcolor: '#ffa726' },
+        '&:active': { bgcolor: '#e65100' },
+      })}
+
+      {btn('0',  () => pressDigit('0'))}
+      {btn('00', () => pressDigit('00'))}
       {btn('確定', pressConfirm, {
-        gridRow: 'span 2',
+        gridColumn: 'span 2',
         bgcolor: disabled ? '#bdbdbd' : '#f57c00',
         color: '#fff',
         fontWeight: 700,
@@ -185,10 +199,6 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
         '&:hover': { bgcolor: disabled ? '#bdbdbd' : '#ef6c00' },
         '&:active': { bgcolor: disabled ? '#bdbdbd' : '#e65100' },
       })}
-
-      {btn('.',  () => {}, { bgcolor: CALC_BG, pointerEvents: 'none', opacity: 0.3 })}
-      {btn('0',  () => pressDigit('0'))}
-      {btn('00', () => pressDigit('00'))}
     </Box>
   )
 }
