@@ -76,19 +76,148 @@ const AMOUNT_STEPS = [
   { label: '+10,000', step: 10000 },
 ]
 
+// ─── 電卓パッド ─────────────────────────────────────────
+
+const CALC_BTN = { minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0, py: 1.8, color: '#fff' }
+const CALC_BG  = '#424242'
+const CALC_BG2 = '#616161'
+const CALC_OP  = '#555'
+
+function CalcPad({ value, onChange, onConfirm, disabled }) {
+  const [stored, setStored]   = useState(null)
+  const [op, setOp]           = useState(null)
+  const [fresh, setFresh]     = useState(false)
+
+  const calc = (a, b, operator) => {
+    switch (operator) {
+      case '+': return a + b
+      case '−': return a - b
+      case '×': return a * b
+      case '÷': return b !== 0 ? Math.floor(a / b) : a
+      default:  return b
+    }
+  }
+
+  const pressDigit = (d) => {
+    if (fresh) { onChange(d); setFresh(false) }
+    else {
+      const cur = value === '0' ? '' : (value ?? '')
+      onChange(cur + d)
+    }
+  }
+
+  const pressOp = (next) => {
+    const cur = parseAmount(value)
+    if (stored !== null && op && !fresh) {
+      const result = calc(stored, cur, op)
+      setStored(result)
+      onChange(String(result))
+    } else {
+      setStored(cur)
+    }
+    setOp(next)
+    setFresh(true)
+  }
+
+  const pressClear = () => {
+    onChange('')
+    setStored(null)
+    setOp(null)
+    setFresh(false)
+  }
+
+  const pressConfirm = () => {
+    if (stored !== null && op) {
+      const result = calc(stored, parseAmount(value), op)
+      onChange(String(result))
+      setStored(null)
+      setOp(null)
+      setFresh(false)
+    }
+    onConfirm()
+  }
+
+  const btn = (label, onClick, sx = {}) => (
+    <Button key={label} onClick={onClick}
+      sx={{ ...CALC_BTN, bgcolor: CALC_BG, '&:hover': { bgcolor: CALC_BG2 }, '&:active': { bgcolor: '#757575' }, ...sx }}>
+      {label}
+    </Button>
+  )
+
+  const opBtn = (label) => btn(label, () => pressOp(label), {
+    bgcolor: op === label && fresh ? '#ff9800' : CALC_OP,
+    '&:hover': { bgcolor: op === label && fresh ? '#ffa726' : CALC_BG2 },
+  })
+
+  return (
+    <Box sx={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, 1fr)',
+      gridTemplateRows: 'repeat(5, 1fr)',
+      gap: '1px',
+      bgcolor: '#333',
+      borderRadius: 2,
+      overflow: 'hidden',
+    }}>
+      {btn('C', pressClear, { gridColumn: 'span 2', bgcolor: '#555', '&:hover': { bgcolor: '#666' } })}
+      {opBtn('÷')}
+      {opBtn('×')}
+
+      {btn('7', () => pressDigit('7'))}
+      {btn('8', () => pressDigit('8'))}
+      {btn('9', () => pressDigit('9'))}
+      {opBtn('−')}
+
+      {btn('4', () => pressDigit('4'))}
+      {btn('5', () => pressDigit('5'))}
+      {btn('6', () => pressDigit('6'))}
+      {opBtn('+')}
+
+      {btn('1', () => pressDigit('1'))}
+      {btn('2', () => pressDigit('2'))}
+      {btn('3', () => pressDigit('3'))}
+      {btn('確定', pressConfirm, {
+        gridRow: 'span 2',
+        bgcolor: disabled ? '#bdbdbd' : '#f57c00',
+        color: '#fff',
+        fontWeight: 700,
+        fontSize: 18,
+        '&:hover': { bgcolor: disabled ? '#bdbdbd' : '#ef6c00' },
+        '&:active': { bgcolor: disabled ? '#bdbdbd' : '#e65100' },
+      })}
+
+      {btn('.',  () => {}, { bgcolor: CALC_BG, pointerEvents: 'none', opacity: 0.3 })}
+      {btn('0',  () => pressDigit('0'))}
+      {btn('00', () => pressDigit('00'))}
+    </Box>
+  )
+}
+
 function AmountField({ value, onChange, large = false, label, placeholder = '0', autoFocus = false, inputSx = {} }) {
-  const handleChange = (e) => onChange(e.target.value.replace(/[^0-9]/g, ''))
-  const handleStep  = (step) => onChange(String(parseAmount(value) + step))
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  const handleOpen = () => {
+    setDraft(String(parseAmount(value) || ''))
+    setOpen(true)
+  }
+  const handleConfirm = () => {
+    onChange(draft.replace(/[^0-9]/g, ''))
+    setOpen(false)
+  }
+
   return (
     <Box>
       <TextField
         fullWidth label={label} size={large ? undefined : 'small'}
-        inputMode="numeric" placeholder={placeholder} autoFocus={autoFocus}
-        value={fmtInput(value)} onChange={handleChange}
+        placeholder={placeholder}
+        value={fmtInput(value)}
+        onClick={handleOpen}
         inputProps={{
+          readOnly: true,
           style: large
             ? { fontSize: 32, fontWeight: 700, textAlign: 'center' }
-            : { fontSize: 14, textAlign: 'right' },
+            : { fontSize: 14, textAlign: 'right', cursor: 'pointer' },
         }}
         InputProps={{
           startAdornment: large
@@ -97,14 +226,37 @@ function AmountField({ value, onChange, large = false, label, placeholder = '0',
         }}
         sx={{ ...(large ? { '& .MuiInputBase-root': { height: 64 } } : {}), ...inputSx }}
       />
-      <Stack direction="row" gap={0.75} sx={{ mt: 0.75 }}>
-        {AMOUNT_STEPS.map(({ label: lbl, step }) => (
-          <Button key={lbl} size="small" variant="outlined" onClick={() => handleStep(step)}
-            sx={{ flex: 1, fontSize: 11, py: 0.25, minWidth: 0 }}>
-            {lbl}
-          </Button>
-        ))}
-      </Stack>
+
+      <SwipeableDrawer
+        anchor="bottom"
+        open={open}
+        onClose={() => setOpen(false)}
+        onOpen={() => {}}
+        disableSwipeToOpen
+        sx={{ zIndex: 1400 }}
+        PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
+      >
+        <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
+        {label && <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>{label}</Typography>}
+        <Box sx={{
+          bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
+          display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
+        }}>
+          <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
+          <Typography sx={{
+            color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+            minHeight: 44,
+          }}>
+            {parseAmount(draft) > 0 ? fmt(parseAmount(draft)) : '0'}
+          </Typography>
+        </Box>
+        <CalcPad
+          value={draft}
+          onChange={setDraft}
+          onConfirm={handleConfirm}
+          disabled={parseAmount(draft) <= 0}
+        />
+      </SwipeableDrawer>
     </Box>
   )
 }
@@ -285,30 +437,42 @@ function QuickAddDrawer({ open, onClose, onSave, accounts, defaultDate }) {
         ))}
       </Stack>
 
-      <AmountField large autoFocus value={amount} onChange={setAmount} />
-
       <TextField size="small" fullWidth label="摘要（省略可）"
         value={name} onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-        sx={{ mb: 1.5, mt: 1.5 }} />
+        sx={{ mb: 1.5 }} />
 
       {type === 'transfer' ? (
-        <Stack spacing={1.5} sx={{ mb: 2 }}>
+        <Stack spacing={1.5} sx={{ mb: 1.5 }}>
           <AccountSelect accounts={accounts} value={fromAccountId} onChange={setFromAccountId} label="振替元" />
           <AccountSelect accounts={accounts} value={toAccountId}   onChange={setToAccountId}   label="振替先" />
         </Stack>
       ) : (
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 1.5 }}>
           <AccountSelect accounts={accounts} value={accountId} onChange={setAccountId} />
         </Box>
       )}
 
-      <Button variant="contained" fullWidth size="large" onClick={handleSave}
+      {/* 金額ディスプレイ */}
+      <Box sx={{
+        bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
+        display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
+      }}>
+        <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
+        <Typography sx={{
+          color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+          minHeight: 44,
+        }}>
+          {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
+        </Typography>
+      </Box>
+
+      {/* 電卓パッド */}
+      <CalcPad
+        value={amount}
+        onChange={setAmount}
+        onConfirm={handleSave}
         disabled={parseAmount(amount) <= 0}
-        sx={{ borderRadius: 3, fontWeight: 700, fontSize: 16, py: 1.5,
-          bgcolor: typeConfig[type].col, '&:hover': { bgcolor: typeConfig[type].col, opacity: 0.9 } }}>
-        追加
-      </Button>
+      />
     </SwipeableDrawer>
   )
 }
