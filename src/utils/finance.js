@@ -241,6 +241,17 @@ export function saveFixedEvents(list) {
   localStorage.setItem('bank_fixed_events', JSON.stringify(list))
 }
 
+// ─── 摘要上書き（自動イベント用）──────────────────────────
+
+export function loadNameOverrides() {
+  try { return JSON.parse(localStorage.getItem('bank_name_overrides') || '{}') }
+  catch { return {} }
+}
+
+export function saveNameOverrides(obj) {
+  localStorage.setItem('bank_name_overrides', JSON.stringify(obj))
+}
+
 // ─── 自動イベント生成（CC支払い・給与・固定繰返し）────────
 
 export function buildAutoEvents(ym, accounts, fixedEvents = []) {
