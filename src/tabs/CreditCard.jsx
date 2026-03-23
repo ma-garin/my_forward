@@ -112,28 +112,16 @@ const AMOUNT_STEPS = [
  *   inputSx    : TextField sx 追記
  */
 function AmountField({ value, onChange, large = false, dark = false, label, placeholder = '0', autoFocus = false, inputSx = {} }) {
-  const [editing, setEditing] = useState(false)
-  const [localVal, setLocalVal] = useState('')
-  const composing = useRef(false)
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState('')
 
-  const handleFocus = () => {
-    setEditing(true)
-    setLocalVal(String(parseAmount(value) || ''))
+  const handleOpen = () => {
+    setDraft(String(parseAmount(value) || ''))
+    setOpen(true)
   }
-  const handleBlur = () => {
-    setEditing(false)
-    onChange(localVal.replace(/[^0-9]/g, ''))
-  }
-  const handleChange = (e) => {
-    if (composing.current) return
-    const raw = e.target.value.replace(/[^0-9]/g, '')
-    setLocalVal(raw)
-    onChange(raw)
-  }
-  const handleStep = (step) => {
-    const next = String(parseAmount(value) + step)
-    setLocalVal(next)
-    onChange(next)
+  const handleConfirm = () => {
+    onChange(draft.replace(/[^0-9]/g, ''))
+    setOpen(false)
   }
 
   const darkSx = dark ? {
@@ -149,19 +137,14 @@ function AmountField({ value, onChange, large = false, dark = false, label, plac
         fullWidth
         label={label}
         size={large ? undefined : 'small'}
-        inputMode="numeric"
         placeholder={placeholder}
-        autoFocus={autoFocus}
-        value={editing ? localVal : fmtInput(value)}
-        onChange={handleChange}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        onCompositionStart={() => { composing.current = true }}
-        onCompositionEnd={(e) => { composing.current = false; handleChange(e) }}
+        value={fmtInput(value)}
+        onClick={handleOpen}
         inputProps={{
+          readOnly: true,
           style: large
             ? { fontSize: 32, fontWeight: 700, textAlign: 'center', color: dark ? '#fff' : undefined }
-            : { fontSize: 14, color: dark ? '#fff' : undefined, textAlign: 'right' },
+            : { fontSize: 14, color: dark ? '#fff' : undefined, textAlign: 'right', cursor: 'pointer' },
         }}
         InputProps={{
           startAdornment: large
@@ -172,24 +155,41 @@ function AmountField({ value, onChange, large = false, dark = false, label, plac
         }}
         sx={{ ...(large ? { '& .MuiInputBase-root': { height: 64 } } : {}), ...darkSx, ...inputSx }}
       />
-      <Stack direction="row" gap={0.75} sx={{ mt: 0.75 }}>
-        {AMOUNT_STEPS.map(({ label: lbl, step }) => (
-          <Button key={lbl} size="small" variant="outlined" onClick={() => handleStep(step)}
-            sx={{
-              flex: 1, fontSize: 11, py: 0.25, minWidth: 0,
-              ...(dark ? {
-                color: 'rgba(255,255,255,.75)',
-                borderColor: 'rgba(255,255,255,.3)',
-                '&:hover': { borderColor: 'rgba(255,255,255,.6)', bgcolor: 'rgba(255,255,255,.1)' },
-              } : {}),
-            }}>
-            {lbl}
-          </Button>
-        ))}
-      </Stack>
+
+      <SwipeableDrawer
+        anchor="bottom"
+        open={open}
+        onClose={() => setOpen(false)}
+        onOpen={() => {}}
+        disableSwipeToOpen
+        PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
+      >
+        <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
+        {label && <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>{label}</Typography>}
+        <Box sx={{
+          bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
+          display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
+        }}>
+          <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
+          <Typography sx={{
+            color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+            minHeight: 44,
+          }}>
+            {parseAmount(draft) > 0 ? fmt(parseAmount(draft)) : '0'}
+          </Typography>
+        </Box>
+        <CalcPad
+          value={draft}
+          onChange={setDraft}
+          onConfirm={handleConfirm}
+          disabled={parseAmount(draft) <= 0}
+        />
+      </SwipeableDrawer>
     </Box>
   )
 }
+
+/* legacy step buttons removed — CalcPad replaces them */
 
 // ─── カテゴリ管理ダイアログ ────────────────────────────────
 
