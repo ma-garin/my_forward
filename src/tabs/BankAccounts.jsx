@@ -22,6 +22,7 @@ import {
   loadOpeningBalances, saveOpeningBalances,
   loadManualEvents, saveManualEvents,
   loadFixedEvents, saveFixedEvents,
+  loadNameOverrides, saveNameOverrides,
   buildAutoEvents, loadSnapshot, saveSnapshot,
   fmt, ymStr, newId,
 } from '../utils/finance'
@@ -437,9 +438,52 @@ function SummaryCards({ accounts, openingBalances, events, colorMap }) {
   )
 }
 
+// ─── InlineEditName: 摘要インライン編集 ──────────────────
+
+function InlineEditName({ value, onSave, fontSize = 12, fontWeight = 400 }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+
+  const commit = () => {
+    const trimmed = draft.trim()
+    if (trimmed && trimmed !== value) onSave(trimmed)
+    else setDraft(value)
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <TextField
+        variant="standard"
+        size="small"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); commit() }
+          if (e.key === 'Escape') { setDraft(value); setEditing(false) }
+        }}
+        autoFocus
+        inputProps={{ style: { fontSize, fontWeight, padding: 0 } }}
+        sx={{ '& .MuiInput-underline:before': { borderBottom: '1px solid #90a4ae' } }}
+      />
+    )
+  }
+
+  return (
+    <Typography
+      variant="body2"
+      onClick={() => { setDraft(value); setEditing(true) }}
+      sx={{ fontSize, fontWeight, cursor: 'text', '&:hover': { bgcolor: '#f5f5f5', borderRadius: 0.5 } }}
+    >
+      {value}
+    </Typography>
+  )
+}
+
 // ─── F: タイムライン表示（手動イベント編集付き）──────────
 
-function TimelineView({ accounts, openingBalances, events, onEdit, onDelete }) {
+function TimelineView({ accounts, openingBalances, events, onEdit, onDelete, onNameEdit }) {
   const accMap = Object.fromEntries(accounts.map((a) => [a.id, a.name]))
 
   const runBal = {}
@@ -492,7 +536,12 @@ function TimelineView({ accounts, openingBalances, events, onEdit, onDelete }) {
                   <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
                     <Stack sx={{ flex: 1, minWidth: 0 }}>
                       <Stack direction="row" alignItems="center" gap={0.75} flexWrap="wrap">
-                        <Typography variant="body2" fontWeight={600} sx={{ fontSize: 13 }}>{ev.name}</Typography>
+                        <InlineEditName
+                          value={ev.name}
+                          onSave={(n) => onNameEdit(ev.id, ev.source, n, ev.fixedId)}
+                          fontSize={13}
+                          fontWeight={600}
+                        />
                         {autoLabel && (
                           <Chip label={autoLabel} size="small" sx={{
                             height: 14, fontSize: 8,
@@ -585,7 +634,7 @@ function buildGroupedHeader(accounts) {
   return headerCells
 }
 
-function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, onDelete, ym }) {
+function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, onDelete, onNameEdit, ym }) {
   const initBal = {}
   accounts.forEach((a) => { initBal[a.id] = openingBalances[a.id] ?? 0 })
 
@@ -774,9 +823,12 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
                 <TableCell sx={{ borderBottom: '1px solid #f0f0f0', py: 0.5, px: 1 }}>
                   {!isBlank && !isOpening && (
                     <>
-                      <Typography variant="body2" sx={{ fontSize: 12, fontWeight: isManual ? 600 : 400 }}>
-                        {row.label ?? row.name}
-                      </Typography>
+                      <InlineEditName
+                        value={row.label ?? row.name}
+                        onSave={(n) => onNameEdit(row.id, row.source, n, row.fixedId)}
+                        fontSize={12}
+                        fontWeight={isManual ? 600 : 400}
+                      />
                       <Typography variant="caption" sx={{
                         fontSize: 10,
                         color: isTransfer ? '#1565c0' : row.sign > 0 ? '#2e7d32' : '#c62828',
@@ -1109,6 +1161,8 @@ export default function BankAccounts() {
   const [manualEvents,    setManualEvents]    = useState(() => loadManualEvents(ym))
   const [fixedEvents,     setFixedEvents]     = useState(loadFixedEvents)
 
+  const [nameOverrides, setNameOverrides] = useState(loadNameOverrides)
+
   const [evDlg,     setEvDlg]     = useState(null)
   const [fixedDlg,  setFixedDlg]  = useState(null)
   const [quickOpen, setQuickOpen] = useState(false)
@@ -1129,7 +1183,10 @@ export default function BankAccounts() {
   }
 
   const autoEvents = useMemo(() => buildAutoEvents(ym, accounts, fixedEvents), [ym, accounts, fixedEvents])
-  const allEvents  = useMemo(() => [...autoEvents, ...manualEvents], [autoEvents, manualEvents])
+  const allEvents  = useMemo(() => {
+    const autos = autoEvents.map(ev => nameOverrides[ev.id] ? { ...ev, name: nameOverrides[ev.id] } : ev)
+    return [...autos, ...manualEvents]
+  }, [autoEvents, manualEvents, nameOverrides])
 
   // G: 最終残高を計算してスナップショット保存
   const finalTotal = useMemo(() => {
@@ -1202,6 +1259,20 @@ export default function BankAccounts() {
     setFixedEvents(next); saveFixedEvents(next)
   }, [fixedEvents])
 
+  // 摘要インライン編集ハンドラ
+  const handleInlineNameEdit = useCallback((eventId, source, newName, fixedId) => {
+    if (source === 'manual') {
+      const next = manualEvents.map((x) => x.id === eventId ? { ...x, name: newName } : x)
+      setManualEvents(next); saveManualEvents(ym, next)
+    } else if (source === 'fixed' && fixedId) {
+      const next = fixedEvents.map((x) => x.id === fixedId ? { ...x, name: newName } : x)
+      setFixedEvents(next); saveFixedEvents(next)
+    } else {
+      const next = { ...nameOverrides, [eventId]: newName }
+      setNameOverrides(next); saveNameOverrides(next)
+    }
+  }, [manualEvents, fixedEvents, nameOverrides, ym])
+
   // B + F: テーブル・タイムラインからの編集用ハンドラ
   const handleEditEvent  = useCallback((ev) => setEvDlg({ type: 'edit', initial: ev }), [])
   const handleDeleteEvent = deleteEvent
@@ -1256,13 +1327,15 @@ export default function BankAccounts() {
         {viewMode === 'table' ? (
           <CashFlowTable
             accounts={accounts} openingBalances={openingBalances} events={allEvents}
-            colorMap={colorMap} onEdit={handleEditEvent} onDelete={handleDeleteEvent} ym={ym}
+            colorMap={colorMap} onEdit={handleEditEvent} onDelete={handleDeleteEvent}
+            onNameEdit={handleInlineNameEdit} ym={ym}
           />
         ) : (
           <CardContent sx={{ px: 1.5, py: 1.5, '&:last-child': { pb: 1.5 } }}>
             <TimelineView
               accounts={accounts} openingBalances={openingBalances} events={allEvents}
               onEdit={handleEditEvent} onDelete={handleDeleteEvent}
+              onNameEdit={handleInlineNameEdit}
             />
           </CardContent>
         )}
