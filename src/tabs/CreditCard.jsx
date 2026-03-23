@@ -162,6 +162,7 @@ function AmountField({ value, onChange, large = false, dark = false, label, plac
         onClose={() => setOpen(false)}
         onOpen={() => {}}
         disableSwipeToOpen
+        sx={{ zIndex: 1400 }}
         PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
       >
         <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
