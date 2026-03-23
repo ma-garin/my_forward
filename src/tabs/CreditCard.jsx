@@ -269,6 +269,7 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
   const [category, setCategory] = useState(initial?.category ?? categories[0] ?? 'その他')
   const [date,     setDate]     = useState(initial?.date     ?? '')
   const [day,      setDay]      = useState(initial?.day      ?? '')
+  const [startYm,  setStartYm]  = useState(initial?.startYm  ?? '')
 
   const isFixed = title?.includes('固定')
 
@@ -278,7 +279,7 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
     const d = parseInt(day, 10)
     onSave({
       name: name.trim(), payee: payee.trim(), amount: a, category,
-      ...(isFixed ? { day: (!isNaN(d) && d >= 1 && d <= 31) ? d : undefined } : { date }),
+      ...(isFixed ? { day: (!isNaN(d) && d >= 1 && d <= 31) ? d : undefined, startYm: startYm || undefined } : { date }),
     })
     onClose()
   }
@@ -295,18 +296,25 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
               value={date} onChange={(e) => setDate(e.target.value)} />
           )}
           {isFixed && (
-            <TextField label="支払日" type="date" size="small" fullWidth
-              InputLabelProps={{ shrink: true }}
-              value={(() => {
-                if (!day) return ''
-                const now = new Date()
-                const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-                return `${ym}-${String(day).padStart(2, '0')}`
-              })()}
-              onChange={(e) => {
-                const d = e.target.value ? parseInt(e.target.value.slice(8), 10) : ''
-                setDay(isNaN(d) ? '' : String(d))
-              }} />
+            <>
+              <TextField label="支払日" type="date" size="small" fullWidth
+                InputLabelProps={{ shrink: true }}
+                value={(() => {
+                  if (!day) return ''
+                  const now = new Date()
+                  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+                  return `${ym}-${String(day).padStart(2, '0')}`
+                })()}
+                onChange={(e) => {
+                  const d = e.target.value ? parseInt(e.target.value.slice(8), 10) : ''
+                  setDay(isNaN(d) ? '' : String(d))
+                }} />
+              <TextField label="開始年月" type="month" size="small" fullWidth
+                InputLabelProps={{ shrink: true }}
+                value={startYm}
+                onChange={(e) => setStartYm(e.target.value)}
+                helperText="未設定の場合は全ての月に反映されます" />
+            </>
           )}
           <Stack direction="row" spacing={1.5}>
             <FormControl size="small" sx={{ flex: 1 }}>
@@ -709,6 +717,11 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete }) {
                     毎月{item.day}日
                   </Typography>
                 )}
+                {item.startYm && (
+                  <Typography component="div" variant="caption" color="text.disabled" sx={{ fontSize: 10, lineHeight: 1.2 }}>
+                    {item.startYm.replace('-', '/')}〜
+                  </Typography>
+                )}
               </TableCell>
               <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', fontWeight: 500 }}>¥{fmt(item.amount)}</TableCell>
               <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', color: 'text.secondary' }}>¥{fmt(item.subtotal)}</TableCell>
@@ -1069,7 +1082,9 @@ export default function CreditCard() {
     catch { notify('error', 'カテゴリの保存に失敗しました') }
   }
 
-  const fixedTotal = fixedList.reduce((s, x) => s + x.amount, 0)
+  // 開始年月でフィルタリングされた固定費（選択中の月に有効なもののみ）
+  const filteredFixed = fixedList.filter((x) => !x.startYm || x.startYm <= ym)
+  const fixedTotal = filteredFixed.reduce((s, x) => s + x.amount, 0)
   const varTotal   = varList.reduce((s, x)   => s + x.amount, 0)
   const grandTotal = fixedTotal + varTotal
 
@@ -1189,7 +1204,7 @@ export default function CreditCard() {
         </Box>
         <CardContent sx={{ px: 0, py: 0, '&:last-child': { pb: 0 } }}>
           <FixedExpenseTable
-            fixedList={fixedList}
+            fixedList={filteredFixed}
             onEdit={(it) => setDlg({ type: 'fixed', initial: it })}
             onDelete={deleteFixed}
           />
@@ -1220,10 +1235,10 @@ export default function CreditCard() {
       </Card>
 
       {/* カテゴリ別グラフ */}
-      <CategoryChart fixedList={fixedList} varList={varList} />
+      <CategoryChart fixedList={filteredFixed} varList={varList} />
 
       {/* カテゴリ別集計 */}
-      <CategoryBreakdown fixedList={fixedList} varList={varList} />
+      <CategoryBreakdown fixedList={filteredFixed} varList={varList} />
 
       {/* ダイアログ */}
       {dlg?.type === 'fixed' && (
