@@ -4,7 +4,7 @@ import {
   IconButton, Button, TextField, Dialog, DialogTitle, DialogContent,
   DialogActions, Select, MenuItem, FormControl, InputLabel, InputAdornment,
   Table, TableHead, TableBody, TableRow, TableCell, Fab,
-  Snackbar, Alert,
+  Snackbar, Alert, Collapse,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -14,6 +14,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import SettingsIcon from '@mui/icons-material/Settings'
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import {
   getCCTotal, loadCategories, saveCategories,
   getSalaryTakeHome, DEFAULT_JCB_FIXED,
@@ -1029,6 +1030,8 @@ export default function CreditCard() {
   const [catDlgOpen,   setCatDlgOpen]   = useState(false)
   const [limitInput,   setLimitInput]   = useState(() => loadLimit(cardId))
   const [snack,        setSnack]        = useState({ open: false, severity: 'success', message: '' })
+  const [fixedOpen,    setFixedOpen]    = useState(false)
+  const [varOpen,      setVarOpen]      = useState(false)
 
   const notify = (severity, message) => setSnack({ open: true, severity, message })
 
@@ -1190,48 +1193,60 @@ export default function CreditCard() {
 
       {/* 固定費テーブル */}
       <Card sx={{ mb: 1.5 }}>
-        <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box
+          onClick={() => setFixedOpen((v) => !v)}
+          sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}
+        >
           <Stack direction="row" alignItems="center" gap={1}>
+            <ExpandMoreIcon sx={{ fontSize: 16, color: '#fff', transform: fixedOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>固定費</Typography>
             <Chip label="毎月" size="small" sx={{ height: 16, fontSize: 9, bgcolor: 'rgba(255,255,255,.2)', color: '#fff' }} />
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.8)', fontWeight: 600 }}>¥{fmt(fixedTotal)}</Typography>
-            <IconButton size="small" onClick={() => setDlg({ type: 'fixed' })} sx={{ p: 0.25, color: '#fff' }}>
+            <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'fixed' }) }} sx={{ p: 0.25, color: '#fff' }}>
               <AddIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Stack>
         </Box>
-        <CardContent sx={{ px: 0, py: 0, '&:last-child': { pb: 0 } }}>
-          <FixedExpenseTable
-            fixedList={filteredFixed}
-            onEdit={(it) => setDlg({ type: 'fixed', initial: it })}
-            onDelete={deleteFixed}
-          />
-        </CardContent>
+        <Collapse in={fixedOpen}>
+          <CardContent sx={{ px: 0, py: 0, '&:last-child': { pb: 0 } }}>
+            <FixedExpenseTable
+              fixedList={filteredFixed}
+              onEdit={(it) => setDlg({ type: 'fixed', initial: it })}
+              onDelete={deleteFixed}
+            />
+          </CardContent>
+        </Collapse>
       </Card>
 
       {/* 変動費 */}
       <Card sx={{ mb: 1.5 }}>
-        <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box
+          onClick={() => setVarOpen((v) => !v)}
+          sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}
+        >
           <Stack direction="row" alignItems="center" gap={1}>
+            <ExpandMoreIcon sx={{ fontSize: 16, color: '#fff', transform: varOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>変動費</Typography>
             <Chip label={`${year}年${month}月`} size="small" sx={{ height: 16, fontSize: 9, bgcolor: 'rgba(255,255,255,.2)', color: '#fff' }} />
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.8)', fontWeight: 600 }}>¥{fmt(varTotal)}</Typography>
-            <IconButton size="small" onClick={() => setDlg({ type: 'var' })} sx={{ p: 0.25, color: '#fff' }}>
+            <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'var' }) }} sx={{ p: 0.25, color: '#fff' }}>
               <AddIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Stack>
         </Box>
-        <CardContent sx={{ px: 0, py: 0, '&:last-child': { pb: 0 } }}>
-          <VarExpenseTable
-            varList={varList}
-            onEdit={(it) => setDlg({ type: 'var', initial: it })}
-            onDelete={deleteVar}
-          />
-        </CardContent>
+        <Collapse in={varOpen}>
+          <CardContent sx={{ px: 0, py: 0, '&:last-child': { pb: 0 } }}>
+            <VarExpenseTable
+              varList={varList}
+              onEdit={(it) => setDlg({ type: 'var', initial: it })}
+              onDelete={deleteVar}
+            />
+          </CardContent>
+        </Collapse>
       </Card>
 
       {/* カテゴリ別グラフ */}
