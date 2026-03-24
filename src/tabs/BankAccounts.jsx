@@ -1471,13 +1471,38 @@ export default function BankAccounts() {
 
   const colorMap = useMemo(() => buildColorMap(accounts), [accounts])
 
+  // 指定月の前月末残高を計算する
+  const calcPrevEndBal = useCallback((y, m) => {
+    let py = y, pm = m - 1
+    if (pm < 1) { py--; pm = 12 }
+    const prevYm      = ymStr(py, pm)
+    const prevOpening = loadOpeningBalances(prevYm)
+    const prevManual  = loadManualEvents(prevYm)
+    const prevAuto    = buildAutoEvents(prevYm, accounts, fixedEvents)
+    const prevAll     = [...prevAuto, ...prevManual]
+    const bal = {}
+    accounts.forEach((a) => { bal[a.id] = prevOpening[a.id] ?? 0 })
+    prevAll.forEach((ev) => {
+      if (ev.type === 'transfer') {
+        bal[ev.fromAccountId] = (bal[ev.fromAccountId] ?? 0) - ev.amount
+        bal[ev.toAccountId]   = (bal[ev.toAccountId]   ?? 0) + ev.amount
+      } else {
+        bal[ev.accountId] = (bal[ev.accountId] ?? 0) + ev.sign * ev.amount
+      }
+    })
+    return bal
+  }, [accounts, fixedEvents])
+
+  // 月切り替え時に前月末残高を自動引き継ぎ
   const changeMonth = (delta) => {
     let y = year, m = month + delta
     if (m > 12) { y++; m = 1 }
     if (m < 1)  { y--; m = 12 }
     const newYm = ymStr(y, m)
+    const carryBal = calcPrevEndBal(y, m)
+    saveOpeningBalances(newYm, carryBal)
     setYear(y); setMonth(m)
-    setOpeningBalances(loadOpeningBalances(newYm))
+    setOpeningBalances(carryBal)
     setManualEvents(loadManualEvents(newYm))
   }
 
@@ -1508,27 +1533,20 @@ export default function BankAccounts() {
 
   const handleOpeningChange = (next) => { setOpeningBalances(next); saveOpeningBalances(ym, next) }
 
-  // A: 前月末残高を引き継ぐ
+  // 初期ロード時にも前月末残高を自動引き継ぎ
+  useEffect(() => {
+    const carryBal = calcPrevEndBal(year, month)
+    const hasAny = accounts.some((a) => (carryBal[a.id] ?? 0) !== 0)
+    if (hasAny) {
+      handleOpeningChange(carryBal)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A: 前月末残高を引き継ぐ（手動ボタン用）
   const handleCarryForward = useCallback(() => {
-    let py = year, pm = month - 1
-    if (pm < 1) { py--; pm = 12 }
-    const prevYm      = ymStr(py, pm)
-    const prevOpening = loadOpeningBalances(prevYm)
-    const prevManual  = loadManualEvents(prevYm)
-    const prevAuto    = buildAutoEvents(prevYm, accounts, fixedEvents)
-    const prevAll     = [...prevAuto, ...prevManual]
-    const bal = {}
-    accounts.forEach((a) => { bal[a.id] = prevOpening[a.id] ?? 0 })
-    prevAll.forEach((ev) => {
-      if (ev.type === 'transfer') {
-        bal[ev.fromAccountId] = (bal[ev.fromAccountId] ?? 0) - ev.amount
-        bal[ev.toAccountId]   = (bal[ev.toAccountId]   ?? 0) + ev.amount
-      } else {
-        bal[ev.accountId] = (bal[ev.accountId] ?? 0) + ev.sign * ev.amount
-      }
-    })
+    const bal = calcPrevEndBal(year, month)
     handleOpeningChange(bal)
-  }, [year, month, accounts, fixedEvents])
+  }, [year, month, calcPrevEndBal])
 
   // 手動イベント CRUD
   const addEvent = (data) => {
