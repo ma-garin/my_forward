@@ -880,6 +880,9 @@ function buildGroupedHeader(accounts) {
 }
 
 function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, onDelete, onNameEdit, onAmountEdit, ym }) {
+  const [balEdit, setBalEdit] = useState(null)
+  const [balDraft, setBalDraft] = useState('')
+
   const initBal = {}
   accounts.forEach((a) => { initBal[a.id] = openingBalances[a.id] ?? 0 })
 
@@ -1126,13 +1129,17 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
                   if (isFrom) bgColor = '#fff8f8'
                   else if (isTo) bgColor = '#f1f8e9'
                   else if (isAffected) bgColor = row.sign > 0 ? '#f1f8e9' : '#fff8f8'
+                  const canEdit = isAffected && (isManual || row.source === 'fixed')
                   return (
                     <TableCell key={acc.id} align="right" sx={{
                       bgcolor: bgColor,
                       color: bal < 0 ? 'error.main' : isBlank ? 'text.disabled' : 'inherit',
                       fontWeight: isAffected ? 700 : 400,
                       fontSize: 12, borderBottom: '1px solid #f0f0f0',
-                    }}>
+                      ...(canEdit ? { cursor: 'pointer', '&:active': { bgcolor: '#e3f2fd' } } : {}),
+                    }}
+                      {...(canEdit ? { onClick: () => { setBalDraft(String(row.amount || '')); setBalEdit({ id: row.id, source: row.source, fixedId: row.fixedId, amount: row.amount }) } } : {})}
+                    >
                       ¥{fmt(bal)}
                     </TableCell>
                   )
@@ -1151,6 +1158,45 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
           })}
         </TableBody>
       </Table>
+
+      {/* 残高セルタップ時の金額編集ドロワー */}
+      <SwipeableDrawer
+        anchor="bottom"
+        open={!!balEdit}
+        onClose={() => setBalEdit(null)}
+        onOpen={() => {}}
+        disableSwipeToOpen
+        disableScrollLock
+        sx={{ zIndex: 1500 }}
+        PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
+      >
+        <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>金額</Typography>
+        <Box sx={{
+          bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
+          display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
+        }}>
+          <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
+          <Typography sx={{
+            color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+            minHeight: 44,
+          }}>
+            {parseAmount(balDraft) > 0 ? fmt(parseAmount(balDraft)) : '0'}
+          </Typography>
+        </Box>
+        <CalcPad
+          value={balDraft}
+          onChange={setBalDraft}
+          onConfirm={() => {
+            const a = parseAmount(balDraft)
+            if (a > 0 && balEdit && a !== balEdit.amount) {
+              onAmountEdit(balEdit.id, balEdit.source, a, balEdit.fixedId)
+            }
+            setBalEdit(null)
+          }}
+          disabled={parseAmount(balDraft) <= 0}
+        />
+      </SwipeableDrawer>
     </Box>
   )
 }
