@@ -206,6 +206,14 @@ export function saveOpeningBalances(ym, obj) {
   localStorage.setItem(`bank_opening_${ym}`, JSON.stringify(obj))
 }
 
+export function loadOpeningDate(ym) {
+  return localStorage.getItem(`bank_opening_date_${ym}`) || ''
+}
+
+export function saveOpeningDate(ym, dateStr) {
+  localStorage.setItem(`bank_opening_date_${ym}`, dateStr)
+}
+
 export function loadManualEvents(ym) {
   try {
     return JSON.parse(localStorage.getItem(`bank_events_${ym}`) || '[]')
