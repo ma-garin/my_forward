@@ -20,6 +20,7 @@ import SwipeableDrawer from '@mui/material/SwipeableDrawer'
 import {
   loadAccounts, saveAccounts,
   loadOpeningBalances, saveOpeningBalances,
+  loadOpeningDate, saveOpeningDate,
   loadManualEvents, saveManualEvents,
   loadFixedEvents, saveFixedEvents,
   loadNameOverrides, saveNameOverrides,
@@ -879,20 +880,22 @@ function buildGroupedHeader(accounts) {
   return headerCells
 }
 
-function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, onDelete, onNameEdit, onAmountEdit, ym }) {
+function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, onDelete, onNameEdit, onAmountEdit, ym, openingDate }) {
   const [balEdit, setBalEdit] = useState(null)
   const [balDraft, setBalDraft] = useState('')
 
   const initBal = {}
   accounts.forEach((a) => { initBal[a.id] = openingBalances[a.id] ?? 0 })
 
-  const sorted = [...events].sort((a, b) => {
-    if (a.date < b.date) return -1
-    if (a.date > b.date) return 1
-    if (a.source !== 'manual' && b.source === 'manual') return -1
-    if (a.source === 'manual' && b.source !== 'manual') return 1
-    return 0
-  })
+  const sorted = [...events]
+    .filter((ev) => !openingDate || ev.date >= openingDate)
+    .sort((a, b) => {
+      if (a.date < b.date) return -1
+      if (a.date > b.date) return 1
+      if (a.source !== 'manual' && b.source === 'manual') return -1
+      if (a.source === 'manual' && b.source !== 'manual') return 1
+      return 0
+    })
 
   // Build event rows with running balances
   const runBal = { ...initBal }
@@ -930,10 +933,32 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
   const [ymYear, ymMonth] = (ym ?? '2026-01').split('-').map(Number)
   const daysInMonth = new Date(ymYear, ymMonth, 0).getDate()
 
-  const rows = [{ id: '__opening', label: '繰越残高', isOpening: true, balances: { ...initBal } }]
+  const openingLabel = openingDate
+    ? `繰越残高（${parseInt(openingDate.slice(8), 10)}日）`
+    : '繰越残高'
+  const openingDay = openingDate ? parseInt(openingDate.slice(8), 10) : 0
+  const rows = []
   let lastBal = { ...initBal }
+
+  // 繰越日付が未設定 or 1日 → 先頭に繰越行
+  if (!openingDate || openingDay <= 1) {
+    rows.push({ id: '__opening', label: openingLabel, isOpening: true, balances: { ...initBal }, openingDate })
+  }
+
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${ymYear}-${String(ymMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+
+    // 繰越日付の位置に繰越行を挿入
+    if (openingDate && d === openingDay && openingDay > 1) {
+      rows.push({ id: '__opening', label: openingLabel, isOpening: true, balances: { ...initBal }, openingDate })
+    }
+
+    // 繰越日付より前の日はイベントがあっても空白行扱い
+    if (openingDate && d < openingDay) {
+      rows.push({ id: `__blank_${dateStr}`, date: dateStr, isBlank: true, balances: {} })
+      continue
+    }
+
     const dayEvents = eventsByDate[dateStr] ?? []
     if (dayEvents.length > 0) {
       dayEvents.forEach((ev) => rows.push(ev))
@@ -1036,7 +1061,9 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
             const dow = row.date ? DOW[new Date(row.date).getDay()] : ''
             const isSun = dow === '日'
             const isSat = dow === '土'
-            const dateLabel = isOpening ? '繰越' : (dayNum != null ? `${dayNum}日` : '')
+            const dateLabel = isOpening
+              ? (row.openingDate ? `${parseInt(row.openingDate.slice(8), 10)}日` : '繰越')
+              : (dayNum != null ? `${dayNum}日` : '')
             const dowLabel  = dow ? `(${dow})` : ''
 
             return (
@@ -1105,7 +1132,7 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
                   )}
                   {isOpening && (
                     <Typography variant="body2" sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary' }}>
-                      繰越残高
+                      {row.label ?? '繰越残高'}
                     </Typography>
                   )}
                 </TableCell>
@@ -1278,7 +1305,7 @@ function FixedEventDialog({ open, onClose, onSave, initial, accounts }) {
 
 // ─── A: 繰越残高エディタ（前月引き継ぎボタン付き）────────
 
-function OpeningBalanceEditor({ accounts, balances, onChange, onCarryForward }) {
+function OpeningBalanceEditor({ accounts, balances, onChange, onCarryForward, openingDate, onDateChange }) {
   const [open, setOpen] = useState(false)
   const sections = []
   const seenGroups = new Set()
@@ -1294,6 +1321,10 @@ function OpeningBalanceEditor({ accounts, balances, onChange, onCarryForward }) 
     }
   })
 
+  const dateLabel = openingDate
+    ? `${parseInt(openingDate.slice(8), 10)}日時点`
+    : '月初'
+
   return (
     <Card sx={{ mb: 1.5 }}>
       <Box
@@ -1302,7 +1333,7 @@ function OpeningBalanceEditor({ accounts, balances, onChange, onCarryForward }) 
       >
         <Stack direction="row" alignItems="center" gap={1}>
           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-            繰越残高（月初）
+            繰越残高（{dateLabel}）
           </Typography>
           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.5)', fontSize: 10 }}>
             合計 ¥{fmt(accounts.reduce((s, a) => s + (balances[a.id] ?? 0), 0))}
@@ -1314,6 +1345,31 @@ function OpeningBalanceEditor({ accounts, balances, onChange, onCarryForward }) 
       </Box>
       <Collapse in={open}>
         <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 2 } }}>
+          {/* 基準日選択 */}
+          <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 1.5 }}>
+            <Typography variant="caption" sx={{ fontSize: 11, color: 'text.secondary', whiteSpace: 'nowrap' }}>
+              基準日
+            </Typography>
+            <input
+              type="date"
+              value={openingDate || ''}
+              onChange={(e) => onDateChange(e.target.value)}
+              style={{
+                fontSize: 13, fontWeight: 500, padding: '4px 8px',
+                border: '1px solid #cfd8dc', borderRadius: 6,
+                outline: 'none', background: '#fafafa', flex: 1, maxWidth: 160,
+              }}
+            />
+            {openingDate && (
+              <Button
+                size="small" variant="text"
+                onClick={() => onDateChange('')}
+                sx={{ fontSize: 10, minWidth: 'auto', px: 1, color: 'text.disabled' }}
+              >
+                クリア
+              </Button>
+            )}
+          </Stack>
           {/* A: 前月引き継ぎボタン */}
           <Button
             size="small" variant="outlined" onClick={onCarryForward}
@@ -1457,6 +1513,7 @@ export default function BankAccounts() {
 
   const [accounts,        setAccounts]        = useState(loadAccounts)
   const [openingBalances, setOpeningBalances] = useState(() => loadOpeningBalances(ym))
+  const [openingDate,     setOpeningDate]     = useState(() => loadOpeningDate(ym))
   const [manualEvents,    setManualEvents]    = useState(() => loadManualEvents(ym))
   const [fixedEvents,     setFixedEvents]     = useState(loadFixedEvents)
 
@@ -1503,6 +1560,7 @@ export default function BankAccounts() {
     saveOpeningBalances(newYm, carryBal)
     setYear(y); setMonth(m)
     setOpeningBalances(carryBal)
+    setOpeningDate(loadOpeningDate(newYm))
     setManualEvents(loadManualEvents(newYm))
   }
 
@@ -1532,6 +1590,7 @@ export default function BankAccounts() {
   }, [ym, finalTotal])
 
   const handleOpeningChange = (next) => { setOpeningBalances(next); saveOpeningBalances(ym, next) }
+  const handleOpeningDateChange = (d) => { setOpeningDate(d); saveOpeningDate(ym, d) }
 
   // 初期ロード時にも前月末残高を自動引き継ぎ
   useEffect(() => {
@@ -1621,6 +1680,7 @@ export default function BankAccounts() {
       <OpeningBalanceEditor
         accounts={accounts} balances={openingBalances}
         onChange={handleOpeningChange} onCarryForward={handleCarryForward}
+        openingDate={openingDate} onDateChange={handleOpeningDateChange}
       />
 
       {/* D: 固定イベント */}
@@ -1657,6 +1717,7 @@ export default function BankAccounts() {
             accounts={accounts} openingBalances={openingBalances} events={allEvents}
             colorMap={colorMap} onEdit={handleEditEvent} onDelete={handleDeleteEvent}
             onNameEdit={handleInlineNameEdit} onAmountEdit={handleInlineAmountEdit} ym={ym}
+            openingDate={openingDate}
           />
         ) : (
           <CardContent sx={{ px: 1.5, py: 1.5, '&:last-child': { pb: 1.5 } }}>
