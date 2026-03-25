@@ -1306,7 +1306,7 @@ function OpeningBalanceEditor({ accounts, balances, onChange, onCarryForward, op
 
   const dateLabel = openingDate
     ? `${parseInt(openingDate.slice(8), 10)}日時点`
-    : '月初'
+    : ''
 
   return (
     <Card sx={{ mb: 1.5 }}>
@@ -1316,7 +1316,7 @@ function OpeningBalanceEditor({ accounts, balances, onChange, onCarryForward, op
       >
         <Stack direction="row" alignItems="center" gap={1}>
           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-            繰越残高（{dateLabel}）
+            残高{dateLabel && `（${dateLabel}）`}
           </Typography>
           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.5)', fontSize: 10 }}>
             合計 ¥{fmt(accounts.reduce((s, a) => s + (balances[a.id] ?? 0), 0))}
@@ -1374,28 +1374,15 @@ function OpeningBalanceEditor({ accounts, balances, onChange, onCarryForward, op
               return (
                 <Stack key={acc.id} direction="row" alignItems="center" gap={1.5} sx={{ pl: acc.group ? 1 : 0 }}>
                   <Typography variant="body2" sx={{ flex: 1, fontSize: 13 }}>{acc.name}</Typography>
-                  <Box sx={{ position: 'relative', width: 140 }}>
-                    <Typography variant="caption" sx={{
-                      position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
-                      color: 'text.disabled', fontSize: 13, pointerEvents: 'none', zIndex: 1,
-                    }}>¥</Typography>
-                    <input
-                      type="text" inputMode="numeric"
-                      value={balances[acc.id] ? fmtInput(String(balances[acc.id])) : ''}
+                  <Box sx={{ width: 140 }}>
+                    <AmountField
+                      value={String(balances[acc.id] ?? 0)}
+                      onChange={(v) => {
+                        const num = parseInt(v, 10)
+                        onChange({ ...balances, [acc.id]: isNaN(num) ? 0 : num })
+                      }}
                       placeholder="0"
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/[^0-9]/g, '')
-                        const v = parseInt(raw, 10)
-                        onChange({ ...balances, [acc.id]: isNaN(v) ? 0 : v })
-                      }}
-                      style={{
-                        width: '100%', height: 44, fontSize: 16, fontWeight: 600,
-                        textAlign: 'right', paddingRight: 10, paddingLeft: 24,
-                        border: '1px solid #cfd8dc', borderRadius: 8,
-                        outline: 'none', background: '#fafafa', boxSizing: 'border-box',
-                      }}
-                      onFocus={(e) => { e.target.style.border = '2px solid #37474f'; e.target.style.background = '#fff' }}
-                      onBlur={(e)  => { e.target.style.border = '1px solid #cfd8dc'; e.target.style.background = '#fafafa' }}
+                      inputSx={{ '& .MuiInputBase-root': { height: 44 }, '& .MuiInputBase-input': { fontSize: 16, fontWeight: 600 } }}
                     />
                   </Box>
                 </Stack>
@@ -1521,7 +1508,18 @@ export default function BankAccounts() {
     const prevOpening = loadOpeningBalances(prevYm)
     const prevManual  = loadManualEvents(prevYm)
     const prevAuto    = buildAutoEvents(prevYm, accounts, fixedEvents)
-    const prevAll     = [...prevAuto, ...prevManual]
+    const prevDeleted = new Set(loadDeletedAutoIds(prevYm))
+    const prevAmtOv   = loadAmountOverrides()
+    const prevNameOv  = loadNameOverrides()
+    const filteredAuto = prevAuto
+      .filter(ev => !prevDeleted.has(ev.id))
+      .map(ev => {
+        let patched = ev
+        if (prevNameOv[ev.id]) patched = { ...patched, name: prevNameOv[ev.id] }
+        if (prevAmtOv[ev.id] != null) patched = { ...patched, amount: prevAmtOv[ev.id] }
+        return patched
+      })
+    const prevAll     = [...filteredAuto, ...prevManual]
     const bal = {}
     accounts.forEach((a) => { bal[a.id] = prevOpening[a.id] ?? 0 })
     prevAll.forEach((ev) => {
