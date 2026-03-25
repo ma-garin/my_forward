@@ -21,6 +21,8 @@ import {
   loadAccounts, saveAccounts,
   loadOpeningBalances, saveOpeningBalances,
   loadOpeningDate, saveOpeningDate,
+  loadAmountOverrides, saveAmountOverrides,
+  loadDeletedAutoIds, saveDeletedAutoIds,
   loadManualEvents, saveManualEvents,
   loadFixedEvents, saveFixedEvents,
   loadNameOverrides, saveNameOverrides,
@@ -799,31 +801,21 @@ function TimelineView({ accounts, openingBalances, events, onEdit, onDelete, onN
                       )}
                     </Stack>
                     <Stack alignItems="flex-end">
-                      {(isManual || ev.source === 'fixed') ? (
-                        <InlineEditAmount
-                          value={ev.amount} sign={ev.sign} isTransfer={isTransfer}
-                          onSave={(a) => onAmountEdit(ev.id, ev.source, a, ev.fixedId)}
-                          fontSize={14}
-                        />
-                      ) : (
-                        <Typography variant="subtitle2" fontWeight={700} sx={{
-                          fontSize: 14, whiteSpace: 'nowrap',
-                          color: isTransfer ? '#1565c0' : ev.sign === 1 ? '#2e7d32' : '#c62828',
-                        }}>
-                          {isTransfer ? '' : ev.sign === 1 ? '+' : '−'}¥{fmt(ev.amount)}
-                        </Typography>
-                      )}
-                      {/* F: 手動イベントのみ編集・削除 */}
-                      {isManual && (
-                        <Stack direction="row" sx={{ mt: 0.25 }}>
+                      <InlineEditAmount
+                        value={ev.amount} sign={ev.sign} isTransfer={isTransfer}
+                        onSave={(a) => onAmountEdit(ev.id, ev.source, a, ev.fixedId)}
+                        fontSize={14}
+                      />
+                      <Stack direction="row" sx={{ mt: 0.25 }}>
+                        {isManual && (
                           <IconButton size="small" onClick={() => onEdit(ev)} sx={{ p: 0.25 }}>
                             <EditIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
                           </IconButton>
-                          <IconButton size="small" onClick={() => onDelete(ev.id)} sx={{ p: 0.25 }}>
-                            <DeleteIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                          </IconButton>
-                        </Stack>
-                      )}
+                        )}
+                        <IconButton size="small" onClick={() => onDelete(ev.id, ev.source)} sx={{ p: 0.25 }}>
+                          <DeleteIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+                        </IconButton>
+                      </Stack>
                     </Stack>
                   </Stack>
                   {isTransfer && (
@@ -1104,30 +1096,21 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
                         fontSize={12}
                         fontWeight={isManual ? 600 : 400}
                       />
-                      {(isManual || row.source === 'fixed') ? (
-                        <InlineEditAmount
-                          value={row.amount} sign={row.sign} isTransfer={isTransfer}
-                          onSave={(a) => onAmountEdit(row.id, row.source, a, row.fixedId)}
-                          fontSize={10}
-                        />
-                      ) : (
-                        <Typography variant="caption" sx={{
-                          fontSize: 10,
-                          color: isTransfer ? '#1565c0' : row.sign > 0 ? '#2e7d32' : '#c62828',
-                        }}>
-                          {isTransfer ? '振替' : row.sign > 0 ? '+' : '−'}¥{fmt(row.amount)}
-                        </Typography>
-                      )}
-                      {isManual && (
-                        <Stack direction="row" sx={{ mt: 0.125 }}>
+                      <InlineEditAmount
+                        value={row.amount} sign={row.sign} isTransfer={isTransfer}
+                        onSave={(a) => onAmountEdit(row.id, row.source, a, row.fixedId)}
+                        fontSize={10}
+                      />
+                      <Stack direction="row" sx={{ mt: 0.125 }}>
+                        {isManual && (
                           <IconButton size="small" onClick={() => onEdit(row)} sx={{ p: 0.25 }}>
                             <EditIcon sx={{ fontSize: 11, color: '#90a4ae' }} />
                           </IconButton>
-                          <IconButton size="small" onClick={() => onDelete(row.id)} sx={{ p: 0.25 }}>
-                            <DeleteIcon sx={{ fontSize: 11, color: '#90a4ae' }} />
-                          </IconButton>
-                        </Stack>
-                      )}
+                        )}
+                        <IconButton size="small" onClick={() => onDelete(row.id, row.source)} sx={{ p: 0.25 }}>
+                          <DeleteIcon sx={{ fontSize: 11, color: '#90a4ae' }} />
+                        </IconButton>
+                      </Stack>
                     </>
                   )}
                   {isOpening && (
@@ -1517,7 +1500,9 @@ export default function BankAccounts() {
   const [manualEvents,    setManualEvents]    = useState(() => loadManualEvents(ym))
   const [fixedEvents,     setFixedEvents]     = useState(loadFixedEvents)
 
-  const [nameOverrides, setNameOverrides] = useState(loadNameOverrides)
+  const [nameOverrides,   setNameOverrides]   = useState(loadNameOverrides)
+  const [amountOverrides, setAmountOverrides] = useState(loadAmountOverrides)
+  const [deletedAutoIds,  setDeletedAutoIds]  = useState(() => loadDeletedAutoIds(ym))
 
   const [evDlg,     setEvDlg]     = useState(null)
   const [fixedDlg,  setFixedDlg]  = useState(null)
@@ -1562,13 +1547,22 @@ export default function BankAccounts() {
     setOpeningBalances(carryBal)
     setOpeningDate(loadOpeningDate(newYm))
     setManualEvents(loadManualEvents(newYm))
+    setDeletedAutoIds(loadDeletedAutoIds(newYm))
   }
 
   const autoEvents = useMemo(() => buildAutoEvents(ym, accounts, fixedEvents), [ym, accounts, fixedEvents])
   const allEvents  = useMemo(() => {
-    const autos = autoEvents.map(ev => nameOverrides[ev.id] ? { ...ev, name: nameOverrides[ev.id] } : ev)
+    const deletedSet = new Set(deletedAutoIds)
+    const autos = autoEvents
+      .filter(ev => !deletedSet.has(ev.id))
+      .map(ev => {
+        let patched = ev
+        if (nameOverrides[ev.id]) patched = { ...patched, name: nameOverrides[ev.id] }
+        if (amountOverrides[ev.id] != null) patched = { ...patched, amount: amountOverrides[ev.id] }
+        return patched
+      })
     return [...autos, ...manualEvents]
-  }, [autoEvents, manualEvents, nameOverrides])
+  }, [autoEvents, manualEvents, nameOverrides, amountOverrides, deletedAutoIds])
 
   // G: 最終残高を計算してスナップショット保存
   const finalTotal = useMemo(() => {
@@ -1616,10 +1610,6 @@ export default function BankAccounts() {
     const next = manualEvents.map((x) => x.id === evDlg.initial.id ? { ...x, ...data } : x)
     setManualEvents(next); saveManualEvents(ym, next)
   }
-  const deleteEvent = useCallback((id) => {
-    const next = manualEvents.filter((x) => x.id !== id)
-    setManualEvents(next); saveManualEvents(ym, next)
-  }, [manualEvents, ym])
 
   // 固定イベント CRUD
   const addFixed = (data) => {
@@ -1657,12 +1647,25 @@ export default function BankAccounts() {
     } else if (source === 'fixed' && fixedId) {
       const next = fixedEvents.map((x) => x.id === fixedId ? { ...x, amount: newAmount } : x)
       setFixedEvents(next); saveFixedEvents(next)
+    } else {
+      // 自動イベント（cc_jcb, cc_smbc, salary等）の金額オーバーライド
+      const next = { ...amountOverrides, [eventId]: newAmount }
+      setAmountOverrides(next); saveAmountOverrides(next)
     }
-  }, [manualEvents, fixedEvents, ym])
+  }, [manualEvents, fixedEvents, amountOverrides, ym])
 
   // B + F: テーブル・タイムラインからの編集用ハンドラ
   const handleEditEvent  = useCallback((ev) => setEvDlg({ type: 'edit', initial: ev }), [])
-  const handleDeleteEvent = deleteEvent
+  const handleDeleteEvent = useCallback((id, source) => {
+    if (source === 'manual') {
+      const next = manualEvents.filter((x) => x.id !== id)
+      setManualEvents(next); saveManualEvents(ym, next)
+    } else {
+      // 自動イベントの削除（IDを記録して非表示にする）
+      const next = [...deletedAutoIds, id]
+      setDeletedAutoIds(next); saveDeletedAutoIds(ym, next)
+    }
+  }, [manualEvents, deletedAutoIds, ym])
 
   return (
     <Box sx={{ px: 2, py: 2, pb: 10 }}>
