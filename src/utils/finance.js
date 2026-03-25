@@ -214,6 +214,30 @@ export function saveOpeningDate(ym, dateStr) {
   localStorage.setItem(`bank_opening_date_${ym}`, dateStr)
 }
 
+export function loadAmountOverrides() {
+  try {
+    return JSON.parse(localStorage.getItem('bank_amount_overrides') || '{}')
+  } catch {
+    return {}
+  }
+}
+
+export function saveAmountOverrides(obj) {
+  localStorage.setItem('bank_amount_overrides', JSON.stringify(obj))
+}
+
+export function loadDeletedAutoIds(ym) {
+  try {
+    return JSON.parse(localStorage.getItem(`bank_deleted_auto_${ym}`) || '[]')
+  } catch {
+    return []
+  }
+}
+
+export function saveDeletedAutoIds(ym, list) {
+  localStorage.setItem(`bank_deleted_auto_${ym}`, JSON.stringify(list))
+}
+
 export function loadManualEvents(ym) {
   try {
     return JSON.parse(localStorage.getItem(`bank_events_${ym}`) || '[]')
