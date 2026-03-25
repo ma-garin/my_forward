@@ -345,10 +345,13 @@ export function buildAutoEvents(ym, accounts, fixedEvents = []) {
     })
   }
 
-  // 固定繰返しイベント
+  // 固定繰返しイベント（支出・入金・振替対応）
   fixedEvents.forEach((fe) => {
+    const baseFields = fe.type === 'transfer'
+      ? { type: 'transfer', fromAccountId: fe.fromAccountId, toAccountId: fe.toAccountId }
+      : { accountId: fe.accountId, sign: fe.sign }
+
     if (fe.frequency === 'weekly') {
-      // 月内の該当曜日を全て生成
       for (let d = 1; d <= lastDay; d++) {
         if (new Date(y, m - 1, d).getDay() === fe.dayOfWeek) {
           events.push({
@@ -356,8 +359,7 @@ export function buildAutoEvents(ym, accounts, fixedEvents = []) {
             date: pad(d),
             name: fe.name,
             amount: fe.amount,
-            accountId: fe.accountId,
-            sign: fe.sign,
+            ...baseFields,
             source: 'fixed',
             fixedId: fe.id,
           })
@@ -370,8 +372,7 @@ export function buildAutoEvents(ym, accounts, fixedEvents = []) {
         date: pad(day),
         name: fe.name,
         amount: fe.amount,
-        accountId: fe.accountId,
-        sign: fe.sign,
+        ...baseFields,
         source: 'fixed',
         fixedId: fe.id,
       })

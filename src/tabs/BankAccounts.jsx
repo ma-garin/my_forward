@@ -812,7 +812,7 @@ function TimelineView({ accounts, openingBalances, events, onEdit, onDelete, onN
                             <EditIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
                           </IconButton>
                         )}
-                        <IconButton size="small" onClick={() => onDelete(ev.id, ev.source)} sx={{ p: 0.25 }}>
+                        <IconButton size="small" onClick={() => onDelete(ev.id, ev.source, ev.name)} sx={{ p: 0.25 }}>
                           <DeleteIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
                         </IconButton>
                       </Stack>
@@ -926,8 +926,8 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
   const daysInMonth = new Date(ymYear, ymMonth, 0).getDate()
 
   const openingLabel = openingDate
-    ? `繰越残高（${parseInt(openingDate.slice(8), 10)}日）`
-    : '繰越残高'
+    ? `残高（${parseInt(openingDate.slice(8), 10)}日）`
+    : '残高'
   const openingDay = openingDate ? parseInt(openingDate.slice(8), 10) : 0
   const rows = []
   let lastBal = { ...initBal }
@@ -1107,7 +1107,7 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
                             <EditIcon sx={{ fontSize: 11, color: '#90a4ae' }} />
                           </IconButton>
                         )}
-                        <IconButton size="small" onClick={() => onDelete(row.id, row.source)} sx={{ p: 0.25 }}>
+                        <IconButton size="small" onClick={() => onDelete(row.id, row.source, row.name)} sx={{ p: 0.25 }}>
                           <DeleteIcon sx={{ fontSize: 11, color: '#90a4ae' }} />
                         </IconButton>
                       </Stack>
@@ -1115,7 +1115,7 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
                   )}
                   {isOpening && (
                     <Typography variant="body2" sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary' }}>
-                      {row.label ?? '繰越残高'}
+                      {row.label ?? '残高'}
                     </Typography>
                   )}
                 </TableCell>
@@ -1214,23 +1214,32 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
 // ─── 固定イベントダイアログ ──────────────────────────────
 
 function FixedEventDialog({ open, onClose, onSave, initial, accounts }) {
-  const [name,      setName]      = useState(initial?.name      ?? '')
-  const [frequency, setFrequency] = useState(initial?.frequency ?? 'monthly')
-  const [day,       setDay]       = useState(initial?.day       ?? '')
-  const [dayOfWeek, setDayOfWeek] = useState(initial?.dayOfWeek ?? 5)
-  const [amount,    setAmount]    = useState(initial?.amount    ?? '')
-  const [accountId, setAccountId] = useState(initial?.accountId ?? accounts[0]?.id ?? '')
-  const [sign,      setSign]      = useState(initial?.sign      ?? -1)
+  const initType = initial?.type === 'transfer' ? 'transfer' : (initial?.sign === 1 ? 'income' : 'expense')
+  const [name,          setName]          = useState(initial?.name          ?? '')
+  const [frequency,     setFrequency]     = useState(initial?.frequency    ?? 'monthly')
+  const [day,           setDay]           = useState(initial?.day           ?? '')
+  const [dayOfWeek,     setDayOfWeek]     = useState(initial?.dayOfWeek    ?? 5)
+  const [amount,        setAmount]        = useState(initial?.amount        ?? '')
+  const [type,          setType]          = useState(initType)
+  const [accountId,     setAccountId]     = useState(initial?.accountId     ?? accounts[0]?.id ?? '')
+  const [fromAccountId, setFromAccountId] = useState(initial?.fromAccountId ?? accounts[0]?.id ?? '')
+  const [toAccountId,   setToAccountId]   = useState(initial?.toAccountId   ?? accounts[1]?.id ?? accounts[0]?.id ?? '')
 
   const handleSave = () => {
     const a = parseAmount(amount)
     if (!name.trim() || a <= 0) return
+    const base = { name: name.trim(), frequency, amount: a }
     if (frequency === 'monthly') {
       const d = parseInt(day, 10)
       if (isNaN(d) || d < 1 || d > 31) return
-      onSave({ name: name.trim(), frequency, day: d, amount: a, accountId, sign })
+      base.day = d
     } else {
-      onSave({ name: name.trim(), frequency, dayOfWeek, amount: a, accountId, sign })
+      base.dayOfWeek = dayOfWeek
+    }
+    if (type === 'transfer') {
+      onSave({ ...base, type: 'transfer', fromAccountId, toAccountId })
+    } else {
+      onSave({ ...base, accountId, sign: type === 'income' ? 1 : -1 })
     }
     onClose()
   }
@@ -1268,14 +1277,30 @@ function FixedEventDialog({ open, onClose, onSave, initial, accounts }) {
             </FormControl>
           )}
           <AmountField label="金額" value={String(amount)} onChange={setAmount} />
-          <FormControl size="small" fullWidth>
-            <InputLabel>種別</InputLabel>
-            <Select value={sign} label="種別" onChange={(e) => setSign(e.target.value)}>
-              <MenuItem value={-1}>支出</MenuItem>
-              <MenuItem value={+1}>入金</MenuItem>
-            </Select>
-          </FormControl>
-          <AccountSelect accounts={accounts} value={accountId} onChange={setAccountId} />
+          <Stack direction="row" gap={1}>
+            {[
+              { key: 'expense',  label: '支出', bg: '#ffebee', col: '#c62828' },
+              { key: 'income',   label: '入金', bg: '#e8f5e9', col: '#2e7d32' },
+              { key: 'transfer', label: '振替', bg: '#e3f2fd', col: '#1565c0' },
+            ].map((t) => (
+              <Chip key={t.key} label={t.label} onClick={() => setType(t.key)}
+                sx={{
+                  fontWeight: type === t.key ? 700 : 400,
+                  bgcolor: type === t.key ? t.bg : '#f5f5f5',
+                  color: type === t.key ? t.col : 'text.secondary',
+                  border: type === t.key ? `1.5px solid ${t.col}` : '1.5px solid transparent',
+                }}
+              />
+            ))}
+          </Stack>
+          {type === 'transfer' ? (
+            <Stack spacing={1.5}>
+              <AccountSelect accounts={accounts} value={fromAccountId} onChange={setFromAccountId} label="振替元" />
+              <AccountSelect accounts={accounts} value={toAccountId}   onChange={setToAccountId}   label="振替先" />
+            </Stack>
+          ) : (
+            <AccountSelect accounts={accounts} value={accountId} onChange={setAccountId} />
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -1441,8 +1466,15 @@ function FixedEventsPanel({ fixedEvents, accounts, onAdd, onEdit, onDelete }) {
                       <Stack sx={{ flex: 1, minWidth: 0 }}>
                         <Stack direction="row" alignItems="center" gap={0.75}>
                           <Typography variant="body2" noWrap>{fe.name}</Typography>
-                          <Chip label={accounts.find((a) => a.id === fe.accountId)?.name ?? fe.accountId}
-                            size="small" sx={{ height: 16, fontSize: 9, bgcolor: '#f3e5f5', color: '#6a1b9a' }} />
+                          {fe.type === 'transfer' ? (
+                            <Chip
+                              label={`${accounts.find(a => a.id === fe.fromAccountId)?.name ?? '?'} → ${accounts.find(a => a.id === fe.toAccountId)?.name ?? '?'}`}
+                              size="small" sx={{ height: 16, fontSize: 9, bgcolor: '#e3f2fd', color: '#1565c0' }}
+                            />
+                          ) : (
+                            <Chip label={accounts.find((a) => a.id === fe.accountId)?.name ?? fe.accountId}
+                              size="small" sx={{ height: 16, fontSize: 9, bgcolor: '#f3e5f5', color: '#6a1b9a' }} />
+                          )}
                         </Stack>
                         <Stack direction="row" alignItems="center" gap={1}>
                           <Typography variant="caption" color="text.disabled">
@@ -1453,8 +1485,8 @@ function FixedEventsPanel({ fixedEvents, accounts, onAdd, onEdit, onDelete }) {
                           </Typography>
                         </Stack>
                       </Stack>
-                      <Typography variant="body2" fontWeight={600} sx={{ mx: 1, color: fe.sign > 0 ? '#2e7d32' : '#c62828' }}>
-                        {fe.sign > 0 ? '+' : '−'}¥{fmt(fe.amount)}
+                      <Typography variant="body2" fontWeight={600} sx={{ mx: 1, color: fe.type === 'transfer' ? '#1565c0' : fe.sign > 0 ? '#2e7d32' : '#c62828' }}>
+                        {fe.type === 'transfer' ? '' : fe.sign > 0 ? '+' : '−'}¥{fmt(fe.amount)}
                       </Typography>
                       <IconButton size="small" onClick={() => onEdit(fe)} sx={{ p: 0.5 }}>
                         <EditIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
@@ -1491,35 +1523,37 @@ export default function BankAccounts() {
   const [amountOverrides, setAmountOverrides] = useState(loadAmountOverrides)
   const [deletedAutoIds,  setDeletedAutoIds]  = useState(() => loadDeletedAutoIds(ym))
 
-  const [evDlg,     setEvDlg]     = useState(null)
-  const [fixedDlg,  setFixedDlg]  = useState(null)
-  const [quickOpen, setQuickOpen] = useState(false)
-  const [viewMode,  setViewMode]  = useState('table')
+  const [evDlg,       setEvDlg]       = useState(null)
+  const [fixedDlg,    setFixedDlg]    = useState(null)
+  const [quickOpen,   setQuickOpen]   = useState(false)
+  const [viewMode,    setViewMode]    = useState('table')
+  const [deleteDlg,   setDeleteDlg]   = useState(null) // { id, source, name, isFixed }
 
   const todayStr = today.toISOString().slice(0, 10)
 
   const colorMap = useMemo(() => buildColorMap(accounts), [accounts])
 
-  // 指定月の前月末残高を計算する
+  // 指定月の前月末残高を計算する（表示と完全一致させる）
   const calcPrevEndBal = useCallback((y, m) => {
     let py = y, pm = m - 1
     if (pm < 1) { py--; pm = 12 }
-    const prevYm      = ymStr(py, pm)
-    const prevOpening = loadOpeningBalances(prevYm)
-    const prevManual  = loadManualEvents(prevYm)
-    const prevAuto    = buildAutoEvents(prevYm, accounts, fixedEvents)
-    const prevDeleted = new Set(loadDeletedAutoIds(prevYm))
-    const prevAmtOv   = loadAmountOverrides()
-    const prevNameOv  = loadNameOverrides()
+    const prevYm         = ymStr(py, pm)
+    const prevOpening    = loadOpeningBalances(prevYm)
+    const prevOpeningDate = loadOpeningDate(prevYm)
+    const prevManual     = loadManualEvents(prevYm)
+    const prevAuto       = buildAutoEvents(prevYm, accounts, fixedEvents)
+    const prevDeleted    = new Set(loadDeletedAutoIds(prevYm))
+    const prevAmtOv      = loadAmountOverrides()
     const filteredAuto = prevAuto
       .filter(ev => !prevDeleted.has(ev.id))
       .map(ev => {
         let patched = ev
-        if (prevNameOv[ev.id]) patched = { ...patched, name: prevNameOv[ev.id] }
         if (prevAmtOv[ev.id] != null) patched = { ...patched, amount: prevAmtOv[ev.id] }
         return patched
       })
-    const prevAll     = [...filteredAuto, ...prevManual]
+    // openingDate以降のイベントのみ集計（基準日前は繰越残高に含まれるため除外）
+    const prevAll = [...filteredAuto, ...prevManual]
+      .filter(ev => !prevOpeningDate || ev.date >= prevOpeningDate)
     const bal = {}
     accounts.forEach((a) => { bal[a.id] = prevOpening[a.id] ?? 0 })
     prevAll.forEach((ev) => {
@@ -1533,16 +1567,20 @@ export default function BankAccounts() {
     return bal
   }, [accounts, fixedEvents])
 
-  // 月切り替え時に前月末残高を自動引き継ぎ
+  // 月切り替え時：既存残高があればそれを使用、なければ前月末から自動繰越
   const changeMonth = (delta) => {
     let y = year, m = month + delta
     if (m > 12) { y++; m = 1 }
     if (m < 1)  { y--; m = 12 }
     const newYm = ymStr(y, m)
-    const carryBal = calcPrevEndBal(y, m)
-    saveOpeningBalances(newYm, carryBal)
+    let bal = loadOpeningBalances(newYm)
+    const hasExisting = accounts.some(a => (bal[a.id] ?? 0) !== 0)
+    if (!hasExisting) {
+      bal = calcPrevEndBal(y, m)
+      saveOpeningBalances(newYm, bal)
+    }
     setYear(y); setMonth(m)
-    setOpeningBalances(carryBal)
+    setOpeningBalances(bal)
     setOpeningDate(loadOpeningDate(newYm))
     setManualEvents(loadManualEvents(newYm))
     setDeletedAutoIds(loadDeletedAutoIds(newYm))
@@ -1562,11 +1600,14 @@ export default function BankAccounts() {
     return [...autos, ...manualEvents]
   }, [autoEvents, manualEvents, nameOverrides, amountOverrides, deletedAutoIds])
 
-  // G: 最終残高を計算してスナップショット保存
+  // G: 最終残高を計算してスナップショット保存（openingDate以降のイベントのみ）
   const finalTotal = useMemo(() => {
     const bal = {}
     accounts.forEach((a) => { bal[a.id] = openingBalances[a.id] ?? 0 })
-    allEvents.forEach((ev) => {
+    const filtered = openingDate
+      ? allEvents.filter(ev => ev.date >= openingDate)
+      : allEvents
+    filtered.forEach((ev) => {
       if (ev.type === 'transfer') {
         bal[ev.fromAccountId] = (bal[ev.fromAccountId] ?? 0) - ev.amount
         bal[ev.toAccountId]   = (bal[ev.toAccountId]   ?? 0) + ev.amount
@@ -1575,7 +1616,7 @@ export default function BankAccounts() {
       }
     })
     return accounts.reduce((s, a) => s + (bal[a.id] ?? 0), 0)
-  }, [accounts, openingBalances, allEvents])
+  }, [accounts, openingBalances, allEvents, openingDate])
 
   useEffect(() => {
     saveSnapshot(ym, { total: finalTotal })
@@ -1584,12 +1625,16 @@ export default function BankAccounts() {
   const handleOpeningChange = (next) => { setOpeningBalances(next); saveOpeningBalances(ym, next) }
   const handleOpeningDateChange = (d) => { setOpeningDate(d); saveOpeningDate(ym, d) }
 
-  // 初期ロード時にも前月末残高を自動引き継ぎ
+  // 初期ロード時：既存残高がなければ前月末から自動繰越（手動設定値は保持）
   useEffect(() => {
-    const carryBal = calcPrevEndBal(year, month)
-    const hasAny = accounts.some((a) => (carryBal[a.id] ?? 0) !== 0)
-    if (hasAny) {
-      handleOpeningChange(carryBal)
+    const existing = loadOpeningBalances(ym)
+    const hasExisting = accounts.some((a) => (existing[a.id] ?? 0) !== 0)
+    if (!hasExisting) {
+      const carryBal = calcPrevEndBal(year, month)
+      const hasAny = accounts.some((a) => (carryBal[a.id] ?? 0) !== 0)
+      if (hasAny) {
+        handleOpeningChange(carryBal)
+      }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1618,9 +1663,9 @@ export default function BankAccounts() {
     const next = fixedEvents.map((x) => x.id === fixedDlg.initial.id ? { ...x, ...data } : x)
     setFixedEvents(next); saveFixedEvents(next)
   }
-  const deleteFixed = useCallback((id) => {
-    const next = fixedEvents.filter((x) => x.id !== id)
-    setFixedEvents(next); saveFixedEvents(next)
+  const requestDeleteFixed = useCallback((id) => {
+    const fe = fixedEvents.find(x => x.id === id)
+    setDeleteDlg({ id, source: 'fixed', name: fe?.name || '?', isFixed: true })
   }, [fixedEvents])
 
   // 摘要インライン編集ハンドラ
@@ -1654,16 +1699,24 @@ export default function BankAccounts() {
 
   // B + F: テーブル・タイムラインからの編集用ハンドラ
   const handleEditEvent  = useCallback((ev) => setEvDlg({ type: 'edit', initial: ev }), [])
-  const handleDeleteEvent = useCallback((id, source) => {
-    if (source === 'manual') {
+  const requestDeleteEvent = useCallback((id, source, name) => {
+    setDeleteDlg({ id, source, name: name || '?', isFixed: false })
+  }, [])
+  const confirmDeleteEvent = useCallback(() => {
+    if (!deleteDlg) return
+    const { id, source, isFixed } = deleteDlg
+    if (isFixed) {
+      const next = fixedEvents.filter((x) => x.id !== id)
+      setFixedEvents(next); saveFixedEvents(next)
+    } else if (source === 'manual') {
       const next = manualEvents.filter((x) => x.id !== id)
       setManualEvents(next); saveManualEvents(ym, next)
     } else {
-      // 自動イベントの削除（IDを記録して非表示にする）
       const next = [...deletedAutoIds, id]
       setDeletedAutoIds(next); saveDeletedAutoIds(ym, next)
     }
-  }, [manualEvents, deletedAutoIds, ym])
+    setDeleteDlg(null)
+  }, [deleteDlg, manualEvents, fixedEvents, deletedAutoIds, ym])
 
   return (
     <Box sx={{ px: 2, py: 2, pb: 10 }}>
@@ -1689,7 +1742,7 @@ export default function BankAccounts() {
         fixedEvents={fixedEvents} accounts={accounts}
         onAdd={() => setFixedDlg({ type: 'add' })}
         onEdit={(fe) => setFixedDlg({ type: 'edit', initial: fe })}
-        onDelete={deleteFixed}
+        onDelete={requestDeleteFixed}
       />
 
       {/* B + F: キャッシュフロー */}
@@ -1716,7 +1769,7 @@ export default function BankAccounts() {
         {viewMode === 'table' ? (
           <CashFlowTable
             accounts={accounts} openingBalances={openingBalances} events={allEvents}
-            colorMap={colorMap} onEdit={handleEditEvent} onDelete={handleDeleteEvent}
+            colorMap={colorMap} onEdit={handleEditEvent} onDelete={requestDeleteEvent}
             onNameEdit={handleInlineNameEdit} onAmountEdit={handleInlineAmountEdit} ym={ym}
             openingDate={openingDate}
           />
@@ -1724,7 +1777,7 @@ export default function BankAccounts() {
           <CardContent sx={{ px: 1.5, py: 1.5, '&:last-child': { pb: 1.5 } }}>
             <TimelineView
               accounts={accounts} openingBalances={openingBalances} events={allEvents}
-              onEdit={handleEditEvent} onDelete={handleDeleteEvent}
+              onEdit={handleEditEvent} onDelete={requestDeleteEvent}
               onNameEdit={handleInlineNameEdit} onAmountEdit={handleInlineAmountEdit}
             />
           </CardContent>
@@ -1756,6 +1809,20 @@ export default function BankAccounts() {
         open={quickOpen} onClose={() => setQuickOpen(false)}
         onSave={addEvent} accounts={accounts} defaultDate={todayStr}
       />
+
+      {/* 削除確認ダイアログ */}
+      <Dialog open={!!deleteDlg} onClose={() => setDeleteDlg(null)} maxWidth="xs">
+        <DialogTitle sx={{ pb: 0.5, fontSize: 16 }}>削除確認</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            「{deleteDlg?.name}」を削除しますか？
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDlg(null)} color="inherit" size="small">キャンセル</Button>
+          <Button onClick={confirmDeleteEvent} variant="contained" color="error" size="small">削除</Button>
+        </DialogActions>
+      </Dialog>
 
     </Box>
   )
