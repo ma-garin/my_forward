@@ -74,6 +74,13 @@ function parseAmount(raw) {
   return isNaN(n) ? 0 : n
 }
 
+// 同日内ソート順: 振替(0) → 入金(1) → 出金(2)
+function eventSortOrder(ev) {
+  if (ev.type === 'transfer') return 0
+  if (ev.sign > 0) return 1
+  return 2
+}
+
 const AMOUNT_STEPS = [
   { label: '+100',    step: 100 },
   { label: '+1,000',  step: 1000 },
@@ -730,7 +737,11 @@ function TimelineView({ accounts, openingBalances, events, onEdit, onDelete, onN
   const runBal = {}
   accounts.forEach((a) => { runBal[a.id] = openingBalances[a.id] ?? 0 })
 
-  const sorted = [...events].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0)
+  const sorted = [...events].sort((a, b) => {
+    if (a.date < b.date) return -1
+    if (a.date > b.date) return 1
+    return eventSortOrder(a) - eventSortOrder(b)
+  })
 
   const items = sorted.map((ev) => {
     if (ev.type === 'transfer') {
@@ -885,9 +896,7 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
     .sort((a, b) => {
       if (a.date < b.date) return -1
       if (a.date > b.date) return 1
-      if (a.source !== 'manual' && b.source === 'manual') return -1
-      if (a.source === 'manual' && b.source !== 'manual') return 1
-      return 0
+      return eventSortOrder(a) - eventSortOrder(b)
     })
 
   // Build event rows with running balances
