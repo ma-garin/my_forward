@@ -20,6 +20,7 @@ import SwipeableDrawer from '@mui/material/SwipeableDrawer'
 import {
   loadAccounts, saveAccounts,
   loadOpeningBalances, saveOpeningBalances,
+  isOpeningManual, setOpeningManual,
   loadOpeningDate, saveOpeningDate,
   loadAmountOverrides, saveAmountOverrides,
   loadDeletedAutoIds, saveDeletedAutoIds,
@@ -1567,15 +1568,16 @@ export default function BankAccounts() {
     return bal
   }, [accounts, fixedEvents])
 
-  // 月切り替え時：既存残高があればそれを使用、なければ前月末から自動繰越
+  // 月切り替え時：手動フラグがなければ常に前月末残高から自動繰越
   const changeMonth = (delta) => {
     let y = year, m = month + delta
     if (m > 12) { y++; m = 1 }
     if (m < 1)  { y--; m = 12 }
     const newYm = ymStr(y, m)
-    let bal = loadOpeningBalances(newYm)
-    const hasExisting = accounts.some(a => (bal[a.id] ?? 0) !== 0)
-    if (!hasExisting) {
+    let bal
+    if (isOpeningManual(newYm)) {
+      bal = loadOpeningBalances(newYm)
+    } else {
       bal = calcPrevEndBal(y, m)
       saveOpeningBalances(newYm, bal)
     }
@@ -1622,27 +1624,31 @@ export default function BankAccounts() {
     saveSnapshot(ym, { total: finalTotal })
   }, [ym, finalTotal])
 
-  const handleOpeningChange = (next) => { setOpeningBalances(next); saveOpeningBalances(ym, next) }
+  const handleOpeningChange = (next, manual = false) => {
+    setOpeningBalances(next); saveOpeningBalances(ym, next)
+    if (manual) setOpeningManual(ym, true)
+  }
   const handleOpeningDateChange = (d) => { setOpeningDate(d); saveOpeningDate(ym, d) }
 
-  // 初期ロード時：既存残高がなければ前月末から自動繰越（手動設定値は保持）
+  // 初期ロード時：手動フラグがなければ前月末残高を自動繰越
   useEffect(() => {
-    const existing = loadOpeningBalances(ym)
-    const hasExisting = accounts.some((a) => (existing[a.id] ?? 0) !== 0)
-    if (!hasExisting) {
+    if (!isOpeningManual(ym)) {
       const carryBal = calcPrevEndBal(year, month)
       const hasAny = accounts.some((a) => (carryBal[a.id] ?? 0) !== 0)
       if (hasAny) {
-        handleOpeningChange(carryBal)
+        setOpeningBalances(carryBal)
+        saveOpeningBalances(ym, carryBal)
       }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // A: 前月末残高を引き継ぐ（手動ボタン用）
+  // A: 前月末残高を引き継ぐ（手動ボタン用 → 手動フラグ解除して自動繰越に戻す）
   const handleCarryForward = useCallback(() => {
     const bal = calcPrevEndBal(year, month)
-    handleOpeningChange(bal)
-  }, [year, month, calcPrevEndBal])
+    setOpeningManual(ym, false)
+    setOpeningBalances(bal)
+    saveOpeningBalances(ym, bal)
+  }, [year, month, ym, calcPrevEndBal])
 
   // 手動イベント CRUD
   const addEvent = (data) => {
@@ -1733,7 +1739,7 @@ export default function BankAccounts() {
       {/* A: 繰越残高 */}
       <OpeningBalanceEditor
         accounts={accounts} balances={openingBalances}
-        onChange={handleOpeningChange} onCarryForward={handleCarryForward}
+        onChange={(next) => handleOpeningChange(next, true)} onCarryForward={handleCarryForward}
         openingDate={openingDate} onDateChange={handleOpeningDateChange}
       />
 
