@@ -79,7 +79,7 @@ function DataRow({ label, exportFilename, exportKeys: getExportKeys }) {
         <Button size="small" variant="outlined" startIcon={<UploadFileIcon />}
           component="label" sx={{ fontSize: 12 }}>
           読込
-          <input type="file" accept=".json" hidden
+          <input type="file" accept="application/json,.json" hidden
             onChange={(e) => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = '' }} />
         </Button>
       </Stack>
@@ -106,7 +106,7 @@ export default function DataSettings() {
           </Button>
           <Button variant="contained" startIcon={<UploadFileIcon />} fullWidth component="label">
             一括インポート
-            <input type="file" accept=".json" hidden
+            <input type="file" accept="application/json,.json" hidden
               onChange={(e) => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = '' }} />
           </Button>
         </Stack>

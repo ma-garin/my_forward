@@ -416,7 +416,7 @@ export default function SalaryHistory() {
             ))}
           </Stack>
         </Box>
-        <input ref={fileRef} type="file" accept=".pdf" multiple hidden onChange={handleUpload} />
+        <input ref={fileRef} type="file" accept="application/pdf,.pdf" multiple hidden onChange={handleUpload} />
         <Button
           size="small" variant="outlined"
           startIcon={uploading ? <CircularProgress size={14} /> : <UploadFileIcon sx={{ fontSize: 16 }} />}
