@@ -145,7 +145,7 @@ function MonthlyTable({ salaries, mode }) {
           <TableBody>
             {salaries.map((r, i) => (
               <TableRow key={r.month}
-                sx={{ bgcolor: i % 2 === 0 ? '#fff' : '#fafafa', '&:hover': { bgcolor: '#e3f2fd' } }}>
+                sx={{ bgcolor: i % 2 === 0 ? '#fff' : '#fafafa', '&:hover': { bgcolor: '#f1f8e9' } }}>
                 <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: 600 }}>{r.month}月</TableCell>
                 <TableCell align="right" sx={{ fontSize: 12, py: 0.75 }}>¥{fmt(r.totalPay)}</TableCell>
                 <TableCell align="right" sx={{ fontSize: 12, py: 0.75, color: 'error.main' }}>¥{fmt(r.totalDed)}</TableCell>
@@ -201,7 +201,7 @@ function MonthlyTable({ salaries, mode }) {
         <TableBody>
           {salaries.map((r, i) => (
             <TableRow key={r.month}
-              sx={{ bgcolor: i % 2 === 0 ? '#fff' : '#fafafa', '&:hover': { bgcolor: '#e3f2fd' } }}>
+              sx={{ bgcolor: i % 2 === 0 ? '#fff' : '#fafafa', '&:hover': { bgcolor: '#f1f8e9' } }}>
               <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: 600 }}>{r.month}月</TableCell>
               <TableCell align="right" sx={{ fontSize: 11, py: 0.75 }}>¥{fmt(r.totalPay)}</TableCell>
               <TableCell align="right" sx={{ fontSize: 11, py: 0.75, color: 'text.secondary' }}>¥{fmt(r.overtime)}</TableCell>
@@ -846,7 +846,7 @@ export default function SalaryHistory() {
                   return (
                     <TableRow key={w.year}
                       sx={{ bgcolor: w.year === year ? '#e3f2fd' : i % 2 === 0 ? '#fff' : '#fafafa',
-                            cursor: 'pointer', '&:hover': { bgcolor: '#e3f2fd' } }}
+                            cursor: 'pointer', '&:hover': { bgcolor: '#f1f8e9' } }}
                       onClick={() => setYear(w.year)}>
                       <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: w.year === year ? 700 : 400 }}>{w.year}年</TableCell>
                       <TableCell align="right" sx={{ fontSize: 12, py: 0.75 }}>¥{fmt(w.totalPay)}</TableCell>

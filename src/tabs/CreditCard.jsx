@@ -652,7 +652,7 @@ function SectionCard({ title, badge, total, children, onAdd }) {
           </IconButton>
         </Stack>
       </Box>
-      <CardContent sx={{ px: 2, py: 0.5, '&:last-child': { pb: 1 } }}>
+      <CardContent sx={{ px: 2, py: 1, '&:last-child': { pb: 1.5 } }}>
         {children}
       </CardContent>
     </Card>
@@ -909,13 +909,13 @@ function CategoryBreakdown({ fixedList, varList }) {
           カテゴリ別集計
         </Typography>
       </Box>
-      <CardContent sx={{ px: 2, py: 0.5, '&:last-child': { pb: 1 } }}>
+      <CardContent sx={{ px: 2, py: 1, '&:last-child': { pb: 1.5 } }}>
         {entries.map(([cat, total], i) => (
           <Box key={cat}>
             {i > 0 && <Divider />}
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 0.75 }}>
               <Chip label={cat} size="small"
-                sx={{ height: 18, fontSize: 10, bgcolor: '#eceff1', color: '#546e7a' }} />
+                sx={{ height: 16, fontSize: 10, bgcolor: '#eceff1', color: '#546e7a' }} />
               <Typography variant="body2" fontWeight={600}>¥{fmt(total)}</Typography>
             </Stack>
           </Box>
@@ -962,7 +962,7 @@ function CombinedSummary({ ym }) {
           </Stack>
         </Stack>
 
-        <Divider sx={{ borderColor: 'rgba(255,255,255,.15)', my: 1.5 }} />
+        <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 1.5 }} />
 
         {/* 給与入力 */}
         <Stack direction="row" alignItems="flex-start" gap={1.5}>
@@ -1078,7 +1078,7 @@ export default function CreditCard() {
   const grandTotal = fixedTotal + varTotal
 
   return (
-    <Box sx={{ px: 2, py: 2 }}>
+    <Box sx={{ px: 2, pt: 2, pb: 10 }}>
 
       {/* 2枚合計サマリー */}
       <CombinedSummary ym={ym} />
