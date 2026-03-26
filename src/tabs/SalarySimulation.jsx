@@ -265,12 +265,12 @@ export default function SalarySimulation() {
   }
 
   return (
-    <Box sx={{ px: 2, py: 2 }}>
+    <Box sx={{ px: 2, pt: 2, pb: 10 }}>
 
       {/* 手取りサマリー */}
-      <Card sx={{ mb: 2, bgcolor: 'primary.dark', color: '#fff' }}>
-        <CardContent sx={{ px: 3, py: 2.5, '&:last-child': { pb: 2.5 } }}>
-          <Typography variant="caption" sx={{ opacity: .65, letterSpacing: .5 }}>今月の手取り（シミュレーション）</Typography>
+      <Card sx={{ mb: 2, bgcolor: '#263238', color: '#fff' }}>
+        <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
+          <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>今月の手取り（シミュレーション）</Typography>
           <Stack direction="row" alignItems="baseline" spacing={2} sx={{ mt: 0.5 }}>
             <Stack>
               <Typography variant="caption" sx={{ opacity: .7, fontSize: 10, color: '#90caf9' }}>自由入力</Typography>
@@ -373,7 +373,7 @@ export default function SalarySimulation() {
           color="primary"
           startIcon={editMode ? <CheckIcon /> : <EditIcon />}
           onClick={toggleEdit}
-          sx={{ borderRadius: 5, textTransform: 'none', fontSize: 12 }}
+          sx={{ textTransform: 'none', fontSize: 12 }}
         >
           {editMode ? '保存' : '固定項目を編集'}
         </Button>

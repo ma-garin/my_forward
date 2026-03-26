@@ -544,27 +544,27 @@ function SummaryCards({ accounts, openingBalances, events, colorMap }) {
     <Box sx={{ mb: 1.5 }}>
       {/* 合計 + C: 収支サマリー */}
       <Card sx={{ mb: 1, bgcolor: '#263238', color: '#fff' }}>
-        <CardContent sx={{ px: 2.5, py: 1.5, '&:last-child': { pb: 1.5 } }}>
-          <Typography variant="caption" sx={{ opacity: .55, letterSpacing: .5 }}>資産合計</Typography>
+        <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
+          <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>資産合計</Typography>
           <Typography variant="h5" fontWeight={700} sx={{ letterSpacing: -.5, mt: 0.25 }}>
             ¥{fmt(total)}
           </Typography>
           <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 1 }} />
           <Stack direction="row" spacing={3}>
             <Stack>
-              <Typography variant="caption" sx={{ opacity: .5, fontSize: 10 }}>収入</Typography>
+              <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>収入</Typography>
               <Typography variant="body2" fontWeight={600} sx={{ color: '#a5d6a7', fontSize: 13 }}>
                 +¥{fmt(totalIncome)}
               </Typography>
             </Stack>
             <Stack>
-              <Typography variant="caption" sx={{ opacity: .5, fontSize: 10 }}>支出</Typography>
+              <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>支出</Typography>
               <Typography variant="body2" fontWeight={600} sx={{ color: '#ef9a9a', fontSize: 13 }}>
                 −¥{fmt(totalExpense)}
               </Typography>
             </Stack>
             <Stack>
-              <Typography variant="caption" sx={{ opacity: .5, fontSize: 10 }}>差引</Typography>
+              <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>差引</Typography>
               <Typography variant="body2" fontWeight={700} sx={{ fontSize: 13, color: net >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
                 {net >= 0 ? '+' : '−'}¥{fmt(Math.abs(net))}
               </Typography>
@@ -798,7 +798,7 @@ function TimelineView({ accounts, openingBalances, events, onEdit, onDelete, onN
                         />
                         {autoLabel && (
                           <Chip label={autoLabel} size="small" sx={{
-                            height: 14, fontSize: 8,
+                            height: 16, fontSize: 9,
                             bgcolor: ev.source === 'fixed' ? '#ede7f6' : '#e3f2fd',
                             color: ev.source === 'fixed' ? '#4a148c' : '#1565c0',
                           }} />
@@ -981,7 +981,7 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
     if (a.group && !groupColor[a.group]) groupColor[a.group] = colorMap[a.id]
   })
 
-  const headBase = { fontWeight: 600, fontSize: 11, borderBottom: '2px solid #cfd8dc', bgcolor: '#eceff1' }
+  const headBase = { fontWeight: 600, fontSize: 11, borderBottom: '2px solid #cfd8dc', bgcolor: '#f5f5f5' }
   const stickyDateHead = { ...headBase, position: 'sticky', left: 0, zIndex: 3, width: 76, minWidth: 76, whiteSpace: 'nowrap' }
   const stickyDateCell = { position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 1, borderBottom: '1px solid #f0f0f0', width: 76, minWidth: 76, py: 0.5, px: 1 }
 
@@ -991,7 +991,7 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
         <TableHead>
           {hasGroups ? (
             <>
-              <TableRow sx={{ bgcolor: '#eceff1' }}>
+              <TableRow sx={{ bgcolor: '#f5f5f5' }}>
                 <TableCell rowSpan={2} sx={{ ...stickyDateHead, verticalAlign: 'middle' }}>日付</TableCell>
                 <TableCell rowSpan={2} sx={{ ...headBase, minWidth: 130, verticalAlign: 'middle' }}>摘要</TableCell>
                 <TableCell rowSpan={2} sx={{ ...headBase, minWidth: 56, textAlign: 'center', verticalAlign: 'middle' }}>種別</TableCell>
@@ -1001,7 +1001,7 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
                     <TableCell key={h.id} colSpan={h.colspan} rowSpan={h.isGroup ? 1 : 2}
                       align="center" sx={{
                         fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', verticalAlign: 'middle',
-                        bgcolor: gc?.bg ?? '#eceff1', borderBottom: `2px solid ${gc?.border ?? '#cfd8dc'}`,
+                        bgcolor: gc?.bg ?? '#f5f5f5', borderBottom: `2px solid ${gc?.border ?? '#cfd8dc'}`,
                       }}>
                       {h.label}
                     </TableCell>
@@ -1012,14 +1012,14 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
                   borderBottom: '2px solid #cfd8dc', bgcolor: '#263238', color: '#fff',
                 }}>合計</TableCell>
               </TableRow>
-              <TableRow sx={{ bgcolor: '#eceff1' }}>
+              <TableRow sx={{ bgcolor: '#f5f5f5' }}>
                 {accounts.map((acc) => {
                   if (!acc.group) return null
                   const c = colorMap[acc.id]
                   return (
                     <TableCell key={acc.id} align="right" sx={{
                       fontWeight: 600, fontSize: 11, minWidth: 80, whiteSpace: 'nowrap',
-                      bgcolor: c?.bg ?? '#eceff1', borderBottom: `2px solid ${c?.border ?? '#cfd8dc'}`,
+                      bgcolor: c?.bg ?? '#f5f5f5', borderBottom: `2px solid ${c?.border ?? '#cfd8dc'}`,
                     }}>
                       {acc.name}
                     </TableCell>
@@ -1028,7 +1028,7 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
               </TableRow>
             </>
           ) : (
-            <TableRow sx={{ bgcolor: '#eceff1' }}>
+            <TableRow sx={{ bgcolor: '#f5f5f5' }}>
               <TableCell sx={stickyDateHead}>日付</TableCell>
               <TableCell sx={{ ...headBase, minWidth: 130 }}>摘要</TableCell>
               <TableCell sx={{ ...headBase, minWidth: 56, textAlign: 'center' }}>種別</TableCell>
@@ -1037,7 +1037,7 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
                 return (
                   <TableCell key={acc.id} align="right" sx={{
                     ...headBase, minWidth: 80, whiteSpace: 'nowrap',
-                    bgcolor: c?.bg ?? '#eceff1', borderBottom: `2px solid ${c?.border ?? '#cfd8dc'}`,
+                    bgcolor: c?.bg ?? '#f5f5f5', borderBottom: `2px solid ${c?.border ?? '#cfd8dc'}`,
                   }}>
                     {acc.name}
                   </TableCell>
@@ -1378,7 +1378,7 @@ function OpeningBalanceEditor({ accounts, balances, onChange, onCarryForward, op
         </IconButton>
       </Box>
       <Collapse in={open}>
-        <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 2 } }}>
+        <CardContent sx={{ px: 2, py: 1, '&:last-child': { pb: 1.5 } }}>
           {/* 基準日選択 */}
           <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 1.5 }}>
             <Typography variant="caption" sx={{ fontSize: 11, color: 'text.secondary', whiteSpace: 'nowrap' }}>
@@ -1472,7 +1472,7 @@ function FixedEventsPanel({ fixedEvents, accounts, onAdd, onEdit, onDelete }) {
   return (
     <Card sx={{ mb: 1.5 }}>
       <Box
-        sx={{ bgcolor: '#4a148c', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+        sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
         onClick={() => setOpen((v) => !v)}
       >
         <Stack direction="row" alignItems="center" gap={1}>
@@ -1769,7 +1769,7 @@ export default function BankAccounts() {
   }, [deleteDlg, manualEvents, fixedEvents, deletedAutoIds, ym])
 
   return (
-    <Box sx={{ px: 2, py: 2, pb: 10 }}>
+    <Box sx={{ px: 2, pt: 2, pb: 10 }}>
 
       {/* 月ナビゲーション */}
       <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
