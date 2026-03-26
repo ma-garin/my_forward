@@ -293,6 +293,88 @@ export function saveNameOverrides(obj) {
   localStorage.setItem('bank_name_overrides', JSON.stringify(obj))
 }
 
+// ─── 日本の祝日判定 ──────────────────────────────────────────
+
+// 春分日・秋分日の近似計算
+function vernalEquinoxDay(y) {
+  if (y <= 2099) return Math.floor(20.8431 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4))
+  return Math.floor(21.851 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4))
+}
+function autumnalEquinoxDay(y) {
+  if (y <= 2099) return Math.floor(23.2488 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4))
+  return Math.floor(24.2488 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4))
+}
+
+// 第n月曜日の日付を返す
+function nthMonday(y, m, n) {
+  const first = new Date(y, m - 1, 1).getDay() // 0=Sun
+  const firstMon = first <= 1 ? (2 - first) : (9 - first)
+  return firstMon + (n - 1) * 7
+}
+
+// 指定年の祝日セット（月-日文字列）を返す
+export function getHolidays(y) {
+  const holidays = new Set()
+  const add = (m, d) => holidays.add(`${m}-${d}`)
+
+  // 固定祝日
+  add(1, 1)    // 元日
+  add(2, 11)   // 建国記念の日
+  add(2, 23)   // 天皇誕生日
+  add(4, 29)   // 昭和の日
+  add(5, 3)    // 憲法記念日
+  add(5, 4)    // みどりの日
+  add(5, 5)    // こどもの日
+  add(8, 11)   // 山の日
+  add(11, 3)   // 文化の日
+  add(11, 23)  // 勤労感謝の日
+
+  // ハッピーマンデー
+  add(1, nthMonday(y, 1, 2))    // 成人の日（1月第2月曜）
+  add(7, nthMonday(y, 7, 3))    // 海の日（7月第3月曜）
+  add(9, nthMonday(y, 9, 3))    // 敬老の日（9月第3月曜）
+  add(10, nthMonday(y, 10, 2))  // スポーツの日（10月第2月曜）
+
+  // 春分の日・秋分の日
+  add(3, vernalEquinoxDay(y))
+  add(9, autumnalEquinoxDay(y))
+
+  // 振替休日：祝日が日曜の場合、翌営業日（次の非祝日平日）を振替休日にする
+  const baseList = [...holidays].map(s => {
+    const [mm, dd] = s.split('-').map(Number)
+    return { m: mm, d: dd }
+  })
+  for (const { m, d } of baseList) {
+    if (new Date(y, m - 1, d).getDay() === 0) {
+      let sub = d + 1
+      while (holidays.has(`${m}-${sub}`)) sub++
+      add(m, sub)
+    }
+  }
+
+  // 国民の休日：祝日に挟まれた平日は休日になる（9月に発生しうる）
+  const keirouDay = nthMonday(y, 9, 3)
+  const equinoxDay = autumnalEquinoxDay(y)
+  if (equinoxDay - keirouDay === 2) {
+    add(9, keirouDay + 1)
+  }
+
+  return holidays
+}
+
+// 前営業日を返す（土日・祝日を避ける）
+export function prevBusinessDay(y, m, d) {
+  const holidays = getHolidays(y)
+  const date = new Date(y, m - 1, d)
+  while (true) {
+    const dow = date.getDay()
+    const key = `${date.getMonth() + 1}-${date.getDate()}`
+    if (dow !== 0 && dow !== 6 && !holidays.has(key)) break
+    date.setDate(date.getDate() - 1)
+  }
+  return date.getDate()
+}
+
 // ─── 自動イベント生成（CC支払い・給与・固定繰返し）────────
 
 export function buildAutoEvents(ym, accounts, fixedEvents = []) {
@@ -343,14 +425,11 @@ export function buildAutoEvents(ym, accounts, fixedEvents = []) {
 
   const salary = getSalaryTakeHome()
   if (salary > 0) {
-    // 25日が土曜→金曜(24日)、日曜→金曜(23日)にずらす
-    const salDate = new Date(y, m - 1, 25)
-    const dow = salDate.getDay()
-    if (dow === 6) salDate.setDate(24)       // 土曜 → 金曜
-    else if (dow === 0) salDate.setDate(23)  // 日曜 → 金曜
+    // 25日が土日祝の場合、前営業日にずらす
+    const salDay = prevBusinessDay(y, m, 25)
     events.push({
       id: `auto_salary_${ym}`,
-      date: pad(salDate.getDate()),
+      date: pad(salDay),
       name: '給与',
       amount: salary,
       accountId: salAccId,
