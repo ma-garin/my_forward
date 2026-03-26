@@ -343,9 +343,14 @@ export function buildAutoEvents(ym, accounts, fixedEvents = []) {
 
   const salary = getSalaryTakeHome()
   if (salary > 0) {
+    // 25日が土曜→金曜(24日)、日曜→金曜(23日)にずらす
+    const salDate = new Date(y, m - 1, 25)
+    const dow = salDate.getDay()
+    if (dow === 6) salDate.setDate(24)       // 土曜 → 金曜
+    else if (dow === 0) salDate.setDate(23)  // 日曜 → 金曜
     events.push({
       id: `auto_salary_${ym}`,
-      date: pad(25),
+      date: pad(salDate.getDate()),
       name: '給与',
       amount: salary,
       accountId: salAccId,
