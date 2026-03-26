@@ -18,6 +18,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import RepeatIcon from '@mui/icons-material/Repeat'
 import TableChartIcon from '@mui/icons-material/TableChart'
 import ViewListIcon from '@mui/icons-material/ViewList'
+import CalculateIcon from '@mui/icons-material/Calculate'
 import SwipeableDrawer from '@mui/material/SwipeableDrawer'
 import {
   loadAccounts, saveAccounts,
@@ -81,6 +82,18 @@ function eventSortOrder(ev) {
   if (ev.type === 'transfer') return 0
   if (ev.sign > 0) return 1
   return 2
+}
+
+// 振替自動計算: 1000円単位切り上げ
+// = ROUNDUP(ROUNDUP(振替先支出合計, -3) - ROUNDUP(振替先繰越残高, -3), -3)
+function roundUp1000(x) { return Math.ceil(x / 1000) * 1000 }
+
+function calcSuggestedTransfer(toAccountId, events, openingBalances) {
+  const totalExpenses = events
+    .filter(ev => ev.type !== 'transfer' && ev.accountId === toAccountId && ev.sign === -1)
+    .reduce((sum, ev) => sum + ev.amount, 0)
+  const opening = openingBalances[toAccountId] ?? 0
+  return Math.max(0, roundUp1000(roundUp1000(totalExpenses) - roundUp1000(opening)))
 }
 
 const AMOUNT_STEPS = [
@@ -335,9 +348,9 @@ function AccountSelect({ accounts, value, onChange, label = '口座', size = 'sm
 
 // ─── イベント入力ダイアログ ──────────────────────────────
 
-function EventDialog({ open, onClose, onSave, initial, accounts }) {
+function EventDialog({ open, onClose, onSave, initial, accounts, defaultDate = '', allEvents = [], openingBalances = {} }) {
   const initType = initial?.type ?? (initial ? (initial.sign === 1 ? 'income' : 'expense') : 'expense')
-  const [date,          setDate]          = useState(initial?.date          ?? '')
+  const [date,          setDate]          = useState(initial?.date          ?? defaultDate)
   const [name,          setName]          = useState(initial?.name          ?? '')
   const [amount,        setAmount]        = useState(initial?.amount         ?? '')
   const [type,          setType]          = useState(initType)
@@ -387,6 +400,17 @@ function EventDialog({ open, onClose, onSave, initial, accounts }) {
             <Stack spacing={1.5}>
               <AccountSelect accounts={accounts} value={fromAccountId} onChange={setFromAccountId} label="振替元" />
               <AccountSelect accounts={accounts} value={toAccountId}   onChange={setToAccountId}   label="振替先" />
+              {(() => {
+                const s = calcSuggestedTransfer(toAccountId, allEvents, openingBalances)
+                return s > 0 ? (
+                  <Button size="small" variant="outlined" color="info"
+                    startIcon={<CalculateIcon sx={{ fontSize: 14 }} />}
+                    onClick={() => setAmount(String(s))}
+                    sx={{ fontSize: 11, py: 0.5 }}>
+                    ¥{fmt(s)} を自動入力
+                  </Button>
+                ) : null
+              })()}
             </Stack>
           ) : (
             <AccountSelect accounts={accounts} value={accountId} onChange={setAccountId} />
@@ -403,7 +427,7 @@ function EventDialog({ open, onClose, onSave, initial, accounts }) {
 
 // ─── クイック入力ボトムシート ─────────────────────────────
 
-function QuickAddDrawer({ open, onClose, onSave, accounts, defaultDate }) {
+function QuickAddDrawer({ open, onClose, onSave, accounts, defaultDate, allEvents = [], openingBalances = {} }) {
   const [date,          setDate]          = useState(defaultDate)
   const [name,          setName]          = useState('')
   const [amount,        setAmount]        = useState('')
@@ -468,6 +492,17 @@ function QuickAddDrawer({ open, onClose, onSave, accounts, defaultDate }) {
         <Stack spacing={1.5} sx={{ mb: 1.5 }}>
           <AccountSelect accounts={accounts} value={fromAccountId} onChange={setFromAccountId} label="振替元" />
           <AccountSelect accounts={accounts} value={toAccountId}   onChange={setToAccountId}   label="振替先" />
+          {(() => {
+            const s = calcSuggestedTransfer(toAccountId, allEvents, openingBalances)
+            return s > 0 ? (
+              <Button size="small" variant="outlined" color="info"
+                startIcon={<CalculateIcon sx={{ fontSize: 14 }} />}
+                onClick={() => setAmount(String(s))}
+                sx={{ fontSize: 11, py: 0.5 }}>
+                ¥{fmt(s)} を自動入力
+              </Button>
+            ) : null
+          })()}
         </Stack>
       ) : (
         <Box sx={{ mb: 1.5 }}>
@@ -1575,6 +1610,8 @@ export default function BankAccounts() {
   const [deleteDlg,   setDeleteDlg]   = useState(null) // { id, source, name, isFixed }
 
   const todayStr = today.toISOString().slice(0, 10)
+  // デフォルト日付: 表示月が当月なら今日、それ以外は表示月の1日
+  const defaultEventDate = todayStr.slice(0, 7) === ym ? todayStr : `${ym}-01`
 
   const colorMap = useMemo(() => buildColorMap(accounts), [accounts])
 
@@ -1844,7 +1881,9 @@ export default function BankAccounts() {
       {evDlg && (
         <EventDialog open onClose={() => setEvDlg(null)}
           onSave={evDlg.type === 'edit' ? editEvent : addEvent}
-          initial={evDlg.initial} accounts={accounts} />
+          initial={evDlg.initial} accounts={accounts}
+          defaultDate={defaultEventDate}
+          allEvents={allEvents} openingBalances={openingBalances} />
       )}
 
       {/* 固定イベントダイアログ */}
@@ -1857,7 +1896,8 @@ export default function BankAccounts() {
       {/* クイック入力ボトムシート */}
       <QuickAddDrawer
         open={quickOpen} onClose={() => setQuickOpen(false)}
-        onSave={addEvent} accounts={accounts} defaultDate={todayStr}
+        onSave={addEvent} accounts={accounts} defaultDate={defaultEventDate}
+        allEvents={allEvents} openingBalances={openingBalances}
       />
 
       {/* 削除確認ダイアログ */}
