@@ -206,6 +206,15 @@ export function saveOpeningBalances(ym, obj) {
   localStorage.setItem(`bank_opening_${ym}`, JSON.stringify(obj))
 }
 
+export function isOpeningManual(ym) {
+  return localStorage.getItem(`bank_opening_manual_${ym}`) === '1'
+}
+
+export function setOpeningManual(ym, flag) {
+  if (flag) localStorage.setItem(`bank_opening_manual_${ym}`, '1')
+  else localStorage.removeItem(`bank_opening_manual_${ym}`)
+}
+
 export function loadOpeningDate(ym) {
   return localStorage.getItem(`bank_opening_date_${ym}`) || ''
 }
