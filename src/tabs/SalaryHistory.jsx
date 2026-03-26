@@ -1,9 +1,12 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import {
   Box, Card, CardContent, Typography, Stack, Chip, Divider,
   Table, TableHead, TableBody, TableRow, TableCell,
   ToggleButtonGroup, ToggleButton, IconButton,
+  Button, Dialog, DialogTitle, DialogContent, DialogActions,
+  CircularProgress, Alert,
 } from '@mui/material'
+import UploadFileIcon from '@mui/icons-material/UploadFile'
 
 // ─── localStorage ─────────────────────────────────────────
 const BASE_KEY     = 'salary_base_data'
@@ -310,6 +313,45 @@ export default function SalaryHistory() {
   const [monthlyView, setMonthlyView] = useState('summary')   // 'summary' | 'detail'
   const [yoyField,    setYoyField]    = useState('takeHome')  // 'takeHome' | 'totalPay' | 'totalDed'
 
+  // PDF アップロード
+  const fileRef = useRef(null)
+  const [uploading, setUploading]   = useState(false)
+  const [uploadResult, setUploadResult] = useState(null) // { salaries, withholding, errors }
+
+  const handleUpload = useCallback(async (e) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+    setUploading(true)
+    try {
+      const { parseMultiplePdfs } = await import('../utils/parseSalaryPdf')
+      const result = await parseMultiplePdfs(files)
+      // 既存データとマージ（重複排除）
+      if (result.salaries.length > 0) {
+        const merged = [...extraSalary]
+        result.salaries.forEach(rec => {
+          if (!merged.some(x => x.year === rec.year && x.month === rec.month && x.type === rec.type))
+            merged.push(rec)
+        })
+        setExtraSalary(merged)
+        saveExtra(merged)
+      }
+      if (result.withholding.length > 0) {
+        const merged = [...extraWH]
+        result.withholding.forEach(rec => {
+          if (!merged.some(x => x.year === rec.year)) merged.push(rec)
+        })
+        setExtraWH(merged)
+        saveExtraWH(merged)
+      }
+      setUploadResult(result)
+    } catch (err) {
+      setUploadResult({ salaries: [], withholding: [], errors: [err.message] })
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }, [extraSalary, extraWH])
+
   const allSalary = useMemo(() => {
     const merged = [...loadBase()]
     extraSalary.forEach(ex => {
@@ -363,7 +405,7 @@ export default function SalaryHistory() {
   return (
     <Box sx={{ p: 2, pb: 10 }}>
       {/* 年選択 + アップロード */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} sx={{ mb: 2 }}>
         <Box sx={{ overflowX: 'auto', flex: 1 }}>
           <Stack direction="row" gap={0.75}>
             {YEARS.map(y => (
@@ -374,7 +416,61 @@ export default function SalaryHistory() {
             ))}
           </Stack>
         </Box>
+        <input ref={fileRef} type="file" accept=".pdf" multiple hidden onChange={handleUpload} />
+        <Button
+          size="small" variant="outlined"
+          startIcon={uploading ? <CircularProgress size={14} /> : <UploadFileIcon sx={{ fontSize: 16 }} />}
+          disabled={uploading}
+          onClick={() => fileRef.current?.click()}
+          sx={{ flexShrink: 0, fontSize: 11, whiteSpace: 'nowrap', borderColor: '#b0bec5', color: 'text.secondary' }}
+        >
+          PDF取込
+        </Button>
       </Stack>
+
+      {/* PDF取込結果ダイアログ */}
+      <Dialog open={!!uploadResult} onClose={() => setUploadResult(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ pb: 0.5, fontSize: 16 }}>PDF取込結果</DialogTitle>
+        <DialogContent>
+          {uploadResult && (
+            <Stack spacing={1} sx={{ mt: 0.5 }}>
+              {uploadResult.salaries.length > 0 && (
+                <Alert severity="success" sx={{ py: 0.25, '& .MuiAlert-message': { fontSize: 13 } }}>
+                  給与/賞与明細: {uploadResult.salaries.length}件を登録
+                </Alert>
+              )}
+              {uploadResult.withholding.length > 0 && (
+                <Alert severity="success" sx={{ py: 0.25, '& .MuiAlert-message': { fontSize: 13 } }}>
+                  源泉徴収票: {uploadResult.withholding.length}件を登録
+                </Alert>
+              )}
+              {uploadResult.salaries.length === 0 && uploadResult.withholding.length === 0 && uploadResult.errors.length === 0 && (
+                <Alert severity="info" sx={{ py: 0.25, '& .MuiAlert-message': { fontSize: 13 } }}>
+                  新規データはありませんでした（既に登録済み）
+                </Alert>
+              )}
+              {uploadResult.errors.length > 0 && (
+                <Alert severity="error" sx={{ py: 0.25, '& .MuiAlert-message': { fontSize: 12 } }}>
+                  {uploadResult.errors.map((e, i) => <div key={i}>{e}</div>)}
+                </Alert>
+              )}
+              {uploadResult.salaries.length > 0 && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>取込内容:</Typography>
+                  {uploadResult.salaries.map((r, i) => (
+                    <Typography key={i} variant="body2" sx={{ fontSize: 12 }}>
+                      {r.year}年{r.month}月 {r.type === 'bonus' ? '賞与' : '給与'} — 手取り ¥{fmt(r.takeHome)}
+                    </Typography>
+                  ))}
+                </Box>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUploadResult(null)} variant="contained" size="small">閉じる</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ① サマリー */}
       <SectionCard title={`${year}年 サマリー`}>
