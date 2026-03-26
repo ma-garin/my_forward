@@ -9,6 +9,8 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
+import SaveIcon from '@mui/icons-material/Save'
+import CheckIcon from '@mui/icons-material/Check'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -1325,6 +1327,20 @@ function FixedEventDialog({ open, onClose, onSave, initial, accounts }) {
 
 function OpeningBalanceEditor({ accounts, balances, onChange, onCarryForward, openingDate, onDateChange }) {
   const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState(balances)
+  const [saved, setSaved] = useState(false)
+
+  // 親のbalancesが変わったとき（前月引き継ぎ等）にdraftを同期
+  useEffect(() => { setDraft(balances) }, [balances])
+
+  const isDirty = accounts.some((a) => (draft[a.id] ?? 0) !== (balances[a.id] ?? 0))
+
+  const handleSave = () => {
+    onChange(draft)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
   const sections = []
   const seenGroups = new Set()
   accounts.forEach((acc) => {
@@ -1411,10 +1427,10 @@ function OpeningBalanceEditor({ accounts, balances, onChange, onCarryForward, op
                   <Typography variant="body2" sx={{ flex: 1, fontSize: 13 }}>{acc.name}</Typography>
                   <Box sx={{ width: 140 }}>
                     <AmountField
-                      value={String(balances[acc.id] ?? 0)}
+                      value={String(draft[acc.id] ?? 0)}
                       onChange={(v) => {
                         const num = parseInt(v, 10)
-                        onChange({ ...balances, [acc.id]: isNaN(num) ? 0 : num })
+                        setDraft((prev) => ({ ...prev, [acc.id]: isNaN(num) ? 0 : num }))
                       }}
                       placeholder="0"
                       inputSx={{ '& .MuiInputBase-root': { height: 44 }, '& .MuiInputBase-input': { fontSize: 16, fontWeight: 600 } }}
@@ -1424,6 +1440,25 @@ function OpeningBalanceEditor({ accounts, balances, onChange, onCarryForward, op
               )
             })}
           </Stack>
+          {/* 保存ボタン */}
+          <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={saved ? <CheckIcon sx={{ fontSize: 16 }} /> : <SaveIcon sx={{ fontSize: 16 }} />}
+              onClick={handleSave}
+              disabled={!isDirty && !saved}
+              sx={{
+                fontSize: 13, fontWeight: 600, borderRadius: 2, px: 2,
+                bgcolor: saved ? '#2e7d32' : isDirty ? 'primary.main' : '#bdbdbd',
+                '&:hover': { bgcolor: saved ? '#1b5e20' : 'primary.dark' },
+                '&.Mui-disabled': { bgcolor: '#e0e0e0', color: '#9e9e9e' },
+                transition: 'background-color 0.3s',
+              }}
+            >
+              {saved ? '保存しました' : '保存'}
+            </Button>
+          </Box>
         </CardContent>
       </Collapse>
     </Card>

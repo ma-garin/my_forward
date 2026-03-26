@@ -286,11 +286,10 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs"
-      PaperProps={{ sx: { overflow: 'hidden', maxHeight: '95vh' } }}>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
       <DialogTitle sx={{ pb: 0.5, fontSize: 16 }}>{title}</DialogTitle>
-      <DialogContent sx={{ pb: 0, overflowY: 'auto', flexShrink: 1 }}>
-        <Stack spacing={1} sx={{ mt: 0.5 }}>
+      <DialogContent>
+        <Stack spacing={1.5} sx={{ mt: 0.5 }}>
           {!isFixed && (
             <TextField label="日付" type="date" size="small" fullWidth
               InputLabelProps={{ shrink: true }}
@@ -330,29 +329,16 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
           </Stack>
           <TextField label="項目名" size="small" fullWidth placeholder="例: YouTube Premium"
             value={name} onChange={(e) => setName(e.target.value)} />
+          <AmountField label="金額" value={String(amount)} onChange={setAmount} />
         </Stack>
       </DialogContent>
-      {/* 金額ディスプレイ + 電卓パッド（ダイアログ内埋め込み） */}
-      <Box sx={{
-        bgcolor: '#333', px: 2, py: 0.5,
-        display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
-        flexShrink: 0,
-      }}>
-        <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 14, mr: 0.5 }}>¥</Typography>
-        <Typography sx={{
-          color: '#fff', fontSize: 24, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
-          minHeight: 28,
-        }}>
-          {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
-        </Typography>
-      </Box>
-      <CalcPad
-        compact
-        value={String(amount)}
-        onChange={setAmount}
-        onConfirm={handleSave}
-        disabled={!name.trim() || parseAmount(amount) <= 0}
-      />
+      <DialogActions>
+        <Button onClick={onClose} color="inherit" size="small">キャンセル</Button>
+        <Button onClick={handleSave} variant="contained" size="small"
+          disabled={!name.trim() || parseAmount(amount) <= 0}>
+          保存
+        </Button>
+      </DialogActions>
     </Dialog>
   )
 }
