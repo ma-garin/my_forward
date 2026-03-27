@@ -19,16 +19,17 @@ function load() {
     if (s) {
       const p = JSON.parse(s)
       return {
-        fixed:    { ...DEFAULT_FIXED, ...p.fixed },
-        overtime: p.overtime ?? 20.0,
+        fixed:      { ...DEFAULT_FIXED, ...p.fixed },
+        overtime:   p.overtime ?? 20.0,
+        customUnit: p.customUnit ?? '',
       }
     }
   } catch (_) {}
-  return { fixed: { ...DEFAULT_FIXED }, overtime: 20.0 }
+  return { fixed: { ...DEFAULT_FIXED }, overtime: 20.0, customUnit: '' }
 }
 
-function save(fixed, overtime) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ fixed, overtime }))
+function save(fixed, overtime, customUnit = '') {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ fixed, overtime, customUnit }))
 }
 
 // ─── 計算ロジック ────────────────────────────────────────────
@@ -233,7 +234,7 @@ export default function SalarySimulation() {
   const [fixed, setFixed]       = useState(init.fixed)
   const [overtime, setOvertime] = useState(init.overtime)
   const [editMode, setEditMode] = useState(false)
-  const [customUnit, setCustomUnit] = useState('')
+  const [customUnit, setCustomUnit] = useState(init.customUnit)
 
   const parsedCustomUnit = customUnit === '' ? null : (parseInt(customUnit, 10) || null)
   const { unitR, unitF, unitX, unitC, otR, otF, otX, otC } = calcAllOvertime(fixed, overtime, parsedCustomUnit)
@@ -246,21 +247,21 @@ export default function SalarySimulation() {
   const editFixed = useCallback((key, val) => {
     setFixed((prev) => {
       const next = { ...prev, [key]: val }
-      save(next, overtime)
+      save(next, overtime, customUnit)
       return next
     })
-  }, [overtime])
+  }, [overtime, customUnit])
 
   const handleOvertimeChange = (val) => {
     const v = Math.round(val * 100) / 100
     if (!isNaN(v) && v >= 0) {
       setOvertime(v)
-      save(fixed, v)
+      save(fixed, v, customUnit)
     }
   }
 
   const toggleEdit = () => {
-    if (editMode) save(fixed, overtime)
+    if (editMode) save(fixed, overtime, customUnit)
     setEditMode((v) => !v)
   }
 
@@ -350,7 +351,7 @@ export default function SalarySimulation() {
             size="small" type="number" placeholder={String(unitR)}
             inputProps={{ min: 1, style: { textAlign: 'right', width: 70, fontSize: 13 } }}
             value={customUnit}
-            onChange={(e) => setCustomUnit(e.target.value)}
+            onChange={(e) => { setCustomUnit(e.target.value); save(fixed, overtime, e.target.value) }}
             sx={{ '& .MuiInputBase-root': { height: 32 } }}
             InputProps={{
               startAdornment: <InputAdornment position="start">¥</InputAdornment>,
@@ -360,7 +361,7 @@ export default function SalarySimulation() {
           {customUnit !== '' && (
             <Button size="small" variant="text" color="inherit"
               sx={{ fontSize: 11, minWidth: 0, px: 1, color: 'text.disabled' }}
-              onClick={() => setCustomUnit('')}>クリア</Button>
+              onClick={() => { setCustomUnit(''); save(fixed, overtime, '') }}>クリア</Button>
           )}
         </Stack>
       </SectionCard>

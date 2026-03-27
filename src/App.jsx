@@ -4,13 +4,14 @@ import { Box, AppBar, Toolbar, Typography, BottomNavigation, BottomNavigationAct
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
 import CreditCardIcon from '@mui/icons-material/CreditCard'
 import SavingsIcon from '@mui/icons-material/Savings'
-import HistoryIcon from '@mui/icons-material/History'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import SettingsIcon from '@mui/icons-material/Settings'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import theme from './theme'
 import SalarySimulation from './tabs/SalarySimulation'
 import CreditCard from './tabs/CreditCard'
 import BankAccounts from './tabs/BankAccounts'
+import AssetFlowSimulation from './tabs/AssetFlowSimulation'
 import SalaryHistory from './tabs/SalaryHistory'
 import SettingsMain from './settings/SettingsMain'
 import SalarySettings from './settings/SalarySettings'
@@ -19,23 +20,24 @@ import AccountSettings from './settings/AccountSettings'
 import DataSettings from './settings/DataSettings'
 
 const TABS = [
-  { label: '給与', icon: <AccountBalanceWalletIcon /> },
-  { label: 'カード', icon: <CreditCardIcon /> },
-  { label: '口座', icon: <SavingsIcon /> },
-  { label: '給与履歴', icon: <HistoryIcon /> },
+  { label: '給与',     icon: <AccountBalanceWalletIcon /> },
+  { label: 'カード',   icon: <CreditCardIcon /> },
+  { label: '口座',     icon: <SavingsIcon /> },
+  { label: '資産計画', icon: <TrendingUpIcon /> },
 ]
 
 const SETTINGS_TITLES = {
-  salary:  '給与設定',
-  card:    'カード設定',
-  account: '口座設定',
-  data:    'データ管理',
+  salary:        '給与設定',
+  card:          'カード設定',
+  account:       '口座設定',
+  data:          'データ管理',
+  salaryHistory: '給与履歴',
 }
 
 export default function App() {
   const [activeTab,    setActiveTab]    = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settingsPage, setSettingsPage] = useState(null) // null | 'salary' | 'card' | 'account' | 'data'
+  const [settingsPage, setSettingsPage] = useState(null)
 
   const openSettings = () => { setSettingsPage(null); setSettingsOpen(true) }
   const closeSettings = () => setSettingsOpen(false)
@@ -64,7 +66,7 @@ export default function App() {
           {activeTab === 0 && <SalarySimulation />}
           {activeTab === 1 && <CreditCard />}
           {activeTab === 2 && <BankAccounts />}
-          {activeTab === 3 && <SalaryHistory />}
+          {activeTab === 3 && <AssetFlowSimulation />}
         </Box>
 
         {/* Bottom Navigation */}
@@ -94,11 +96,12 @@ export default function App() {
 
           {/* 設定コンテンツ */}
           <Box sx={{ flex: 1, overflowY: 'auto' }}>
-            {!settingsPage && <SettingsMain onNavigate={navigateTo} />}
-            {settingsPage === 'salary'  && <SalarySettings />}
-            {settingsPage === 'card'    && <CardSettings />}
-            {settingsPage === 'account' && <AccountSettings />}
-            {settingsPage === 'data'    && <DataSettings />}
+            {!settingsPage                    && <SettingsMain onNavigate={navigateTo} />}
+            {settingsPage === 'salary'        && <SalarySettings />}
+            {settingsPage === 'card'          && <CardSettings />}
+            {settingsPage === 'account'       && <AccountSettings />}
+            {settingsPage === 'data'          && <DataSettings />}
+            {settingsPage === 'salaryHistory' && <SalaryHistory />}
           </Box>
         </Drawer>
       </Box>
