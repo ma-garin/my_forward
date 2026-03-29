@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Box, Card, CardContent, Typography, Stack, Divider,
-  IconButton, Chip,
+  IconButton, Chip, TextField, InputAdornment,
 } from '@mui/material'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -9,7 +9,29 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance'
 import CreditCardIcon from '@mui/icons-material/CreditCard'
 import RepeatIcon from '@mui/icons-material/Repeat'
 import SavingsIcon from '@mui/icons-material/Savings'
+import EditIcon from '@mui/icons-material/Edit'
+import CheckIcon from '@mui/icons-material/Check'
+import CloseIcon from '@mui/icons-material/Close'
 import { getSalaryTakeHome, getCCTotal, loadFixedEvents } from '../utils/finance'
+
+const SALARY_OVERRIDE_KEY = 'asset_salary_override'
+
+function loadSalaryOverride() {
+  try {
+    const v = localStorage.getItem(SALARY_OVERRIDE_KEY)
+    return v !== null ? Number(v) : null
+  } catch { return null }
+}
+
+function saveSalaryOverride(value) {
+  try {
+    if (value === null) {
+      localStorage.removeItem(SALARY_OVERRIDE_KEY)
+    } else {
+      localStorage.setItem(SALARY_OVERRIDE_KEY, String(value))
+    }
+  } catch { /* ignore */ }
+}
 
 // ─── ユーティリティ ───────────────────────────────────────────
 
@@ -45,8 +67,8 @@ function weeklyCount(ym, dayOfWeek) {
 
 // ─── 月別データ計算 ───────────────────────────────────────────
 
-function calcMonthData(ym) {
-  const salary = getSalaryTakeHome()
+function calcMonthData(ym, salaryOverride) {
+  const salary = salaryOverride !== null ? salaryOverride : getSalaryTakeHome()
 
   // 固定費（支出のみ、振替除く）- 月次＋週次
   const fixedEvts = loadFixedEvents()
@@ -167,9 +189,38 @@ export default function AssetFlowSimulation() {
   const [baseYm, setBaseYm] = useState(ymStr(today.getFullYear(), today.getMonth() + 1))
   const MONTHS = 6
 
+  const [salaryOverride, setSalaryOverride] = useState(loadSalaryOverride)
+  const [editingSalary, setEditingSalary] = useState(false)
+  const [salaryInput, setSalaryInput] = useState('')
+
   const ymList  = useMemo(() => buildYmList(baseYm, MONTHS), [baseYm])
-  const months  = useMemo(() => ymList.map(calcMonthData), [ymList])
+  const months  = useMemo(() => ymList.map(ym => calcMonthData(ym, salaryOverride)), [ymList, salaryOverride])
   const current = months[months.length - 1]
+
+  function startEditSalary() {
+    setSalaryInput(String(salaryOverride !== null ? salaryOverride : current.salary))
+    setEditingSalary(true)
+  }
+
+  function commitSalary() {
+    const raw = salaryInput.replace(/[,，\s]/g, '')
+    const num = parseInt(raw, 10)
+    if (!isNaN(num) && num >= 0) {
+      setSalaryOverride(num)
+      saveSalaryOverride(num)
+    }
+    setEditingSalary(false)
+  }
+
+  function cancelSalary() {
+    setEditingSalary(false)
+  }
+
+  function resetSalary() {
+    setSalaryOverride(null)
+    saveSalaryOverride(null)
+    setEditingSalary(false)
+  }
 
   // ym ラベル
   const [cy, cm] = baseYm.split('-').map(Number)
@@ -194,14 +245,46 @@ export default function AssetFlowSimulation() {
           </Typography>
 
           {/* 収入 */}
-          <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mt: 1.5 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.5 }}>
             <Stack direction="row" alignItems="center" gap={0.75}>
               <AccountBalanceIcon sx={{ fontSize: 14, opacity: .7 }} />
               <Typography variant="caption" sx={{ opacity: .7 }}>手取り給与</Typography>
+              {salaryOverride !== null && !editingSalary && (
+                <Typography variant="caption" sx={{ opacity: .5, fontSize: 9 }}>（手動）</Typography>
+              )}
             </Stack>
-            <Typography variant="body1" fontWeight={700} sx={{ color: '#a5d6a7' }}>
-              +¥{fmt(current.salary)}
-            </Typography>
+            {editingSalary ? (
+              <Stack direction="row" alignItems="center" gap={0.5}>
+                <TextField
+                  value={salaryInput}
+                  onChange={e => setSalaryInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') commitSalary(); if (e.key === 'Escape') cancelSalary() }}
+                  size="small"
+                  autoFocus
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start"><Typography variant="caption" sx={{ color: '#a5d6a7' }}>¥</Typography></InputAdornment>,
+                    sx: { color: '#a5d6a7', fontSize: 13, height: 28, input: { textAlign: 'right', p: 0, pr: 0.5 } },
+                  }}
+                  sx={{ width: 110, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(165,214,167,.5)' } }}
+                />
+                <IconButton size="small" onClick={commitSalary} sx={{ color: '#a5d6a7', p: 0.25 }}><CheckIcon sx={{ fontSize: 16 }} /></IconButton>
+                <IconButton size="small" onClick={cancelSalary} sx={{ color: 'rgba(255,255,255,.5)', p: 0.25 }}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
+                {salaryOverride !== null && (
+                  <IconButton size="small" onClick={resetSalary} sx={{ color: 'rgba(255,255,255,.4)', p: 0.25, fontSize: 9 }}>
+                    <Typography variant="caption" sx={{ fontSize: 9, opacity: .7 }}>戻す</Typography>
+                  </IconButton>
+                )}
+              </Stack>
+            ) : (
+              <Stack direction="row" alignItems="center" gap={0.5}>
+                <Typography variant="body1" fontWeight={700} sx={{ color: '#a5d6a7' }}>
+                  +¥{fmt(current.salary)}
+                </Typography>
+                <IconButton size="small" onClick={startEditSalary} sx={{ color: 'rgba(255,255,255,.4)', p: 0.25 }}>
+                  <EditIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              </Stack>
+            )}
           </Stack>
 
           {/* 固定費 */}
