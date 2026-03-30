@@ -5,6 +5,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
   Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material'
+import SwipeableDrawer from '@mui/material/SwipeableDrawer'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance'
@@ -100,6 +101,116 @@ function buildYmList(baseYm, count) {
   return list
 }
 
+// ─── 電卓UI ───────────────────────────────────────────────────
+
+const CALC_BG  = '#424242'
+const CALC_BG2 = '#616161'
+const CALC_OP  = '#555'
+
+function CalcPad({ value, onChange, onConfirm, disabled }) {
+  const CALC_BTN = { minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0, py: 1.8, color: '#fff' }
+  const [stored, setStored] = useState(null)
+  const [op, setOp]         = useState(null)
+  const [fresh, setFresh]   = useState(false)
+
+  const calc = (a, b, operator) => {
+    switch (operator) {
+      case '+': return a + b
+      case '−': return a - b
+      case '×': return a * b
+      case '÷': return b !== 0 ? Math.floor(a / b) : a
+      default:  return b
+    }
+  }
+
+  const pressDigit = (d) => {
+    if (fresh) { onChange(d); setFresh(false) }
+    else { onChange((value === '0' ? '' : (value ?? '')) + d) }
+  }
+
+  const pressOp = (next) => {
+    const cur = parseAmt(value)
+    if (stored !== null && op && !fresh) {
+      const result = calc(stored, cur, op)
+      setStored(result); onChange(String(result))
+    } else { setStored(cur) }
+    setOp(next); setFresh(true)
+  }
+
+  const pressClear = () => { onChange(''); setStored(null); setOp(null); setFresh(false) }
+
+  const pressEquals = () => {
+    if (stored !== null && op) {
+      const result = calc(stored, parseAmt(value), op)
+      onChange(String(result)); setStored(null); setOp(null); setFresh(false)
+    }
+  }
+
+  const pressConfirm = () => { pressEquals(); onConfirm() }
+
+  const btn = (label, onClick, sx = {}) => (
+    <Button key={label} onClick={onClick}
+      sx={{ ...CALC_BTN, bgcolor: CALC_BG, '&:hover': { bgcolor: CALC_BG2 }, '&:active': { bgcolor: '#757575' }, ...sx }}>
+      {label}
+    </Button>
+  )
+  const opBtn = (label) => btn(label, () => pressOp(label), {
+    bgcolor: op === label && fresh ? '#ff9800' : CALC_OP,
+    '&:hover': { bgcolor: op === label && fresh ? '#ffa726' : CALC_BG2 },
+  })
+
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: 'repeat(5, 1fr)', gap: '1px', bgcolor: '#333', borderRadius: 2, overflow: 'hidden' }}>
+      {btn('C', pressClear, { gridColumn: 'span 2', bgcolor: '#555', '&:hover': { bgcolor: '#666' } })}
+      {opBtn('÷')}{opBtn('×')}
+      {btn('7', () => pressDigit('7'))}{btn('8', () => pressDigit('8'))}{btn('9', () => pressDigit('9'))}{opBtn('−')}
+      {btn('4', () => pressDigit('4'))}{btn('5', () => pressDigit('5'))}{btn('6', () => pressDigit('6'))}{opBtn('+')}
+      {btn('1', () => pressDigit('1'))}{btn('2', () => pressDigit('2'))}{btn('3', () => pressDigit('3'))}
+      {btn('確定', pressConfirm, { gridRow: 'span 2', bgcolor: disabled ? '#bdbdbd' : '#f57c00', color: '#fff', fontWeight: 700, fontSize: 18, '&:hover': { bgcolor: disabled ? '#bdbdbd' : '#ef6c00' }, '&:active': { bgcolor: disabled ? '#bdbdbd' : '#e65100' } })}
+      {btn('=', pressEquals, { bgcolor: '#ff9800', fontWeight: 700, fontSize: 24, '&:hover': { bgcolor: '#ffa726' }, '&:active': { bgcolor: '#e65100' } })}
+      {btn('0', () => pressDigit('0'))}{btn('00', () => pressDigit('00'))}
+    </Box>
+  )
+}
+
+function AmountField({ value, onChange, onConfirm, label }) {
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  const handleOpen = () => { setDraft(String(parseAmt(value) || '')); setOpen(true) }
+  const handleConfirm = () => { onChange(draft.replace(/[^0-9]/g, '')); setOpen(false); onConfirm?.() }
+
+  return (
+    <>
+      <TextField
+        label={label} size="small" fullWidth
+        value={parseAmt(value) > 0 ? parseAmt(value).toLocaleString('ja-JP') : ''}
+        onClick={handleOpen}
+        placeholder="タップして入力"
+        inputProps={{ readOnly: true, style: { cursor: 'pointer', textAlign: 'right' } }}
+        InputProps={{ startAdornment: <InputAdornment position="start">¥</InputAdornment> }}
+      />
+      <SwipeableDrawer
+        anchor="bottom" open={open}
+        onClose={() => setOpen(false)} onOpen={() => {}}
+        disableSwipeToOpen disableScrollLock
+        sx={{ zIndex: 1500 }}
+        PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
+      >
+        <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
+        {label && <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>{label}</Typography>}
+        <Box sx={{ bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5, display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
+          <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
+          <Typography sx={{ color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums', minHeight: 44 }}>
+            {parseAmt(draft) > 0 ? fmt(parseAmt(draft)) : '0'}
+          </Typography>
+        </Box>
+        <CalcPad value={draft} onChange={setDraft} onConfirm={handleConfirm} disabled={parseAmt(draft) <= 0} />
+      </SwipeableDrawer>
+    </>
+  )
+}
+
 // ─── グラフ ───────────────────────────────────────────────────
 
 function BarChart({ data }) {
@@ -184,12 +295,7 @@ function ItemDialog({ open, title, initialName, initialAmount, initialCategory, 
             label="項目名" value={name} onChange={e => setName(e.target.value)}
             size="small" fullWidth autoFocus
           />
-          <TextField
-            label="金額" value={amount}
-            onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
-            size="small" fullWidth
-            InputProps={{ startAdornment: <InputAdornment position="start">¥</InputAdornment> }}
-          />
+          <AmountField label="金額" value={amount} onChange={setAmount} />
           {categories && (
             <FormControl size="small" fullWidth>
               <InputLabel>カテゴリ</InputLabel>
