@@ -1262,7 +1262,7 @@ export default function CreditCard() {
       <Fab
         color="primary"
         onClick={() => setDlg({ type: 'var' })}
-        sx={{ position: 'fixed', bottom: 'calc(72px + env(safe-area-inset-bottom))', right: 16, zIndex: 200 }}
+        sx={{ position: 'fixed', bottom: 'calc(88px + env(safe-area-inset-bottom))', right: 16, zIndex: 200 }}
       >
         <AddIcon />
       </Fab>

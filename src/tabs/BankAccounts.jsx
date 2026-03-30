@@ -1873,7 +1873,7 @@ export default function BankAccounts() {
 
       {/* FAB */}
       <Fab color="primary" onClick={() => setQuickOpen(true)}
-        sx={{ position: 'fixed', bottom: 'calc(72px + env(safe-area-inset-bottom))', right: 16, zIndex: 200 }}>
+        sx={{ position: 'fixed', bottom: 'calc(88px + env(safe-area-inset-bottom))', right: 16, zIndex: 200 }}>
         <AddIcon />
       </Fab>
 
