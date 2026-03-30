@@ -43,3 +43,49 @@ Kiro-style Spec Driven Development implementation on AI-DLC (AI Development Life
 - Load entire `.kiro/steering/` as project memory
 - Default files: `product.md`, `tech.md`, `structure.md`
 - Custom files are supported (managed via `/kiro:steering-custom`)
+
+---
+
+## Project Quick Reference
+
+### Key Files
+| ファイル | 役割 |
+|---------|------|
+| `src/utils/finance.js` | 全共有ロジック（給与計算・localStorage helpers）|
+| `src/tabs/AssetFlowSimulation.jsx` | 資産計画タブ |
+| `src/tabs/BankAccounts.jsx` | 口座管理タブ（~1900行・全読み不要）|
+| `src/tabs/CreditCard.jsx` | クレカタブ（~1290行・全読み不要）|
+| `src/tabs/SalarySimulation.jsx` | 給与シミュレーションタブ |
+| `src/tabs/SalaryHistory.jsx` | 給与履歴タブ |
+
+### よく使うユーティリティ（finance.js）
+- `newId()` — ユニークID生成
+- `fmt(n)` — 金額表示フォーマット（絶対値、カンマ区切り）
+- `ymStr(y, m)` — `YYYY-MM` 文字列生成
+- `addMonth(ym, n)` — 月を n ヶ月進める（負数で過去）
+- `loadFixedEvents()` / `saveFixedEvents(list)` — 固定費の読み書き
+- `getCCTotal(cardId, ym)` — クレカ合計取得 `{ fixed, variable, total }`
+- `getSalaryTakeHome()` — 手取り計算（万円切り捨て）
+
+### localStorage キー早見表
+| キー | 内容 |
+|------|------|
+| `salary_simulation` | 給与固定項目・残業時間 |
+| `bank_fixed_events` | 固定費イベントリスト |
+| `cc_fixed_{cardId}` | クレカ固定費（jcb / smbc）|
+| `cc_var_{cardId}_{ym}` | クレカ変動費（月別）|
+| `bank_accounts` | 口座定義リスト |
+| `cc_cards` | カード定義リスト |
+| `asset_salary_override` | 資産計画タブの手取り手動上書き |
+
+---
+
+## Efficient File Reading
+- **大ファイルは全読みしない** — `limit` / `offset` で必要箇所のみ読む
+- 関数を探すときは `Grep` で行番号特定 → その周辺だけ `Read`
+- 全体構造の把握が必要な場合も `Glob` + `Grep` を優先し、Explore agentは最終手段
+
+## Editing Rules
+- **既存ファイルは `Edit` ツール優先**（`Write` は新規ファイル作成のみ）
+- 変更箇所が複数あっても、1ファイルなら複数の `Edit` で対応する
+- フルrewriteはファイルが完全に別物になる場合のみ許可
