@@ -86,7 +86,7 @@ export function getCCTotal(cardId, ym) {
     const fixed    = JSON.parse(localStorage.getItem(`cc_fixed_${cardId}`)   || '[]')
     const variable = JSON.parse(localStorage.getItem(`cc_var_${cardId}_${ym}`) || '[]')
     const fixedSum = fixed.filter((x) => !x.startYm || x.startYm <= ym).reduce((s, x) => s + x.amount, 0)
-    const varSum   = variable.reduce((s, x) => s + x.amount, 0)
+    const varSum   = variable.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
     return { fixed: fixedSum, variable: varSum, total: fixedSum + varSum }
   } catch {
     return { fixed: 0, variable: 0, total: 0 }

@@ -487,21 +487,35 @@ function CalcPad({ value, onChange, onConfirm, disabled, compact = false }) {
 
 // ─── 変動費クイック入力（ボトムシート）──────────────────
 
-function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEditCategories }) {
-  const [amount,   setAmount]   = useState('')
-  const [category, setCategory] = useState(categories[0] ?? 'その他')
-  const [name,     setName]     = useState('')
-  const [payee,    setPayee]    = useState('')
-  const [date,     setDate]     = useState(defaultDate)
+const TYPE_DEFS = [
+  { value: 'income',   label: '収入', color: '#1565c0' },
+  { value: 'expense',  label: '支出', color: '#c62828' },
+  { value: 'transfer', label: '振替', color: '#37474f' },
+]
+
+function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEditCategories, currentCardId }) {
+  const [type,       setType]       = useState('expense')
+  const [amount,     setAmount]     = useState('')
+  const [category,   setCategory]   = useState(categories[0] ?? 'その他')
+  const [name,       setName]       = useState('')
+  const [payee,      setPayee]      = useState('')
+  const [memo,       setMemo]       = useState('')
+  const [date,       setDate]       = useState(defaultDate)
+  const [card,       setCard]       = useState(currentCardId)
+  const [fromCard,   setFromCard]   = useState(currentCardId)
+  const [toCard,     setToCard]     = useState(currentCardId === 'jcb' ? 'smbc' : 'jcb')
   const [showDetail, setShowDetail] = useState(false)
 
   const reset = () => {
+    setType('expense')
     setDate(defaultDate)
     setAmount('')
-    setName('')
-    setPayee('')
+    setName(''); setPayee(''); setMemo('')
     setCategory(categories[0] ?? 'その他')
     setShowDetail(false)
+    setCard(currentCardId)
+    setFromCard(currentCardId)
+    setToCard(currentCardId === 'jcb' ? 'smbc' : 'jcb')
   }
 
   const handleOpen = () => reset()
@@ -509,10 +523,26 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
   const doSave = () => {
     const a = parseAmount(amount)
     if (a <= 0) return
-    onSave({ name: name.trim() || category, payee: payee.trim(), amount: a, category, date })
+    if (type === 'transfer') {
+      onSave({
+        transfer: true, fromCard, toCard,
+        item: { name: memo.trim() || '振替', amount: a, category: 'その他', date },
+      })
+    } else {
+      onSave({
+        cardId: card,
+        item: {
+          name: name.trim() || (type === 'income' ? '収入' : category),
+          payee: payee.trim(), amount: a, category, date,
+          ...(type === 'income' ? { sign: 1 } : {}),
+        },
+      })
+    }
     reset()
     onClose()
   }
+
+  const typeColor = TYPE_DEFS.find((t) => t.value === type)?.color ?? '#333'
 
   return (
     <SwipeableDrawer
@@ -522,84 +552,133 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
       onOpen={handleOpen}
       disableSwipeToOpen
       disableScrollLock
-      PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
+      PaperProps={{ sx: { borderRadius: '16px 16px 0 0', maxWidth: 600, mx: 'auto' } }}
     >
-      {/* ハンドル */}
-      <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
-
-      {/* 日付 */}
-      <TextField
-        type="date" size="small" fullWidth
-        InputLabelProps={{ shrink: true }}
-        label="日付"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-        sx={{ mb: 1.5 }}
-      />
-
-      {/* カテゴリ選択 */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
-        <Typography variant="caption" color="text.secondary">カテゴリ</Typography>
-        <IconButton size="small" onClick={onEditCategories} sx={{ p: 0.25 }}>
-          <SettingsIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
-        </IconButton>
-      </Stack>
-      <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mb: 1.5 }}>
-        {categories.map((cat) => (
-          <Chip
-            key={cat}
-            label={cat}
-            onClick={() => setCategory(cat)}
-            sx={{
-              fontWeight: category === cat ? 700 : 400,
-              fontSize: 12,
-              bgcolor: category === cat
-                ? (CATEGORY_COLORS[cat] ?? '#e0e0e0')
-                : '#f5f5f5',
-              border: category === cat ? '2px solid' : '1px solid transparent',
-              borderColor: category === cat ? 'primary.main' : 'transparent',
-            }}
-          />
+      {/* ── タイプ選択タブ ── */}
+      <Stack direction="row" sx={{ borderBottom: '1px solid #f0f0f0' }}>
+        {TYPE_DEFS.map(({ value, label, color }) => (
+          <Box key={value} flex={1} onClick={() => setType(value)} sx={{
+            textAlign: 'center', py: 1.5, fontSize: 14, cursor: 'pointer', userSelect: 'none',
+            fontWeight: type === value ? 700 : 400,
+            color: type === value ? color : '#9e9e9e',
+            borderBottom: type === value ? `3px solid ${color}` : '3px solid transparent',
+            transition: 'all .15s',
+          }}>
+            {label}
+          </Box>
         ))}
       </Stack>
 
-      {/* 詳細入力トグル */}
-      <Box sx={{ mb: 1 }}>
-        <Button size="small" onClick={() => setShowDetail(!showDetail)}
-          sx={{ fontSize: 11, color: 'text.secondary', textTransform: 'none', p: 0, minWidth: 0 }}>
-          {showDetail ? '▲ 詳細を閉じる' : '▼ 支払先・項目名'}
-        </Button>
-        {showDetail && (
-          <Stack spacing={1.5} sx={{ mt: 1 }}>
-            <TextField size="small" fullWidth label="支払先（省略可）" placeholder="例: Google, Amazon"
-              value={payee} onChange={(e) => setPayee(e.target.value)} />
-            <TextField size="small" fullWidth label="項目名（省略可）" placeholder={category}
-              value={name} onChange={(e) => setName(e.target.value)} />
+      <Box sx={{ px: 2, pt: 1.5, pb: 3 }}>
+
+        {/* 日付 */}
+        <TextField
+          type="date" size="small" fullWidth InputLabelProps={{ shrink: true }}
+          label="日付" value={date} onChange={(e) => setDate(e.target.value)}
+          sx={{ mb: 1.5 }}
+        />
+
+        {/* ── 収入 / 支出 共通フィールド ── */}
+        {(type === 'expense' || type === 'income') && (
+          <>
+            {/* カテゴリ（支出のみ） */}
+            {type === 'expense' && (
+              <>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary">分類</Typography>
+                  <IconButton size="small" onClick={onEditCategories} sx={{ p: 0.25 }}>
+                    <SettingsIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
+                  </IconButton>
+                </Stack>
+                <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mb: 1.5 }}>
+                  {categories.map((cat) => (
+                    <Chip key={cat} label={cat} onClick={() => setCategory(cat)} sx={{
+                      fontWeight: category === cat ? 700 : 400, fontSize: 12,
+                      bgcolor: category === cat ? (CATEGORY_COLORS[cat] ?? '#e0e0e0') : '#f5f5f5',
+                      border: category === cat ? '2px solid' : '1px solid transparent',
+                      borderColor: category === cat ? 'primary.main' : 'transparent',
+                    }} />
+                  ))}
+                </Stack>
+              </>
+            )}
+
+            {/* 資産（カード選択） */}
+            <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
+              <InputLabel>資産</InputLabel>
+              <Select value={card} label="資産" onChange={(e) => setCard(e.target.value)}>
+                {Object.values(CARDS).map((c) => (
+                  <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* 詳細（支払先・項目名） */}
+            <Box sx={{ mb: 1 }}>
+              <Button size="small" onClick={() => setShowDetail(!showDetail)}
+                sx={{ fontSize: 11, color: 'text.secondary', textTransform: 'none', p: 0, minWidth: 0 }}>
+                {showDetail ? '▲ 閉じる' : '▼ 支払先・項目名'}
+              </Button>
+              {showDetail && (
+                <Stack spacing={1.5} sx={{ mt: 1 }}>
+                  <TextField size="small" fullWidth label="支払先（省略可）" placeholder="例: Google"
+                    value={payee} onChange={(e) => setPayee(e.target.value)} />
+                  <TextField size="small" fullWidth label="項目名（省略可）"
+                    value={name} onChange={(e) => setName(e.target.value)} />
+                </Stack>
+              )}
+            </Box>
+          </>
+        )}
+
+        {/* ── 振替フィールド ── */}
+        {type === 'transfer' && (
+          <Stack spacing={1.5} sx={{ mb: 1.5 }}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>出金</InputLabel>
+              <Select value={fromCard} label="出金" onChange={(e) => setFromCard(e.target.value)}>
+                {Object.values(CARDS).map((c) => (
+                  <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl size="small" fullWidth>
+              <InputLabel>入金</InputLabel>
+              <Select value={toCard} label="入金" onChange={(e) => setToCard(e.target.value)}>
+                {Object.values(CARDS).map((c) => (
+                  <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField size="small" fullWidth label="内容（省略可）"
+              value={memo} onChange={(e) => setMemo(e.target.value)} />
           </Stack>
         )}
-      </Box>
 
-      {/* 金額ディスプレイ */}
-      <Box sx={{
-        bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
-        display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
-      }}>
-        <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
-        <Typography sx={{
-          color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
-          minHeight: 44,
+        {/* 金額ディスプレイ */}
+        <Box sx={{
+          bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
+          display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 0.5,
         }}>
-          {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
-        </Typography>
-      </Box>
+          {type !== 'transfer' && (
+            <Typography sx={{ color: typeColor, fontSize: 20, fontWeight: 700, mr: 0.25 }}>
+              {type === 'income' ? '+' : '−'}
+            </Typography>
+          )}
+          <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
+          <Typography sx={{ color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums', minHeight: 44 }}>
+            {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
+          </Typography>
+        </Box>
 
-      {/* 電卓パッド */}
-      <CalcPad
-        value={amount}
-        onChange={setAmount}
-        onConfirm={doSave}
-        disabled={parseAmount(amount) <= 0}
-      />
+        {/* 電卓パッド */}
+        <CalcPad
+          value={amount}
+          onChange={setAmount}
+          onConfirm={doSave}
+          disabled={parseAmount(amount) <= 0}
+        />
+      </Box>
     </SwipeableDrawer>
   )
 }
@@ -772,7 +851,10 @@ function VarExpenseTable({ varList, onEdit, onDelete }) {
               </TableCell>
               <TableCell sx={{ fontSize: 12, py: 0.75, color: 'text.secondary' }}>{item.payee || '—'}</TableCell>
               <TableCell sx={{ fontSize: 12, py: 0.75 }}>{item.name}</TableCell>
-              <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', fontWeight: 500 }}>¥{fmt(item.amount)}</TableCell>
+              <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', fontWeight: 500,
+                color: item.sign === 1 ? '#1565c0' : 'inherit' }}>
+                {item.sign === 1 ? '+' : '−'}¥{fmt(item.amount)}
+              </TableCell>
               <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', color: 'text.secondary' }}>¥{fmt(item.subtotal)}</TableCell>
               <TableCell sx={{ py: 0.5, px: 0.5 }}>
                 <Stack direction="row">
@@ -1018,6 +1100,7 @@ export default function CreditCard() {
   const [snack,        setSnack]        = useState({ open: false, severity: 'success', message: '' })
   const [fixedOpen,    setFixedOpen]    = useState(false)
   const [varOpen,      setVarOpen]      = useState(false)
+  const [quickOpen,    setQuickOpen]    = useState(false)
 
   const notify = (severity, message) => setSnack({ open: true, severity, message })
 
@@ -1057,6 +1140,36 @@ export default function CreditCard() {
     try { const next = [...varList, { id: newId(), ...data }].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1); setVarList(next); saveVar(cardId, ym, next); notify('success', '変動費を保存しました') }
     catch { notify('error', '変動費の保存に失敗しました') }
   }
+
+  // QuickAddDrawer からの保存（収入/支出/振替対応）
+  const handleQuickSave = ({ cardId: targetCard, item, transfer, fromCard, toCard }) => {
+    try {
+      if (transfer) {
+        // 振替：fromCard に支出、toCard に収入を記録
+        const outItem = { id: newId(), ...item }
+        const inItem  = { id: newId(), ...item, sign: 1, name: item.name + '（受取）' }
+        const outList = loadVar(fromCard, ym)
+        const inList  = loadVar(toCard,   ym)
+        const nextOut = [...outList, outItem].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1)
+        const nextIn  = [...inList,  inItem ].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1)
+        saveVar(fromCard, ym, nextOut)
+        saveVar(toCard,   ym, nextIn)
+        if (fromCard === cardId) setVarList(nextOut)
+        else if (toCard === cardId) setVarList(nextIn)
+        notify('success', '振替を記録しました')
+      } else {
+        const newItem = { id: newId(), ...item }
+        if (targetCard === cardId) {
+          const next = [...varList, newItem].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1)
+          setVarList(next); saveVar(cardId, ym, next)
+        } else {
+          const existing = loadVar(targetCard, ym)
+          saveVar(targetCard, ym, [...existing, newItem].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1))
+        }
+        notify('success', item.sign === 1 ? '収入を記録しました' : '支出を記録しました')
+      }
+    } catch { notify('error', '保存に失敗しました') }
+  }
   const editVar = (data) => {
     try { const next = varList.map((x) => x.id === dlg.initial.id ? { ...x, ...data } : x).sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1); setVarList(next); saveVar(cardId, ym, next); notify('success', '変動費を更新しました') }
     catch { notify('error', '変動費の更新に失敗しました') }
@@ -1074,7 +1187,7 @@ export default function CreditCard() {
   // 開始年月でフィルタリングされた固定費（選択中の月に有効なもののみ）
   const filteredFixed = fixedList.filter((x) => !x.startYm || x.startYm <= ym)
   const fixedTotal = filteredFixed.reduce((s, x) => s + x.amount, 0)
-  const varTotal   = varList.reduce((s, x)   => s + x.amount, 0)
+  const varTotal   = varList.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
   const grandTotal = fixedTotal + varTotal
 
   return (
@@ -1258,14 +1371,25 @@ export default function CreditCard() {
         open={catDlgOpen} onClose={() => setCatDlgOpen(false)}
         categories={categories} onChange={handleCategoryChange} />
 
-      {/* FAB: 変動費追加 */}
+      {/* FAB: クイック入力（収入/支出/振替） */}
       <Fab
         color="primary"
-        onClick={() => setDlg({ type: 'var' })}
+        onClick={() => setQuickOpen(true)}
         sx={{ position: 'fixed', bottom: 72, right: 16, zIndex: 200 }}
       >
         <AddIcon />
       </Fab>
+
+      {/* クイック入力ドロワー */}
+      <QuickAddDrawer
+        open={quickOpen}
+        onClose={() => setQuickOpen(false)}
+        onSave={handleQuickSave}
+        categories={categories}
+        defaultDate={todayStr}
+        onEditCategories={() => { setQuickOpen(false); setCatDlgOpen(true) }}
+        currentCardId={cardId}
+      />
 
       {/* 保存通知 */}
       <Snackbar
