@@ -20,7 +20,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import {
-  getSalaryTakeHome, getCCTotal, loadFixedEvents, saveFixedEvents,
+  getSalaryTakeHome, getCCTotal, getCCPaymentTotal, loadFixedEvents, saveFixedEvents,
   loadCategories, newId,
 } from '../utils/finance'
 
@@ -87,8 +87,9 @@ function calcMonthData(ym, salaryOverride) {
 
   const [y, m] = ym.split('-').map(Number)
   const prevYm = ymStr(m === 1 ? y - 1 : y, m === 1 ? 12 : m - 1)
-  const jcbAmt  = getCCTotal('jcb',  prevYm).total
-  const smbcAmt = getCCTotal('smbc', prevYm).total
+  // getCCPaymentTotal: 締め日を考慮した正確な請求額（JCB=15日締め、SMBC=月末締め）
+  const jcbAmt  = getCCPaymentTotal('jcb',  ym).total
+  const smbcAmt = getCCPaymentTotal('smbc', ym).total
   const ccTotal = jcbAmt + smbcAmt
 
   const remaining = salary - fixedCost - ccTotal

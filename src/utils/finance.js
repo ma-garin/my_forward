@@ -81,12 +81,73 @@ export function deriveRow(f, otPay) {
 
 // ─── クレジットカードストレージ ─────────────────────────────
 
+// カード別締め日（0 = 月末締め）
+export const CARD_CUTOFF_DAYS = {
+  jcb:  15,  // 15日締め翌10日払い
+  smbc:  0,  // 月末締め翌26日払い
+}
+
+// カレンダー月の変動費合計（CCタブ表示用）
 export function getCCTotal(cardId, ym) {
   try {
     const fixed    = JSON.parse(localStorage.getItem(`cc_fixed_${cardId}`)   || '[]')
     const variable = JSON.parse(localStorage.getItem(`cc_var_${cardId}_${ym}`) || '[]')
     const fixedSum = fixed.filter((x) => !x.startYm || x.startYm <= ym).reduce((s, x) => s + x.amount, 0)
-    const varSum   = variable.reduce((s, x) => s + x.amount, 0)
+    const varSum   = variable.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
+    return { fixed: fixedSum, variable: varSum, total: fixedSum + varSum }
+  } catch {
+    return { fixed: 0, variable: 0, total: 0 }
+  }
+}
+
+/**
+ * 支払月ベースのCC請求合計（口座タブ・資産シミュレーション用）
+ * cutoffDay = 0（月末締め）: 前月全体の利用額
+ * cutoffDay > 0（例: 15日締め）: 前々月(cutoff+1)日〜前月cutoff日の利用額
+ *
+ * 例: JCB 15日締め、paymentYm=2026-05
+ *   → 2026-03-16 〜 2026-04-15 の利用額
+ */
+export function getCCPaymentTotal(cardId, paymentYm) {
+  try {
+    const cutoffDay = CARD_CUTOFF_DAYS[cardId] ?? 0
+    const [y, m] = paymentYm.split('-').map(Number)
+
+    const fixed    = JSON.parse(localStorage.getItem(`cc_fixed_${cardId}`) || '[]')
+    const fixedSum = fixed.filter((x) => !x.startYm || x.startYm <= paymentYm).reduce((s, x) => s + x.amount, 0)
+
+    const varReduce = (arr) => arr.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
+
+    let varSum = 0
+
+    if (cutoffDay === 0) {
+      // 月末締め: 前月全体
+      const prevYm = ymStr(m === 1 ? y - 1 : y, m === 1 ? 12 : m - 1)
+      varSum = varReduce(JSON.parse(localStorage.getItem(`cc_var_${cardId}_${prevYm}`) || '[]'))
+    } else {
+      // 特定日締め: 前々月(cutoff+1)日〜前月cutoff日
+      const prevM  = m === 1 ? 12 : m - 1
+      const prevY  = m === 1 ? y - 1 : y
+      const prev2M = prevM === 1 ? 12 : prevM - 1
+      const prev2Y = prevM === 1 ? prevY - 1 : prevY
+      const prevYm  = ymStr(prevY,  prevM)
+      const prev2Ym = ymStr(prev2Y, prev2M)
+
+      // 前々月: cutoffDay 超の日付（後半）
+      const var2 = JSON.parse(localStorage.getItem(`cc_var_${cardId}_${prev2Ym}`) || '[]')
+      varSum += varReduce(var2.filter((x) => {
+        if (!x.date) return true
+        return parseInt(x.date.slice(8), 10) > cutoffDay
+      }))
+
+      // 前月: cutoffDay 以下の日付（前半）
+      const var1 = JSON.parse(localStorage.getItem(`cc_var_${cardId}_${prevYm}`) || '[]')
+      varSum += varReduce(var1.filter((x) => {
+        if (!x.date) return true
+        return parseInt(x.date.slice(8), 10) <= cutoffDay
+      }))
+    }
+
     return { fixed: fixedSum, variable: varSum, total: fixedSum + varSum }
   } catch {
     return { fixed: 0, variable: 0, total: 0 }
@@ -397,7 +458,8 @@ export function buildAutoEvents(ym, accounts, fixedEvents = []) {
 
   const events = []
 
-  const jcbTotal = getCCTotal('jcb', prevYm).total
+  // getCCPaymentTotal: 締め日を考慮した正確な請求額を使用
+  const jcbTotal = getCCPaymentTotal('jcb', ym).total
   if (jcbTotal > 0) {
     events.push({
       id: `auto_jcb_${ym}`,
@@ -410,7 +472,7 @@ export function buildAutoEvents(ym, accounts, fixedEvents = []) {
     })
   }
 
-  const smbcTotal = getCCTotal('smbc', prevYm).total
+  const smbcTotal = getCCPaymentTotal('smbc', ym).total
   if (smbcTotal > 0) {
     events.push({
       id: `auto_smbc_${ym}`,
