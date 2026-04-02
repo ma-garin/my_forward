@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   Box, Card, CardContent, Typography, Stack, Chip, Divider,
   IconButton, Button, TextField, Dialog, DialogTitle, DialogContent,
@@ -505,6 +505,9 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
   const [fromCard,   setFromCard]   = useState(currentCardId)
   const [toCard,     setToCard]     = useState(currentCardId === 'jcb' ? 'smbc' : 'jcb')
   const [showDetail, setShowDetail] = useState(false)
+
+  // 月移動時にデフォルト日付・カードを同期
+  useEffect(() => { if (!open) { setDate(defaultDate); setCard(currentCardId) } }, [defaultDate, currentCardId, open])
 
   const reset = () => {
     setType('expense')
@@ -1386,7 +1389,7 @@ export default function CreditCard() {
         onClose={() => setQuickOpen(false)}
         onSave={handleQuickSave}
         categories={categories}
-        defaultDate={todayStr}
+        defaultDate={ym === todayStr.slice(0, 7) ? todayStr : `${ym}-01`}
         onEditCategories={() => { setQuickOpen(false); setCatDlgOpen(true) }}
         currentCardId={cardId}
       />
