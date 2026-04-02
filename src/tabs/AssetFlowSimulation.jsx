@@ -13,8 +13,6 @@ import CreditCardIcon from '@mui/icons-material/CreditCard'
 import RepeatIcon from '@mui/icons-material/Repeat'
 import SavingsIcon from '@mui/icons-material/Savings'
 import EditIcon from '@mui/icons-material/Edit'
-import CheckIcon from '@mui/icons-material/Check'
-import CloseIcon from '@mui/icons-material/Close'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -104,12 +102,7 @@ function buildYmList(baseYm, count) {
 
 // ─── 電卓UI ───────────────────────────────────────────────────
 
-const CALC_BG  = '#424242'
-const CALC_BG2 = '#616161'
-const CALC_OP  = '#555'
-
 function CalcPad({ value, onChange, onConfirm, disabled }) {
-  const CALC_BTN = { minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0, py: 1.8, color: '#fff' }
   const [stored, setStored] = useState(null)
   const [op, setOp]         = useState(null)
   const [fresh, setFresh]   = useState(false)
@@ -125,51 +118,58 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
   }
 
   const pressDigit = (d) => {
-    if (fresh) { onChange(d); setFresh(false) }
+    if (fresh) { onChange(d === '00' ? '0' : d); setFresh(false) }
     else { onChange((value === '0' ? '' : (value ?? '')) + d) }
   }
 
   const pressOp = (next) => {
     const cur = parseAmt(value)
     if (stored !== null && op && !fresh) {
-      const result = calc(stored, cur, op)
-      setStored(result); onChange(String(result))
+      const r = calc(stored, cur, op); setStored(r); onChange(String(r))
     } else { setStored(cur) }
     setOp(next); setFresh(true)
   }
 
-  const pressClear = () => { onChange(''); setStored(null); setOp(null); setFresh(false) }
+  const pressBackspace = () => {
+    const s = String(value ?? '')
+    onChange(s.length <= 1 ? '' : s.slice(0, -1))
+  }
 
   const pressEquals = () => {
     if (stored !== null && op) {
-      const result = calc(stored, parseAmt(value), op)
-      onChange(String(result)); setStored(null); setOp(null); setFresh(false)
+      const r = calc(stored, parseAmt(value), op)
+      onChange(String(r)); setStored(null); setOp(null); setFresh(false)
     }
   }
 
   const pressConfirm = () => { pressEquals(); onConfirm() }
 
-  const btn = (label, onClick, sx = {}) => (
-    <Button key={label} onClick={onClick}
-      sx={{ ...CALC_BTN, bgcolor: CALC_BG, '&:hover': { bgcolor: CALC_BG2 }, '&:active': { bgcolor: '#757575' }, ...sx }}>
-      {label}
-    </Button>
+  const BASE = { minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0, py: 1.6, color: '#fff', border: 'none' }
+  const bg = (c) => ({ bgcolor: c, '&:hover': { bgcolor: c, filter: 'brightness(1.15)' }, '&:active': { filter: 'brightness(0.85)' } })
+  const numBtn = (label, handler) => (
+    <Button key={label} onClick={handler ?? (() => pressDigit(label))} sx={{ ...BASE, ...bg('#3a3a3c') }}>{label}</Button>
   )
-  const opBtn = (label) => btn(label, () => pressOp(label), {
-    bgcolor: op === label && fresh ? '#ff9800' : CALC_OP,
-    '&:hover': { bgcolor: op === label && fresh ? '#ffa726' : CALC_BG2 },
-  })
+  const opBtn = (label) => (
+    <Button key={label} onClick={() => pressOp(label)}
+      sx={{ ...BASE, ...bg(op === label && fresh ? '#ff9f0a' : '#48484a'), fontSize: 22 }}>{label}</Button>
+  )
 
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: 'repeat(5, 1fr)', gap: '1px', bgcolor: '#333', borderRadius: 2, overflow: 'hidden' }}>
-      {btn('C', pressClear, { gridColumn: 'span 2', bgcolor: '#555', '&:hover': { bgcolor: '#666' } })}
-      {opBtn('÷')}{opBtn('×')}
-      {btn('7', () => pressDigit('7'))}{btn('8', () => pressDigit('8'))}{btn('9', () => pressDigit('9'))}{opBtn('−')}
-      {btn('4', () => pressDigit('4'))}{btn('5', () => pressDigit('5'))}{btn('6', () => pressDigit('6'))}{opBtn('+')}
-      {btn('1', () => pressDigit('1'))}{btn('2', () => pressDigit('2'))}{btn('3', () => pressDigit('3'))}
-      {btn('確定', pressConfirm, { gridRow: 'span 2', bgcolor: disabled ? '#bdbdbd' : '#f57c00', color: '#fff', fontWeight: 700, fontSize: 18, '&:hover': { bgcolor: disabled ? '#bdbdbd' : '#ef6c00' }, '&:active': { bgcolor: disabled ? '#bdbdbd' : '#e65100' } })}
-      {btn('=', pressEquals, { bgcolor: '#ff9800', fontWeight: 700, fontSize: 24, '&:hover': { bgcolor: '#ffa726' }, '&:active': { bgcolor: '#e65100' } })}
-      {btn('0', () => pressDigit('0'))}{btn('00', () => pressDigit('00'))}
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', bgcolor: '#1c1c1e', overflow: 'hidden' }}>
+      {/* Row 1: + − × ÷ */}
+      {opBtn('+')} {opBtn('−')} {opBtn('×')} {opBtn('÷')}
+      {/* Row 2: 7 8 9 = */}
+      {numBtn('7')} {numBtn('8')} {numBtn('9')}
+      <Button onClick={pressEquals} sx={{ ...BASE, ...bg('#ff9f0a'), fontSize: 24, fontWeight: 700 }}>=</Button>
+      {/* Row 3: 4 5 6 00 */}
+      {numBtn('4')} {numBtn('5')} {numBtn('6')} {numBtn('00')}
+      {/* Row 4: 1 2 3 ⌫ */}
+      {numBtn('1')} {numBtn('2')} {numBtn('3')}
+      <Button onClick={pressBackspace} sx={{ ...BASE, ...bg('#48484a') }}>⌫</Button>
+      {/* Row 5: 0(×3) 確認 */}
+      <Button onClick={() => pressDigit('0')} sx={{ ...BASE, ...bg('#3a3a3c'), gridColumn: 'span 3' }}>0</Button>
+      <Button onClick={pressConfirm} disabled={disabled}
+        sx={{ ...BASE, ...bg(disabled ? '#555' : '#ef4444'), fontWeight: 700, fontSize: 18 }}>確認</Button>
     </Box>
   )
 }
@@ -328,7 +328,7 @@ export default function AssetFlowSimulation() {
 
   // 手取り給与
   const [salaryOverride, setSalaryOverride] = useState(loadSalaryOverride)
-  const [editingSalary, setEditingSalary] = useState(false)
+  const [salaryDrawerOpen, setSalaryDrawerOpen] = useState(false)
   const [salaryInput, setSalaryInput] = useState('')
 
   // 前月（クレカ請求月）
@@ -366,13 +366,13 @@ export default function AssetFlowSimulation() {
 
   // ─── 給与編集 ────────────────────────────────────────────────
 
-  function startEditSalary() { setSalaryInput(String(salaryOverride !== null ? salaryOverride : current.salary)); setEditingSalary(true) }
+  function startEditSalary() { setSalaryInput(String(salaryOverride !== null ? salaryOverride : current.salary)); setSalaryDrawerOpen(true) }
   function commitSalary() {
     const num = parseAmt(salaryInput)
     if (num >= 0) { setSalaryOverride(num); saveSalaryOverride(num) }
-    setEditingSalary(false)
+    setSalaryDrawerOpen(false)
   }
-  function resetSalary() { setSalaryOverride(null); saveSalaryOverride(null); setEditingSalary(false) }
+  function resetSalary() { setSalaryOverride(null); saveSalaryOverride(null); setSalaryDrawerOpen(false) }
 
   // ─── 固定費操作 ──────────────────────────────────────────────
 
@@ -563,39 +563,38 @@ export default function AssetFlowSimulation() {
             <Stack direction="row" alignItems="center" gap={0.75}>
               <AccountBalanceIcon sx={{ fontSize: 14, opacity: .7 }} />
               <Typography variant="caption" sx={{ opacity: .7 }}>手取り給与</Typography>
-              {salaryOverride !== null && !editingSalary && (
+              {salaryOverride !== null && (
                 <Typography variant="caption" sx={{ opacity: .5, fontSize: 9 }}>（手動）</Typography>
               )}
             </Stack>
-            {editingSalary ? (
-              <Stack direction="row" alignItems="center" gap={0.5}>
-                <TextField
-                  value={salaryInput}
-                  onChange={e => setSalaryInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') commitSalary(); if (e.key === 'Escape') setEditingSalary(false) }}
-                  size="small" autoFocus
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start"><Typography variant="caption" sx={{ color: '#a5d6a7' }}>¥</Typography></InputAdornment>,
-                    sx: { color: '#a5d6a7', fontSize: 13, height: 28, input: { textAlign: 'right', p: 0, pr: 0.5 } },
-                  }}
-                  sx={{ width: 110, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(165,214,167,.5)' } }}
-                />
-                <IconButton size="small" onClick={commitSalary} sx={{ color: '#a5d6a7', p: 0.25 }}><CheckIcon sx={{ fontSize: 16 }} /></IconButton>
-                <IconButton size="small" onClick={() => setEditingSalary(false)} sx={{ color: 'rgba(255,255,255,.5)', p: 0.25 }}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
+            <Stack direction="row" alignItems="center" gap={0.5}>
+              <Typography variant="body1" fontWeight={700} sx={{ color: '#a5d6a7' }}>+¥{fmt(current.salary)}</Typography>
+              <IconButton size="small" onClick={startEditSalary} sx={{ color: 'rgba(255,255,255,.4)', p: 0.25 }}>
+                <EditIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+            </Stack>
+            <SwipeableDrawer
+              anchor="bottom" open={salaryDrawerOpen}
+              onClose={() => setSalaryDrawerOpen(false)} onOpen={() => {}}
+              disableSwipeToOpen disableScrollLock
+              sx={{ zIndex: 1500 }}
+              PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
+            >
+              <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">手取り給与</Typography>
                 {salaryOverride !== null && (
-                  <IconButton size="small" onClick={resetSalary} sx={{ color: 'rgba(255,255,255,.4)', p: 0.25 }}>
-                    <Typography variant="caption" sx={{ fontSize: 9, opacity: .7 }}>戻す</Typography>
-                  </IconButton>
+                  <Button size="small" onClick={resetSalary} sx={{ fontSize: 11, py: 0, color: 'text.secondary' }}>自動に戻す</Button>
                 )}
               </Stack>
-            ) : (
-              <Stack direction="row" alignItems="center" gap={0.5}>
-                <Typography variant="body1" fontWeight={700} sx={{ color: '#a5d6a7' }}>+¥{fmt(current.salary)}</Typography>
-                <IconButton size="small" onClick={startEditSalary} sx={{ color: 'rgba(255,255,255,.4)', p: 0.25 }}>
-                  <EditIcon sx={{ fontSize: 14 }} />
-                </IconButton>
-              </Stack>
-            )}
+              <Box sx={{ bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5, display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
+                <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
+                <Typography sx={{ color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums', minHeight: 44 }}>
+                  {parseAmt(salaryInput) > 0 ? fmt(parseAmt(salaryInput)) : '0'}
+                </Typography>
+              </Box>
+              <CalcPad value={salaryInput} onChange={setSalaryInput} onConfirm={commitSalary} disabled={parseAmt(salaryInput) <= 0} />
+            </SwipeableDrawer>
           </Stack>
 
           {/* 固定費 */}
