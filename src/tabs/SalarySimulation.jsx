@@ -272,30 +272,28 @@ export default function SalarySimulation() {
       <Card sx={{ mb: 2, bgcolor: '#263238', color: '#fff' }}>
         <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
           <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>今月の手取り（シミュレーション）</Typography>
-          <Stack direction="row" alignItems="baseline" spacing={2} sx={{ mt: 0.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', mt: 0.5 }}>
             <Stack>
               <Typography variant="caption" sx={{ opacity: .7, fontSize: 10, color: '#90caf9' }}>自由入力</Typography>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>{rowC != null ? `¥${fmt(rowC.takeHome)}` : '—'}</Typography>
+              <Typography variant="caption" sx={{ opacity: .6, color: '#90caf9', fontSize: 9 }}>{rowC != null ? `¥${fmt(rowC.totalPay)}` : ''}</Typography>
             </Stack>
             <Stack>
               <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>小数</Typography>
               <Typography variant="h6" sx={{ fontWeight: 600, opacity: 0.85 }}>¥{fmt(rowX.takeHome)}</Typography>
+              <Typography variant="caption" sx={{ opacity: .5, fontSize: 9 }}>¥{fmt(rowX.totalPay)}</Typography>
             </Stack>
             <Stack>
               <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>round</Typography>
               <Typography variant="h6" sx={{ fontWeight: 600, opacity: 0.85 }}>¥{fmt(rowR.takeHome)}</Typography>
+              <Typography variant="caption" sx={{ opacity: .5, fontSize: 9 }}>¥{fmt(rowR.totalPay)}</Typography>
             </Stack>
             <Stack>
               <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>floor</Typography>
               <Typography variant="h6" sx={{ fontWeight: 600, opacity: 0.85 }}>¥{fmt(rowF.takeHome)}</Typography>
+              <Typography variant="caption" sx={{ opacity: .5, fontSize: 9 }}>¥{fmt(rowF.totalPay)}</Typography>
             </Stack>
-          </Stack>
-          <Stack direction="row" spacing={1.5} sx={{ mt: 1 }}>
-            <Typography variant="caption" sx={{ opacity: .6, color: '#90caf9' }}>自由 {rowC != null ? `¥${fmt(rowC.totalPay)}` : '—'}</Typography>
-            <Typography variant="caption" sx={{ opacity: .6 }}>小数 ¥{fmt(rowX.totalPay)}</Typography>
-            <Typography variant="caption" sx={{ opacity: .6 }}>round ¥{fmt(rowR.totalPay)}</Typography>
-            <Typography variant="caption" sx={{ opacity: .6 }}>floor ¥{fmt(rowF.totalPay)}</Typography>
-          </Stack>
+          </Box>
         </CardContent>
       </Card>
 

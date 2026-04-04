@@ -4,7 +4,7 @@ import {
   IconButton, Button, TextField, Dialog, DialogTitle, DialogContent,
   DialogActions, Select, MenuItem, FormControl, InputLabel, InputAdornment,
   Table, TableHead, TableBody, TableRow, TableCell, Fab,
-  Snackbar, Alert, Collapse,
+  Snackbar, Alert, Collapse, InputBase,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -12,6 +12,8 @@ import EditIcon from '@mui/icons-material/Edit'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import SettingsIcon from '@mui/icons-material/Settings'
+import SwapVertIcon from '@mui/icons-material/SwapVert'
+import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined'
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -360,15 +362,17 @@ const CATEGORY_COLORS = {
 
 // ─── 電卓パッド ─────────────────────────────────────────
 
-const CALC_BG  = '#424242'
-const CALC_BG2 = '#616161'
-const CALC_OP  = '#555'
+// ─── 電卓パッド（参考アプリ準拠レイアウト）──────────────────
+// Row1: + − × ÷
+// Row2: 7 8 9 =
+// Row3: 4 5 6 00
+// Row4: 1 2 3 ⌫
+// Row5: 0(×3)  確認
 
-function CalcPad({ value, onChange, onConfirm, disabled, compact = false }) {
-  const CALC_BTN = { minWidth: 0, fontSize: compact ? 15 : 20, fontWeight: 500, borderRadius: 0, py: compact ? 0.5 : 1.8, color: '#fff' }
-  const [stored, setStored]   = useState(null)
-  const [op, setOp]           = useState(null)
-  const [fresh, setFresh]     = useState(false)  // 演算子直後か
+function CalcPad({ value, onChange, onConfirm, disabled }) {
+  const [stored, setStored] = useState(null)
+  const [op, setOp]         = useState(null)
+  const [fresh, setFresh]   = useState(false)
 
   const calc = (a, b, operator) => {
     switch (operator) {
@@ -381,106 +385,80 @@ function CalcPad({ value, onChange, onConfirm, disabled, compact = false }) {
   }
 
   const pressDigit = (d) => {
-    if (fresh) { onChange(d); setFresh(false) }
-    else {
-      const cur = value === '0' ? '' : (value ?? '')
-      onChange(cur + d)
-    }
+    if (fresh) { onChange(d === '00' ? '0' : d); setFresh(false) }
+    else { onChange((value === '0' ? '' : (value ?? '')) + d) }
   }
 
   const pressOp = (next) => {
     const cur = parseAmount(value)
     if (stored !== null && op && !fresh) {
-      const result = calc(stored, cur, op)
-      setStored(result)
-      onChange(String(result))
-    } else {
-      setStored(cur)
-    }
-    setOp(next)
-    setFresh(true)
+      const r = calc(stored, cur, op); setStored(r); onChange(String(r))
+    } else { setStored(cur) }
+    setOp(next); setFresh(true)
   }
 
-  const pressClear = () => {
-    onChange('')
-    setStored(null)
-    setOp(null)
-    setFresh(false)
+  const pressBackspace = () => {
+    const s = String(value ?? '')
+    onChange(s.length <= 1 ? '' : s.slice(0, -1))
   }
 
   const pressEquals = () => {
     if (stored !== null && op) {
-      const result = calc(stored, parseAmount(value), op)
-      onChange(String(result))
-      setStored(null)
-      setOp(null)
-      setFresh(false)
+      const r = calc(stored, parseAmount(value), op)
+      onChange(String(r)); setStored(null); setOp(null); setFresh(false)
     }
   }
 
-  const pressConfirm = () => {
-    pressEquals()
-    onConfirm()
+  const pressConfirm = () => { pressEquals(); onConfirm() }
+
+  // スタイル
+  const BASE = {
+    minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0,
+    py: 1.6, color: '#fff', border: 'none',
   }
+  const bg  = (c) => ({ bgcolor: c, '&:hover': { bgcolor: c, filter: 'brightness(1.15)' }, '&:active': { filter: 'brightness(0.85)' } })
 
-  const btn = (label, onClick, sx = {}) => (
-    <Button key={label} onClick={onClick}
-      sx={{ ...CALC_BTN, bgcolor: CALC_BG, '&:hover': { bgcolor: CALC_BG2 }, '&:active': { bgcolor: '#757575' }, ...sx }}>
-      {label}
-    </Button>
+  const numBtn  = (label, handler) => (
+    <Button key={label} onClick={handler ?? (() => pressDigit(label))}
+      sx={{ ...BASE, ...bg('#3a3a3c') }}>{label}</Button>
   )
-
-  const opBtn = (label) => btn(label, () => pressOp(label), {
-    bgcolor: op === label && fresh ? '#ff9800' : CALC_OP,
-    '&:hover': { bgcolor: op === label && fresh ? '#ffa726' : CALC_BG2 },
-  })
+  const opBtn = (label) => (
+    <Button key={label} onClick={() => pressOp(label)}
+      sx={{ ...BASE, ...bg(op === label && fresh ? '#ff9f0a' : '#48484a'), fontSize: 22 }}>{label}</Button>
+  )
 
   return (
     <Box sx={{
       display: 'grid',
       gridTemplateColumns: 'repeat(4, 1fr)',
-      gridTemplateRows: 'repeat(5, 1fr)',
       gap: '1px',
-      bgcolor: '#333',
-      borderRadius: 2,
+      bgcolor: '#1c1c1e',
       overflow: 'hidden',
     }}>
-      {btn('C', pressClear, { gridColumn: 'span 2', bgcolor: '#555', '&:hover': { bgcolor: '#666' } })}
-      {opBtn('÷')}
-      {opBtn('×')}
+      {/* Row 1: + − × ÷ */}
+      {opBtn('+')} {opBtn('−')} {opBtn('×')} {opBtn('÷')}
 
-      {btn('7', () => pressDigit('7'))}
-      {btn('8', () => pressDigit('8'))}
-      {btn('9', () => pressDigit('9'))}
-      {opBtn('−')}
+      {/* Row 2: 7 8 9 = */}
+      {numBtn('7')} {numBtn('8')} {numBtn('9')}
+      <Button onClick={pressEquals}
+        sx={{ ...BASE, ...bg('#ff9f0a'), fontSize: 24, fontWeight: 700 }}>=</Button>
 
-      {btn('4', () => pressDigit('4'))}
-      {btn('5', () => pressDigit('5'))}
-      {btn('6', () => pressDigit('6'))}
-      {opBtn('+')}
+      {/* Row 3: 4 5 6 00 */}
+      {numBtn('4')} {numBtn('5')} {numBtn('6')} {numBtn('00')}
 
-      {btn('1', () => pressDigit('1'))}
-      {btn('2', () => pressDigit('2'))}
-      {btn('3', () => pressDigit('3'))}
-      {btn('確定', pressConfirm, {
-        gridRow: 'span 2',
-        bgcolor: disabled ? '#bdbdbd' : '#f57c00',
-        color: '#fff',
-        fontWeight: 700,
-        fontSize: compact ? 14 : 18,
-        '&:hover': { bgcolor: disabled ? '#bdbdbd' : '#ef6c00' },
-        '&:active': { bgcolor: disabled ? '#bdbdbd' : '#e65100' },
-      })}
+      {/* Row 4: 1 2 3 ⌫ */}
+      {numBtn('1')} {numBtn('2')} {numBtn('3')}
+      <Button onClick={pressBackspace} sx={{ ...BASE, ...bg('#48484a') }}>
+        <BackspaceOutlinedIcon sx={{ fontSize: 22 }} />
+      </Button>
 
-      {btn('=', pressEquals, {
-        bgcolor: '#ff9800',
-        fontWeight: 700,
-        fontSize: compact ? 20 : 24,
-        '&:hover': { bgcolor: '#ffa726' },
-        '&:active': { bgcolor: '#e65100' },
-      })}
-      {btn('0',  () => pressDigit('0'))}
-      {btn('00', () => pressDigit('00'))}
+      {/* Row 5: 0(×3) 確認 */}
+      <Button onClick={() => pressDigit('0')}
+        sx={{ ...BASE, ...bg('#3a3a3c'), gridColumn: 'span 3' }}>0</Button>
+      <Button onClick={pressConfirm} disabled={disabled}
+        sx={{ ...BASE, ...bg(disabled ? '#555' : '#ef4444'), fontWeight: 700, fontSize: 18 }}>
+        確認
+      </Button>
     </Box>
   )
 }
@@ -505,6 +483,8 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
   const [fromCard,   setFromCard]   = useState(currentCardId)
   const [toCard,     setToCard]     = useState(currentCardId === 'jcb' ? 'smbc' : 'jcb')
   const [showDetail, setShowDetail] = useState(false)
+
+  const dateInputRef = useRef(null)
 
   // 月移動時にデフォルト日付・カードを同期
   useEffect(() => { if (!open) { setDate(defaultDate); setCard(currentCardId) } }, [defaultDate, currentCardId, open])
