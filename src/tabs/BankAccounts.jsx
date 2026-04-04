@@ -104,15 +104,10 @@ const AMOUNT_STEPS = [
 
 // ─── 電卓パッド ─────────────────────────────────────────
 
-const CALC_BTN = { minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0, py: 1.8, color: '#fff' }
-const CALC_BG  = '#424242'
-const CALC_BG2 = '#616161'
-const CALC_OP  = '#555'
-
 function CalcPad({ value, onChange, onConfirm, disabled }) {
-  const [stored, setStored]   = useState(null)
-  const [op, setOp]           = useState(null)
-  const [fresh, setFresh]     = useState(false)
+  const [stored, setStored] = useState(null)
+  const [op, setOp]         = useState(null)
+  const [fresh, setFresh]   = useState(false)
 
   const calc = (a, b, operator) => {
     switch (operator) {
@@ -125,106 +120,53 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
   }
 
   const pressDigit = (d) => {
-    if (fresh) { onChange(d); setFresh(false) }
-    else {
-      const cur = value === '0' ? '' : (value ?? '')
-      onChange(cur + d)
-    }
+    if (fresh) { onChange(d === '00' ? '0' : d); setFresh(false) }
+    else { onChange((value === '0' ? '' : (value ?? '')) + d) }
   }
 
   const pressOp = (next) => {
     const cur = parseAmount(value)
     if (stored !== null && op && !fresh) {
-      const result = calc(stored, cur, op)
-      setStored(result)
-      onChange(String(result))
-    } else {
-      setStored(cur)
-    }
-    setOp(next)
-    setFresh(true)
+      const r = calc(stored, cur, op); setStored(r); onChange(String(r))
+    } else { setStored(cur) }
+    setOp(next); setFresh(true)
   }
 
-  const pressClear = () => {
-    onChange('')
-    setStored(null)
-    setOp(null)
-    setFresh(false)
+  const pressBackspace = () => {
+    const s = String(value ?? '')
+    onChange(s.length <= 1 ? '' : s.slice(0, -1))
   }
 
   const pressEquals = () => {
     if (stored !== null && op) {
-      const result = calc(stored, parseAmount(value), op)
-      onChange(String(result))
-      setStored(null)
-      setOp(null)
-      setFresh(false)
+      const r = calc(stored, parseAmount(value), op)
+      onChange(String(r)); setStored(null); setOp(null); setFresh(false)
     }
   }
 
-  const pressConfirm = () => {
-    pressEquals()
-    onConfirm()
-  }
+  const pressConfirm = () => { pressEquals(); onConfirm() }
 
-  const btn = (label, onClick, sx = {}) => (
-    <Button key={label} onClick={onClick}
-      sx={{ ...CALC_BTN, bgcolor: CALC_BG, '&:hover': { bgcolor: CALC_BG2 }, '&:active': { bgcolor: '#757575' }, ...sx }}>
-      {label}
-    </Button>
+  const BASE = { minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0, py: 1.6, color: '#fff', border: 'none' }
+  const bg   = (c) => ({ bgcolor: c, '&:hover': { bgcolor: c, filter: 'brightness(1.1)' }, '&:active': { filter: 'brightness(0.85)' } })
+  const numBtn = (label, handler) => (
+    <Button key={label} onClick={handler ?? (() => pressDigit(label))} sx={{ ...BASE, ...bg('#546e7a') }}>{label}</Button>
+  )
+  const opBtn = (label) => (
+    <Button key={label} onClick={() => pressOp(label)}
+      sx={{ ...BASE, ...bg(op === label && fresh ? '#0288d1' : '#37474f'), fontSize: 22 }}>{label}</Button>
   )
 
-  const opBtn = (label) => btn(label, () => pressOp(label), {
-    bgcolor: op === label && fresh ? '#ff9800' : CALC_OP,
-    '&:hover': { bgcolor: op === label && fresh ? '#ffa726' : CALC_BG2 },
-  })
-
   return (
-    <Box sx={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(4, 1fr)',
-      gridTemplateRows: 'repeat(5, 1fr)',
-      gap: '1px',
-      bgcolor: '#333',
-      borderRadius: 2,
-      overflow: 'hidden',
-    }}>
-      {btn('C', pressClear, { gridColumn: 'span 2', bgcolor: '#555', '&:hover': { bgcolor: '#666' } })}
-      {opBtn('÷')}
-      {opBtn('×')}
-
-      {btn('7', () => pressDigit('7'))}
-      {btn('8', () => pressDigit('8'))}
-      {btn('9', () => pressDigit('9'))}
-      {opBtn('−')}
-
-      {btn('4', () => pressDigit('4'))}
-      {btn('5', () => pressDigit('5'))}
-      {btn('6', () => pressDigit('6'))}
-      {opBtn('+')}
-
-      {btn('1', () => pressDigit('1'))}
-      {btn('2', () => pressDigit('2'))}
-      {btn('3', () => pressDigit('3'))}
-      {btn('確定', pressConfirm, {
-        gridRow: 'span 2',
-        bgcolor: disabled ? '#bdbdbd' : '#f57c00',
-        color: '#fff',
-        fontWeight: 700,
-        fontSize: 18,
-        '&:hover': { bgcolor: disabled ? '#bdbdbd' : '#ef6c00' },
-        '&:active': { bgcolor: disabled ? '#bdbdbd' : '#e65100' },
-      })}
-
-      {btn('=', pressEquals, {
-        bgcolor: '#ff9800',
-        fontWeight: 700,
-        fontSize: 24,
-        '&:hover': { bgcolor: '#ffa726' },
-        '&:active': { bgcolor: '#e65100' },
-      })}
-      {btn('0',  () => pressDigit('0'))}
-      {btn('00', () => pressDigit('00'))}
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', bgcolor: '#263238', overflow: 'hidden' }}>
+      {opBtn('+')} {opBtn('−')} {opBtn('×')} {opBtn('÷')}
+      {numBtn('7')} {numBtn('8')} {numBtn('9')}
+      <Button onClick={pressEquals} sx={{ ...BASE, ...bg('#0288d1'), fontSize: 24, fontWeight: 700 }}>=</Button>
+      {numBtn('4')} {numBtn('5')} {numBtn('6')} {numBtn('00')}
+      {numBtn('1')} {numBtn('2')} {numBtn('3')}
+      <Button onClick={pressBackspace} sx={{ ...BASE, ...bg('#37474f') }}>⌫</Button>
+      <Button onClick={() => pressDigit('0')} sx={{ ...BASE, ...bg('#546e7a'), gridColumn: 'span 3' }}>0</Button>
+      <Button onClick={pressConfirm} disabled={disabled}
+        sx={{ ...BASE, ...bg(disabled ? '#455a64' : '#c62828'), fontWeight: 700, fontSize: 18 }}>確認</Button>
     </Box>
   )
 }
@@ -275,7 +217,7 @@ function AmountField({ value, onChange, large = false, label, placeholder = '0',
         <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
         {label && <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>{label}</Typography>}
         <Box sx={{
-          bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
+          bgcolor: '#263238', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
           display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
         }}>
           <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
@@ -744,7 +686,7 @@ function InlineEditAmount({ value, sign, isTransfer, onSave, fontSize = 12 }) {
         <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
         <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>金額</Typography>
         <Box sx={{
-          bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
+          bgcolor: '#263238', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
           display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
         }}>
           <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
@@ -1186,7 +1128,7 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
                   if (isFrom) bgColor = '#fff8f8'
                   else if (isTo) bgColor = '#f1f8e9'
                   else if (isAffected) bgColor = row.sign > 0 ? '#f1f8e9' : '#fff8f8'
-                  const canEdit = isAffected && (isManual || row.source === 'fixed')
+                  const canEdit = isAffected
                   return (
                     <TableCell key={acc.id} align="right" sx={{
                       bgcolor: bgColor,
@@ -1230,7 +1172,7 @@ function CashFlowTable({ accounts, openingBalances, events, colorMap, onEdit, on
         <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
         <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>金額</Typography>
         <Box sx={{
-          bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
+          bgcolor: '#263238', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
           display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
         }}>
           <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
