@@ -735,7 +735,7 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onTogg
       <Table size="small" sx={{ minWidth: 480 }}>
         <TableHead>
           <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-            <TableCell sx={{ width: 36, py: 0.75, px: 0.5 }} />
+            <TableCell sx={{ width: 40, py: 0.75, pl: 1.5, pr: 0 }} />
             {['カテゴリ', '支払先', '項目名', '金額', '小計'].map((h) => (
               <TableCell key={h} sx={{ fontSize: 11, fontWeight: 700, py: 0.75, whiteSpace: 'nowrap',
                 ...(h === '金額' || h === '小計' ? { textAlign: 'right' } : {}) }}>
@@ -754,7 +754,7 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onTogg
                 opacity: billed ? 0.6 : 1,
                 '&:hover': { bgcolor: billed ? '#e8f5e9' : '#f1f8e9' },
               }}>
-                <TableCell sx={{ py: 0.5, px: 0.5 }}>
+                <TableCell sx={{ py: 0.5, pl: 1.5, pr: 0 }}>
                   <Checkbox
                     checked={billed}
                     onChange={() => onToggleBilled(item.id)}
@@ -1088,6 +1088,7 @@ export default function CreditCard() {
   const [fixedList,    setFixedList]    = useState(() => loadFixed(cardId))
   const [varList,      setVarList]      = useState(() => loadVar(cardId, ym))
   const [billedIds,    setBilledIds]    = useState(() => loadBilled(cardId, ym))
+  const [deleteDlg,    setDeleteDlg]    = useState(null) // { type:'fixed'|'var', id, name }
   const [categories,   setCategories]   = useState(loadCategories)
   const [dlg,          setDlg]          = useState(null)
   const [catDlgOpen,   setCatDlgOpen]   = useState(false)
@@ -1137,6 +1138,11 @@ export default function CreditCard() {
     catch { notify('error', '固定費の更新に失敗しました') }
   }
   const deleteFixed = useCallback((id) => {
+    const item = fixedList.find(x => x.id === id)
+    setDeleteDlg({ type: 'fixed', id, name: item?.name ?? '固定費' })
+  }, [fixedList])
+
+  const confirmDeleteFixed = useCallback((id) => {
     try { const next = fixedList.filter((x) => x.id !== id); setFixedList(next); saveFixed(cardId, next); notify('success', '固定費を削除しました') }
     catch { notify('error', '固定費の削除に失敗しました') }
   }, [fixedList, cardId])
@@ -1147,11 +1153,23 @@ export default function CreditCard() {
     catch { notify('error', '変動費の保存に失敗しました') }
   }
 
+  // 日付とカードIDから請求月(ym)を計算
+  const getBillingYm = (date, cId) => {
+    if (!date) return ym
+    const cutoff = CARDS[cId]?.cutoffDay ?? 0
+    const [y, m, d] = date.split('-').map(Number)
+    if (cutoff > 0 && d <= cutoff) {
+      // 締め日以前 → 前月扱い
+      return ymStr(m === 1 ? y - 1 : y, m === 1 ? 12 : m - 1)
+    }
+    return ymStr(y, m)
+  }
+
   // QuickAddDrawer からの保存（収入/支出/振替対応）
   const handleQuickSave = ({ cardId: targetCard, item, transfer, fromCard, toCard }) => {
     try {
       if (transfer) {
-        // 振替：fromCard に支出、toCard に収入を記録
+        // 振替：fromCard に支出、toCard に収入を記録（振替は表示月に保存）
         const outItem = { id: newId(), ...item }
         const inItem  = { id: newId(), ...item, sign: 1, name: item.name + '（受取）' }
         const outList = loadVar(fromCard, ym)
@@ -1164,15 +1182,16 @@ export default function CreditCard() {
         else if (toCard === cardId) setVarList(nextIn)
         notify('success', '振替を記録しました')
       } else {
+        // 日付から正しい請求月を計算
+        const targetYm = getBillingYm(item.date, targetCard)
         const newItem = { id: newId(), ...item }
-        if (targetCard === cardId) {
-          const next = [...varList, newItem].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1)
-          setVarList(next); saveVar(cardId, ym, next)
-        } else {
-          const existing = loadVar(targetCard, ym)
-          saveVar(targetCard, ym, [...existing, newItem].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1))
-        }
-        notify('success', item.sign === 1 ? '収入を記録しました' : '支出を記録しました')
+        const existing = loadVar(targetCard, targetYm)
+        const nextList = [...existing, newItem].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1)
+        saveVar(targetCard, targetYm, nextList)
+        // 表示中の月と一致する場合のみ画面を更新
+        if (targetCard === cardId && targetYm === ym) setVarList(nextList)
+        const ymLabel = `${targetYm.replace('-', '年')}月`
+        notify('success', `${item.sign === 1 ? '収入' : '支出'}を${ymLabel}分として記録しました`)
       }
     } catch { notify('error', '保存に失敗しました') }
   }
@@ -1181,6 +1200,11 @@ export default function CreditCard() {
     catch { notify('error', '変動費の更新に失敗しました') }
   }
   const deleteVar = useCallback((id) => {
+    const item = varList.find(x => x.id === id)
+    setDeleteDlg({ type: 'var', id, name: item?.name ?? '変動費' })
+  }, [varList])
+
+  const confirmDeleteVar = useCallback((id) => {
     try { const next = varList.filter((x) => x.id !== id); setVarList(next); saveVar(cardId, ym, next); notify('success', '変動費を削除しました') }
     catch { notify('error', '変動費の削除に失敗しました') }
   }, [varList, cardId, ym])
@@ -1398,6 +1422,26 @@ export default function CreditCard() {
         onEditCategories={() => { setQuickOpen(false); setCatDlgOpen(true) }}
         currentCardId={cardId}
       />
+
+      {/* 削除確認ダイアログ */}
+      <Dialog open={!!deleteDlg} onClose={() => setDeleteDlg(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontSize: 15, pb: 1 }}>削除の確認</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            「{deleteDlg?.name}」を削除しますか？この操作は元に戻せません。
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDlg(null)} color="inherit" size="small">キャンセル</Button>
+          <Button
+            onClick={() => {
+              if (deleteDlg.type === 'fixed') confirmDeleteFixed(deleteDlg.id)
+              else confirmDeleteVar(deleteDlg.id)
+              setDeleteDlg(null)
+            }}
+            color="error" variant="contained" size="small">削除</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* 保存通知 */}
       <Snackbar
