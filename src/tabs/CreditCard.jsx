@@ -4,7 +4,7 @@ import {
   IconButton, Button, TextField, Dialog, DialogTitle, DialogContent,
   DialogActions, Select, MenuItem, FormControl, InputLabel, InputAdornment,
   Table, TableHead, TableBody, TableRow, TableCell, Fab,
-  Snackbar, Alert, Collapse, InputBase,
+  Snackbar, Alert, Collapse, InputBase, Checkbox,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -76,6 +76,11 @@ function loadLimit(cardId) {
   return isNaN(v) ? '' : String(v)
 }
 function saveLimit(cardId, v) { localStorage.setItem(`cc_limit_${cardId}`, v) }
+
+function loadBilled(cardId, ym) {
+  try { return JSON.parse(localStorage.getItem(`cc_billed_${cardId}_${ym}`) || '[]') } catch { return [] }
+}
+function saveBilled(cardId, ym, ids) { localStorage.setItem(`cc_billed_${cardId}_${ym}`, JSON.stringify(ids)) }
 
 function loadSalaryOverride() {
   const v = parseFloat(localStorage.getItem('cc_salary_override') || '')
@@ -712,7 +717,7 @@ function SectionCard({ title, badge, total, children, onAdd }) {
 
 // ─── 固定費テーブル ───────────────────────────────────────
 
-function FixedExpenseTable({ fixedList, onEdit, onDelete }) {
+function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onToggleBilled }) {
   if (fixedList.length === 0) return (
     <Typography variant="caption" color="text.disabled" sx={{ py: 1, display: 'block' }}>
       固定費を追加してください
@@ -730,6 +735,7 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete }) {
       <Table size="small" sx={{ minWidth: 480 }}>
         <TableHead>
           <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+            <TableCell sx={{ width: 36, py: 0.75, px: 0.5 }} />
             {['カテゴリ', '支払先', '項目名', '金額', '小計'].map((h) => (
               <TableCell key={h} sx={{ fontSize: 11, fontWeight: 700, py: 0.75, whiteSpace: 'nowrap',
                 ...(h === '金額' || h === '小計' ? { textAlign: 'right' } : {}) }}>
@@ -740,41 +746,57 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete }) {
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((item, i) => (
-            <TableRow key={item.id}
-              sx={{ bgcolor: i % 2 === 0 ? '#fff' : '#fafafa', '&:hover': { bgcolor: '#f1f8e9' } }}>
-              <TableCell sx={{ fontSize: 11, py: 0.75 }}>
-                <Chip label={item.category} size="small"
-                  sx={{ height: 16, fontSize: 9, bgcolor: CATEGORY_COLORS[item.category] ?? '#eceff1', color: '#37474f' }} />
-              </TableCell>
-              <TableCell sx={{ fontSize: 12, py: 0.75, color: 'text.secondary' }}>{item.payee ?? '—'}</TableCell>
-              <TableCell sx={{ fontSize: 12, py: 0.75 }}>
-                {item.name}
-                {item.day != null && (
-                  <Typography component="div" variant="caption" color="text.disabled" sx={{ fontSize: 10, lineHeight: 1.2 }}>
-                    毎月{item.day}日
-                  </Typography>
-                )}
-                {item.startYm && (
-                  <Typography component="div" variant="caption" color="text.disabled" sx={{ fontSize: 10, lineHeight: 1.2 }}>
-                    {item.startYm.replace('-', '/')}〜
-                  </Typography>
-                )}
-              </TableCell>
-              <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', fontWeight: 500 }}>¥{fmt(item.amount)}</TableCell>
-              <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', color: 'text.secondary' }}>¥{fmt(item.subtotal)}</TableCell>
-              <TableCell sx={{ py: 0.5, px: 0.5 }}>
-                <Stack direction="row">
-                  <IconButton size="small" onClick={() => onEdit(item)} sx={{ p: 0.25 }}>
-                    <EditIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                  </IconButton>
-                  <IconButton size="small" onClick={() => onDelete(item.id)} sx={{ p: 0.25 }}>
-                    <DeleteIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                  </IconButton>
-                </Stack>
-              </TableCell>
-            </TableRow>
-          ))}
+          {rows.map((item, i) => {
+            const billed = billedIds.includes(item.id)
+            return (
+              <TableRow key={item.id} sx={{
+                bgcolor: billed ? '#f1f8e9' : i % 2 === 0 ? '#fff' : '#fafafa',
+                opacity: billed ? 0.6 : 1,
+                '&:hover': { bgcolor: billed ? '#e8f5e9' : '#f1f8e9' },
+              }}>
+                <TableCell sx={{ py: 0.5, px: 0.5 }}>
+                  <Checkbox
+                    checked={billed}
+                    onChange={() => onToggleBilled(item.id)}
+                    size="small"
+                    sx={{ p: 0.25, color: '#bdbdbd', '&.Mui-checked': { color: '#43a047' } }}
+                  />
+                </TableCell>
+                <TableCell sx={{ fontSize: 11, py: 0.75 }}>
+                  <Chip label={item.category} size="small"
+                    sx={{ height: 16, fontSize: 9, bgcolor: CATEGORY_COLORS[item.category] ?? '#eceff1', color: '#37474f' }} />
+                </TableCell>
+                <TableCell sx={{ fontSize: 12, py: 0.75, color: 'text.secondary' }}>{item.payee ?? '—'}</TableCell>
+                <TableCell sx={{ fontSize: 12, py: 0.75 }}>
+                  <span style={billed ? { textDecoration: 'line-through', color: '#9e9e9e' } : {}}>
+                    {item.name}
+                  </span>
+                  {item.day != null && (
+                    <Typography component="div" variant="caption" color="text.disabled" sx={{ fontSize: 10, lineHeight: 1.2 }}>
+                      毎月{item.day}日
+                    </Typography>
+                  )}
+                  {item.startYm && (
+                    <Typography component="div" variant="caption" color="text.disabled" sx={{ fontSize: 10, lineHeight: 1.2 }}>
+                      {item.startYm.replace('-', '/')}〜
+                    </Typography>
+                  )}
+                </TableCell>
+                <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', fontWeight: 500 }}>¥{fmt(item.amount)}</TableCell>
+                <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', color: 'text.secondary' }}>¥{fmt(item.subtotal)}</TableCell>
+                <TableCell sx={{ py: 0.5, px: 0.5 }}>
+                  <Stack direction="row">
+                    <IconButton size="small" onClick={() => onEdit(item)} sx={{ p: 0.25 }}>
+                      <EditIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+                    </IconButton>
+                    <IconButton size="small" onClick={() => onDelete(item.id)} sx={{ p: 0.25 }}>
+                      <DeleteIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+                    </IconButton>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
     </Box>
@@ -1065,6 +1087,7 @@ export default function CreditCard() {
 
   const [fixedList,    setFixedList]    = useState(() => loadFixed(cardId))
   const [varList,      setVarList]      = useState(() => loadVar(cardId, ym))
+  const [billedIds,    setBilledIds]    = useState(() => loadBilled(cardId, ym))
   const [categories,   setCategories]   = useState(loadCategories)
   const [dlg,          setDlg]          = useState(null)
   const [catDlgOpen,   setCatDlgOpen]   = useState(false)
@@ -1083,6 +1106,7 @@ export default function CreditCard() {
     setFixedList(loadFixed(id))
     setVarList(loadVar(id, ym))
     setLimitInput(loadLimit(id))
+    setBilledIds(loadBilled(id, ym))
   }
 
   const changeMonth = (delta) => {
@@ -1090,7 +1114,17 @@ export default function CreditCard() {
     if (m > 12) { y++; m = 1 }
     if (m < 1)  { y--; m = 12 }
     setYear(y); setMonth(m)
-    setVarList(loadVar(cardId, ymStr(y, m)))
+    const newYm = ymStr(y, m)
+    setVarList(loadVar(cardId, newYm))
+    setBilledIds(loadBilled(cardId, newYm))
+  }
+
+  const toggleBilled = (itemId) => {
+    const next = billedIds.includes(itemId)
+      ? billedIds.filter(id => id !== itemId)
+      : [...billedIds, itemId]
+    setBilledIds(next)
+    saveBilled(cardId, ym, next)
   }
 
   // 固定費 CRUD
@@ -1286,6 +1320,8 @@ export default function CreditCard() {
               fixedList={filteredFixed}
               onEdit={(it) => setDlg({ type: 'fixed', initial: it })}
               onDelete={deleteFixed}
+              billedIds={billedIds}
+              onToggleBilled={toggleBilled}
             />
           </CardContent>
         </Collapse>
