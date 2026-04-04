@@ -32,7 +32,7 @@ const CARDS = {
     cutoffDay: 15, paymentDay: 10, color: '#37474f',
   },
   smbc: {
-    id: 'smbc', name: '三井住友VISAナンバーレスゴールド', shortName: 'SMBC',
+    id: 'smbc', name: '三井住友VISAナンバーレスゴールド', shortName: 'VISA',
     cutoffDay: 0, paymentDay: 26, color: '#1b5e20',
   },
 }
