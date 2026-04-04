@@ -147,29 +147,29 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
   const BASE = { minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0, py: 1.6, color: '#fff', border: 'none' }
   const bg = (c) => ({ bgcolor: c, '&:hover': { bgcolor: c, filter: 'brightness(1.15)' }, '&:active': { filter: 'brightness(0.85)' } })
   const numBtn = (label, handler) => (
-    <Button key={label} onClick={handler ?? (() => pressDigit(label))} sx={{ ...BASE, ...bg('#3a3a3c') }}>{label}</Button>
+    <Button key={label} onClick={handler ?? (() => pressDigit(label))} sx={{ ...BASE, ...bg('#546e7a') }}>{label}</Button>
   )
   const opBtn = (label) => (
     <Button key={label} onClick={() => pressOp(label)}
-      sx={{ ...BASE, ...bg(op === label && fresh ? '#ff9f0a' : '#48484a'), fontSize: 22 }}>{label}</Button>
+      sx={{ ...BASE, ...bg(op === label && fresh ? '#0288d1' : '#37474f'), fontSize: 22 }}>{label}</Button>
   )
 
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', bgcolor: '#1c1c1e', overflow: 'hidden' }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', bgcolor: '#263238', overflow: 'hidden' }}>
       {/* Row 1: + − × ÷ */}
       {opBtn('+')} {opBtn('−')} {opBtn('×')} {opBtn('÷')}
       {/* Row 2: 7 8 9 = */}
       {numBtn('7')} {numBtn('8')} {numBtn('9')}
-      <Button onClick={pressEquals} sx={{ ...BASE, ...bg('#ff9f0a'), fontSize: 24, fontWeight: 700 }}>=</Button>
+      <Button onClick={pressEquals} sx={{ ...BASE, ...bg('#0288d1'), fontSize: 24, fontWeight: 700 }}>=</Button>
       {/* Row 3: 4 5 6 00 */}
       {numBtn('4')} {numBtn('5')} {numBtn('6')} {numBtn('00')}
       {/* Row 4: 1 2 3 ⌫ */}
       {numBtn('1')} {numBtn('2')} {numBtn('3')}
-      <Button onClick={pressBackspace} sx={{ ...BASE, ...bg('#48484a') }}>⌫</Button>
+      <Button onClick={pressBackspace} sx={{ ...BASE, ...bg('#37474f') }}>⌫</Button>
       {/* Row 5: 0(×3) 確認 */}
-      <Button onClick={() => pressDigit('0')} sx={{ ...BASE, ...bg('#3a3a3c'), gridColumn: 'span 3' }}>0</Button>
+      <Button onClick={() => pressDigit('0')} sx={{ ...BASE, ...bg('#546e7a'), gridColumn: 'span 3' }}>0</Button>
       <Button onClick={pressConfirm} disabled={disabled}
-        sx={{ ...BASE, ...bg(disabled ? '#555' : '#ef4444'), fontWeight: 700, fontSize: 18 }}>確認</Button>
+        sx={{ ...BASE, ...bg(disabled ? '#455a64' : '#c62828'), fontWeight: 700, fontSize: 18 }}>確認</Button>
     </Box>
   )
 }

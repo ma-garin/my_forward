@@ -416,15 +416,16 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
     minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0,
     py: 1.6, color: '#fff', border: 'none',
   }
-  const bg  = (c) => ({ bgcolor: c, '&:hover': { bgcolor: c, filter: 'brightness(1.15)' }, '&:active': { filter: 'brightness(0.85)' } })
+  // アプリのダークカード（#263238系）に合わせた青グレーパレット
+  const bg  = (c) => ({ bgcolor: c, '&:hover': { bgcolor: c, filter: 'brightness(1.1)' }, '&:active': { filter: 'brightness(0.85)' } })
 
   const numBtn  = (label, handler) => (
     <Button key={label} onClick={handler ?? (() => pressDigit(label))}
-      sx={{ ...BASE, ...bg('#3a3a3c') }}>{label}</Button>
+      sx={{ ...BASE, ...bg('#546e7a') }}>{label}</Button>
   )
   const opBtn = (label) => (
     <Button key={label} onClick={() => pressOp(label)}
-      sx={{ ...BASE, ...bg(op === label && fresh ? '#ff9f0a' : '#48484a'), fontSize: 22 }}>{label}</Button>
+      sx={{ ...BASE, ...bg(op === label && fresh ? '#0288d1' : '#37474f'), fontSize: 22 }}>{label}</Button>
   )
 
   return (
@@ -432,7 +433,7 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
       display: 'grid',
       gridTemplateColumns: 'repeat(4, 1fr)',
       gap: '1px',
-      bgcolor: '#1c1c1e',
+      bgcolor: '#263238',
       overflow: 'hidden',
     }}>
       {/* Row 1: + − × ÷ */}
@@ -441,22 +442,22 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
       {/* Row 2: 7 8 9 = */}
       {numBtn('7')} {numBtn('8')} {numBtn('9')}
       <Button onClick={pressEquals}
-        sx={{ ...BASE, ...bg('#ff9f0a'), fontSize: 24, fontWeight: 700 }}>=</Button>
+        sx={{ ...BASE, ...bg('#0288d1'), fontSize: 24, fontWeight: 700 }}>=</Button>
 
       {/* Row 3: 4 5 6 00 */}
       {numBtn('4')} {numBtn('5')} {numBtn('6')} {numBtn('00')}
 
       {/* Row 4: 1 2 3 ⌫ */}
       {numBtn('1')} {numBtn('2')} {numBtn('3')}
-      <Button onClick={pressBackspace} sx={{ ...BASE, ...bg('#48484a') }}>
+      <Button onClick={pressBackspace} sx={{ ...BASE, ...bg('#37474f') }}>
         <BackspaceOutlinedIcon sx={{ fontSize: 22 }} />
       </Button>
 
       {/* Row 5: 0(×3) 確認 */}
       <Button onClick={() => pressDigit('0')}
-        sx={{ ...BASE, ...bg('#3a3a3c'), gridColumn: 'span 3' }}>0</Button>
+        sx={{ ...BASE, ...bg('#546e7a'), gridColumn: 'span 3' }}>0</Button>
       <Button onClick={pressConfirm} disabled={disabled}
-        sx={{ ...BASE, ...bg(disabled ? '#555' : '#ef4444'), fontWeight: 700, fontSize: 18 }}>
+        sx={{ ...BASE, ...bg(disabled ? '#455a64' : '#c62828'), fontWeight: 700, fontSize: 18 }}>
         確認
       </Button>
     </Box>
@@ -482,8 +483,6 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
   const [card,       setCard]       = useState(currentCardId)
   const [fromCard,   setFromCard]   = useState(currentCardId)
   const [toCard,     setToCard]     = useState(currentCardId === 'jcb' ? 'smbc' : 'jcb')
-  const [showDetail, setShowDetail] = useState(false)
-
   const dateInputRef = useRef(null)
 
   // 月移動時にデフォルト日付・カードを同期
@@ -495,7 +494,6 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
     setAmount('')
     setName(''); setPayee(''); setMemo('')
     setCategory(categories[0] ?? 'その他')
-    setShowDetail(false)
     setCard(currentCardId)
     setFromCard(currentCardId)
     setToCard(currentCardId === 'jcb' ? 'smbc' : 'jcb')
@@ -586,31 +584,25 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
               </>
             )}
 
-            {/* 資産（カード選択） */}
-            <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
-              <InputLabel>資産</InputLabel>
-              <Select value={card} label="資産" onChange={(e) => setCard(e.target.value)}>
-                {Object.values(CARDS).map((c) => (
-                  <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {/* 支払先・項目名（常時表示） */}
+            <Stack spacing={1.5} sx={{ mb: 1.5 }}>
+              <TextField size="small" fullWidth label="支払先（省略可）" placeholder="例: Google"
+                value={payee} onChange={(e) => setPayee(e.target.value)} />
+              <TextField size="small" fullWidth label="項目名（省略可）"
+                value={name} onChange={(e) => setName(e.target.value)} />
+            </Stack>
 
-            {/* 詳細（支払先・項目名） */}
-            <Box sx={{ mb: 1 }}>
-              <Button size="small" onClick={() => setShowDetail(!showDetail)}
-                sx={{ fontSize: 11, color: 'text.secondary', textTransform: 'none', p: 0, minWidth: 0 }}>
-                {showDetail ? '▲ 閉じる' : '▼ 支払先・項目名'}
-              </Button>
-              {showDetail && (
-                <Stack spacing={1.5} sx={{ mt: 1 }}>
-                  <TextField size="small" fullWidth label="支払先（省略可）" placeholder="例: Google"
-                    value={payee} onChange={(e) => setPayee(e.target.value)} />
-                  <TextField size="small" fullWidth label="項目名（省略可）"
-                    value={name} onChange={(e) => setName(e.target.value)} />
-                </Stack>
-              )}
-            </Box>
+            {/* カード選択（支出のみ） */}
+            {type === 'expense' && (
+              <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
+                <InputLabel>カード</InputLabel>
+                <Select value={card} label="カード" onChange={(e) => setCard(e.target.value)}>
+                  {Object.values(CARDS).map((c) => (
+                    <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
           </>
         )}
 
