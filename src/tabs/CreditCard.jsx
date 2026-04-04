@@ -473,42 +473,34 @@ const TYPE_DEFS = [
 ]
 
 function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEditCategories, currentCardId }) {
-  const [type,       setType]       = useState('expense')
-  const [amount,     setAmount]     = useState('')
-  const [category,   setCategory]   = useState(categories[0] ?? 'その他')
-  const [name,       setName]       = useState('')
-  const [payee,      setPayee]      = useState('')
-  const [memo,       setMemo]       = useState('')
-  const [date,       setDate]       = useState(defaultDate)
-  const [card,       setCard]       = useState(currentCardId)
-  const [fromCard,   setFromCard]   = useState(currentCardId)
-  const [toCard,     setToCard]     = useState(currentCardId === 'jcb' ? 'smbc' : 'jcb')
-  const dateInputRef = useRef(null)
+  const [type,     setType]     = useState('expense')
+  const [amount,   setAmount]   = useState('')
+  const [category, setCategory] = useState(categories[0] ?? 'その他')
+  const [name,     setName]     = useState('')
+  const [payee,    setPayee]    = useState('')
+  const [memo,     setMemo]     = useState('')
+  const [date,     setDate]     = useState(defaultDate)
+  const [card,     setCard]     = useState(currentCardId)
+  const [fromCard, setFromCard] = useState(currentCardId)
+  const [toCard,   setToCard]   = useState(currentCardId === 'jcb' ? 'smbc' : 'jcb')
+  const [catOpen,  setCatOpen]  = useState(false)
+  const dateRef = useRef(null)
 
-  // 月移動時にデフォルト日付・カードを同期
   useEffect(() => { if (!open) { setDate(defaultDate); setCard(currentCardId) } }, [defaultDate, currentCardId, open])
 
   const reset = () => {
-    setType('expense')
-    setDate(defaultDate)
-    setAmount('')
+    setType('expense'); setDate(defaultDate); setAmount('')
     setName(''); setPayee(''); setMemo('')
-    setCategory(categories[0] ?? 'その他')
-    setCard(currentCardId)
-    setFromCard(currentCardId)
+    setCategory(categories[0] ?? 'その他'); setCatOpen(false)
+    setCard(currentCardId); setFromCard(currentCardId)
     setToCard(currentCardId === 'jcb' ? 'smbc' : 'jcb')
   }
-
-  const handleOpen = () => reset()
 
   const doSave = () => {
     const a = parseAmount(amount)
     if (a <= 0) return
     if (type === 'transfer') {
-      onSave({
-        transfer: true, fromCard, toCard,
-        item: { name: memo.trim() || '振替', amount: a, category: 'その他', date },
-      })
+      onSave({ transfer: true, fromCard, toCard, item: { name: memo.trim() || '振替', amount: a, category: 'その他', date } })
     } else {
       onSave({
         cardId: card,
@@ -519,24 +511,24 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
         },
       })
     }
-    reset()
-    onClose()
+    reset(); onClose()
   }
 
-  const typeColor = TYPE_DEFS.find((t) => t.value === type)?.color ?? '#333'
+  const typeColor = TYPE_DEFS.find(t => t.value === type)?.color ?? '#333'
+  const cardList  = Object.values(CARDS)
+  const fmtDate   = (d) => { const [y, m, day] = d.split('-'); return `${y}/${m}/${day}` }
+  const ROW   = { display: 'flex', alignItems: 'center', px: 2, minHeight: 48, borderBottom: '1px solid #f0f0f0' }
+  const LABEL = { fontSize: 13, color: '#757575', width: 52, flexShrink: 0 }
 
   return (
     <SwipeableDrawer
-      anchor="bottom"
-      open={open}
-      onClose={onClose}
-      onOpen={handleOpen}
-      disableSwipeToOpen
-      disableScrollLock
-      PaperProps={{ sx: { borderRadius: '16px 16px 0 0', maxWidth: 600, mx: 'auto' } }}
+      anchor="bottom" open={open}
+      onClose={onClose} onOpen={reset}
+      disableSwipeToOpen disableScrollLock
+      PaperProps={{ sx: { borderRadius: '16px 16px 0 0', maxWidth: 600, mx: 'auto', display: 'flex', flexDirection: 'column', maxHeight: '90vh' } }}
     >
-      {/* ── タイプ選択タブ ── */}
-      <Stack direction="row" sx={{ borderBottom: '1px solid #f0f0f0' }}>
+      {/* タイプタブ */}
+      <Stack direction="row" sx={{ borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
         {TYPE_DEFS.map(({ value, label, color }) => (
           <Box key={value} flex={1} onClick={() => setType(value)} sx={{
             textAlign: 'center', py: 1.5, fontSize: 14, cursor: 'pointer', userSelect: 'none',
@@ -544,119 +536,124 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
             color: type === value ? color : '#9e9e9e',
             borderBottom: type === value ? `3px solid ${color}` : '3px solid transparent',
             transition: 'all .15s',
-          }}>
-            {label}
-          </Box>
+          }}>{label}</Box>
         ))}
       </Stack>
 
-      <Box sx={{ px: 2, pt: 1.5, pb: 3 }}>
-
+      {/* フォームエリア（スクロール可） */}
+      <Box sx={{ flex: 1, overflowY: 'auto' }}>
         {/* 日付 */}
-        <TextField
-          type="date" size="small" fullWidth InputLabelProps={{ shrink: true }}
-          label="日付" value={date} onChange={(e) => setDate(e.target.value)}
-          sx={{ mb: 1.5 }}
-        />
+        <Box sx={{ ...ROW, cursor: 'pointer' }} onClick={() => dateRef.current?.showPicker?.()}>
+          <Typography sx={LABEL}>日付</Typography>
+          <Typography sx={{ flex: 1, fontSize: 15 }}>{fmtDate(date)}</Typography>
+          <input ref={dateRef} type="date" value={date} onChange={e => setDate(e.target.value)}
+            style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} />
+        </Box>
 
-        {/* ── 収入 / 支出 共通フィールド ── */}
+        {/* 収入 / 支出 */}
         {(type === 'expense' || type === 'income') && (
           <>
-            {/* カテゴリ（支出のみ） */}
             {type === 'expense' && (
               <>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary">分類</Typography>
-                  <IconButton size="small" onClick={onEditCategories} sx={{ p: 0.25 }}>
+                <Box sx={{ ...ROW, cursor: 'pointer' }} onClick={() => setCatOpen(v => !v)}>
+                  <Typography sx={LABEL}>分類</Typography>
+                  <Typography sx={{ flex: 1, fontSize: 15 }}>{category}</Typography>
+                  <IconButton size="small" onClick={e => { e.stopPropagation(); onEditCategories() }} sx={{ p: 0.25 }}>
                     <SettingsIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
                   </IconButton>
-                </Stack>
-                <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mb: 1.5 }}>
-                  {categories.map((cat) => (
-                    <Chip key={cat} label={cat} onClick={() => setCategory(cat)} sx={{
-                      fontWeight: category === cat ? 700 : 400, fontSize: 12,
-                      bgcolor: category === cat ? (CATEGORY_COLORS[cat] ?? '#e0e0e0') : '#f5f5f5',
-                      border: category === cat ? '2px solid' : '1px solid transparent',
-                      borderColor: category === cat ? 'primary.main' : 'transparent',
-                    }} />
-                  ))}
-                </Stack>
+                </Box>
+                {catOpen && (
+                  <Box sx={{ px: 2, py: 1, bgcolor: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+                    <Stack direction="row" flexWrap="wrap" gap={0.75}>
+                      {categories.map(cat => (
+                        <Chip key={cat} label={cat} onClick={() => { setCategory(cat); setCatOpen(false) }} sx={{
+                          fontWeight: category === cat ? 700 : 400, fontSize: 12,
+                          bgcolor: category === cat ? (CATEGORY_COLORS[cat] ?? '#e0e0e0') : '#f5f5f5',
+                          border: category === cat ? '2px solid' : '1px solid transparent',
+                          borderColor: category === cat ? 'primary.main' : 'transparent',
+                        }} />
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
               </>
             )}
 
-            {/* 支払先・項目名（常時表示） */}
-            <Stack spacing={1.5} sx={{ mb: 1.5 }}>
-              <TextField size="small" fullWidth label="支払先（省略可）" placeholder="例: Google"
-                value={payee} onChange={(e) => setPayee(e.target.value)} />
-              <TextField size="small" fullWidth label="項目名（省略可）"
-                value={name} onChange={(e) => setName(e.target.value)} />
-            </Stack>
+            <Box sx={ROW}>
+              <Typography sx={LABEL}>支払先</Typography>
+              <InputBase fullWidth placeholder="省略可" value={payee}
+                onChange={e => setPayee(e.target.value)} sx={{ flex: 1, fontSize: 15 }} />
+            </Box>
 
-            {/* カード選択（支出のみ） */}
+            <Box sx={ROW}>
+              <Typography sx={LABEL}>項目名</Typography>
+              <InputBase fullWidth placeholder="省略可" value={name}
+                onChange={e => setName(e.target.value)} sx={{ flex: 1, fontSize: 15 }} />
+            </Box>
+
             {type === 'expense' && (
-              <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
-                <InputLabel>カード</InputLabel>
-                <Select value={card} label="カード" onChange={(e) => setCard(e.target.value)}>
-                  {Object.values(CARDS).map((c) => (
-                    <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>
-                  ))}
+              <Box sx={ROW}>
+                <Typography sx={LABEL}>カード</Typography>
+                <Select value={card} onChange={e => setCard(e.target.value)}
+                  variant="standard" disableUnderline
+                  sx={{ flex: 1, fontSize: 15, '& .MuiSelect-select': { p: 0 } }}>
+                  {cardList.map(c => <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>)}
                 </Select>
-              </FormControl>
+              </Box>
             )}
           </>
         )}
 
-        {/* ── 振替フィールド ── */}
+        {/* 振替 */}
         {type === 'transfer' && (
-          <Stack spacing={1.5} sx={{ mb: 1.5 }}>
-            <FormControl size="small" fullWidth>
-              <InputLabel>出金</InputLabel>
-              <Select value={fromCard} label="出金" onChange={(e) => setFromCard(e.target.value)}>
-                {Object.values(CARDS).map((c) => (
-                  <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>
-                ))}
+          <>
+            <Box sx={ROW}>
+              <Typography sx={LABEL}>出金</Typography>
+              <Select value={fromCard} onChange={e => setFromCard(e.target.value)}
+                variant="standard" disableUnderline
+                sx={{ flex: 1, fontSize: 15, '& .MuiSelect-select': { p: 0 } }}>
+                {cardList.map(c => <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>)}
               </Select>
-            </FormControl>
-            <FormControl size="small" fullWidth>
-              <InputLabel>入金</InputLabel>
-              <Select value={toCard} label="入金" onChange={(e) => setToCard(e.target.value)}>
-                {Object.values(CARDS).map((c) => (
-                  <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>
-                ))}
+            </Box>
+            <Box sx={ROW}>
+              <Typography sx={LABEL}>入金</Typography>
+              <Select value={toCard} onChange={e => setToCard(e.target.value)}
+                variant="standard" disableUnderline
+                sx={{ flex: 1, fontSize: 15, '& .MuiSelect-select': { p: 0 } }}>
+                {cardList.map(c => <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>)}
               </Select>
-            </FormControl>
-            <TextField size="small" fullWidth label="内容（省略可）"
-              value={memo} onChange={(e) => setMemo(e.target.value)} />
-          </Stack>
+            </Box>
+            <Box sx={ROW}>
+              <Typography sx={LABEL}>内容</Typography>
+              <InputBase fullWidth placeholder="省略可" value={memo}
+                onChange={e => setMemo(e.target.value)} sx={{ flex: 1, fontSize: 15 }} />
+            </Box>
+          </>
         )}
-
-        {/* 金額ディスプレイ */}
-        <Box sx={{
-          bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
-          display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 0.5,
-        }}>
-          {type !== 'transfer' && (
-            <Typography sx={{ color: typeColor, fontSize: 20, fontWeight: 700, mr: 0.25 }}>
-              {type === 'income' ? '+' : '−'}
-            </Typography>
-          )}
-          <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
-          <Typography sx={{ color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums', minHeight: 44 }}>
-            {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
-          </Typography>
-        </Box>
-
-        {/* 電卓パッド */}
-        <CalcPad
-          value={amount}
-          onChange={setAmount}
-          onConfirm={doSave}
-          disabled={parseAmount(amount) <= 0}
-        />
       </Box>
+
+      {/* 金額ディスプレイ（下固定） */}
+      <Box sx={{
+        bgcolor: '#263238', px: 2, py: 1.5, flexShrink: 0,
+        display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 0.5,
+      }}>
+        {type !== 'transfer' && (
+          <Typography sx={{ color: typeColor, fontSize: 20, fontWeight: 700, mr: 0.25 }}>
+            {type === 'income' ? '+' : '−'}
+          </Typography>
+        )}
+        <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
+        <Typography sx={{ color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums', minHeight: 44 }}>
+          {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
+        </Typography>
+      </Box>
+
+      {/* 電卓（下固定） */}
+      <CalcPad value={amount} onChange={setAmount} onConfirm={doSave} disabled={parseAmount(amount) <= 0} />
     </SwipeableDrawer>
   )
 }
+
 
 // ─── 費用行 ──────────────────────────────────────────────
 
