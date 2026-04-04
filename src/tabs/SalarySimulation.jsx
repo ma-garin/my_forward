@@ -103,42 +103,20 @@ function FixedRow({ label, value, editMode, fieldKey, onEdit }) {
   )
 }
 
-// ─── 4値表示行（自由入力 / 小数 / round / floor）─────────────
+// ─── 自動計算行（自由入力優先、なければfloor）────────────────
 
-const SEP = <Box sx={{ width: '1px', bgcolor: '#c8e6c9', alignSelf: 'stretch' }} />
-
-function QuadAutoRow({ label, valueC, valueX, valueR, valueF }) {
+function AutoRow({ label, valueC, valueF }) {
+  const value = valueC ?? valueF
   return (
     <Stack direction="row" alignItems="center" justifyContent="space-between"
       sx={{ py: 0.75, px: 1, mx: -1, borderRadius: 1, bgcolor: '#f1f8e9' }}>
-      <Stack direction="row" alignItems="center" gap={0.75} sx={{ flex: 1 }}>
+      <Stack direction="row" alignItems="center" gap={0.75}>
         <Typography variant="body2" color="text.secondary">{label}</Typography>
         <Chip label="自動" size="small" sx={{ height: 16, fontSize: 10, bgcolor: '#c8e6c9', color: '#2e7d32' }} />
       </Stack>
-      <Stack direction="row" alignItems="stretch" gap={0.75}>
-        <Stack alignItems="flex-end">
-          <Typography variant="caption" sx={{ fontSize: 9, color: '#1565c0' }}>自由入力</Typography>
-          {valueC != null
-            ? <Typography variant="body2" fontWeight={600} color="#1565c0">¥{fmt(valueC)}</Typography>
-            : <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: 11 }}>—</Typography>
-          }
-        </Stack>
-        {SEP}
-        <Stack alignItems="flex-end">
-          <Typography variant="caption" sx={{ fontSize: 9, color: 'text.disabled' }}>小数</Typography>
-          <Typography variant="body2" fontWeight={500}>¥{fmt(valueX)}</Typography>
-        </Stack>
-        {SEP}
-        <Stack alignItems="flex-end">
-          <Typography variant="caption" sx={{ fontSize: 9, color: 'text.disabled' }}>round</Typography>
-          <Typography variant="body2" fontWeight={500}>¥{fmt(valueR)}</Typography>
-        </Stack>
-        {SEP}
-        <Stack alignItems="flex-end">
-          <Typography variant="caption" sx={{ fontSize: 9, color: 'text.disabled' }}>floor</Typography>
-          <Typography variant="body2" fontWeight={500}>¥{fmt(valueF)}</Typography>
-        </Stack>
-      </Stack>
+      <Typography variant="body2" fontWeight={600} color={valueC != null ? '#1565c0' : 'text.primary'}>
+        ¥{fmt(value)}
+      </Typography>
     </Stack>
   )
 }
@@ -237,11 +215,9 @@ export default function SalarySimulation() {
   const [customUnit, setCustomUnit] = useState(init.customUnit)
 
   const parsedCustomUnit = customUnit === '' ? null : (parseInt(customUnit, 10) || null)
-  const { unitR, unitF, unitX, unitC, otR, otF, otX, otC } = calcAllOvertime(fixed, overtime, parsedCustomUnit)
+  const { unitR, unitF, unitC, otR, otF, otC } = calcAllOvertime(fixed, overtime, parsedCustomUnit)
 
-  const rowR = deriveRowLocal(fixed, otR)
   const rowF = deriveRowLocal(fixed, otF)
-  const rowX = deriveRowLocal(fixed, otX)
   const rowC = otC != null ? deriveRowLocal(fixed, otC) : null
 
   const editFixed = useCallback((key, val) => {
@@ -272,28 +248,15 @@ export default function SalarySimulation() {
       <Card sx={{ mb: 2, bgcolor: '#263238', color: '#fff' }}>
         <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
           <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>今月の手取り（シミュレーション）</Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', mt: 0.5 }}>
-            <Stack>
-              <Typography variant="caption" sx={{ opacity: .7, fontSize: 10, color: '#90caf9' }}>自由入力</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>{rowC != null ? `¥${fmt(rowC.takeHome)}` : '—'}</Typography>
-              <Typography variant="caption" sx={{ opacity: .6, color: '#90caf9', fontSize: 9 }}>{rowC != null ? `¥${fmt(rowC.totalPay)}` : ''}</Typography>
-            </Stack>
-            <Stack>
-              <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>小数</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 600, opacity: 0.85 }}>¥{fmt(rowX.takeHome)}</Typography>
-              <Typography variant="caption" sx={{ opacity: .5, fontSize: 9 }}>¥{fmt(rowX.totalPay)}</Typography>
-            </Stack>
-            <Stack>
-              <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>round</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 600, opacity: 0.85 }}>¥{fmt(rowR.takeHome)}</Typography>
-              <Typography variant="caption" sx={{ opacity: .5, fontSize: 9 }}>¥{fmt(rowR.totalPay)}</Typography>
-            </Stack>
-            <Stack>
-              <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>floor</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 600, opacity: 0.85 }}>¥{fmt(rowF.takeHome)}</Typography>
-              <Typography variant="caption" sx={{ opacity: .5, fontSize: 9 }}>¥{fmt(rowF.totalPay)}</Typography>
-            </Stack>
-          </Box>
+          {rowC != null && (
+            <Typography variant="caption" sx={{ opacity: .6, fontSize: 9, color: '#90caf9' }}>自由入力単価</Typography>
+          )}
+          <Typography variant="h4" sx={{ fontWeight: 700, mt: 0.25, letterSpacing: -0.5 }}>
+            ¥{fmt((rowC ?? rowF).takeHome)}
+          </Typography>
+          <Typography variant="caption" sx={{ opacity: .55, fontSize: 10, mt: 0.25 }}>
+            総支給 ¥{fmt((rowC ?? rowF).totalPay)}
+          </Typography>
         </CardContent>
       </Card>
 
@@ -320,26 +283,17 @@ export default function SalarySimulation() {
 
         <OvertimeInput overtime={overtime} onChange={handleOvertimeChange} />
 
-        {/* 単価比較 */}
-        <Stack direction="row" justifyContent="flex-end" alignItems="center" gap={2} sx={{ mt: 1.5 }}>
-          <Stack alignItems="flex-end">
-            <Typography variant="caption" sx={{ fontSize: 9, color: '#1565c0' }}>自由入力</Typography>
+        {/* 残業単価・金額 */}
+        <Stack direction="row" justifyContent="flex-end" alignItems="center" sx={{ mt: 1.5 }}>
+          {parsedCustomUnit != null ? (
             <Typography variant="body2" color="#1565c0" fontWeight={700}>
-              {parsedCustomUnit != null ? `¥${fmt(unitC)}/h → ¥${fmt(otC)}` : '—'}
+              ¥{fmt(unitC)}/h → ¥{fmt(otC)}
             </Typography>
-          </Stack>
-          <Stack alignItems="flex-end">
-            <Typography variant="caption" sx={{ fontSize: 9, color: 'text.disabled' }}>小数</Typography>
-            <Typography variant="body2" color="primary.dark" fontWeight={500}>¥{unitX.toFixed(1)}/h → ¥{fmt(otX)}</Typography>
-          </Stack>
-          <Stack alignItems="flex-end">
-            <Typography variant="caption" sx={{ fontSize: 9, color: 'text.disabled' }}>round</Typography>
-            <Typography variant="body2" color="primary.dark" fontWeight={500}>¥{fmt(unitR)}/h → ¥{fmt(otR)}</Typography>
-          </Stack>
-          <Stack alignItems="flex-end">
-            <Typography variant="caption" sx={{ fontSize: 9, color: 'text.disabled' }}>floor</Typography>
-            <Typography variant="body2" color="primary.dark" fontWeight={500}>¥{fmt(unitF)}/h → ¥{fmt(otF)}</Typography>
-          </Stack>
+          ) : (
+            <Typography variant="body2" color="primary.dark" fontWeight={500}>
+              ¥{fmt(unitF)}/h → ¥{fmt(otF)}
+            </Typography>
+          )}
         </Stack>
 
         {/* 単価自由入力 */}
@@ -388,7 +342,7 @@ export default function SalarySimulation() {
         <Divider />
         <FixedRow label="通勤手当" value={fixed.tsuukinteate}  editMode={editMode} fieldKey="tsuukinteate"  onEdit={editFixed} />
         <Divider />
-        <QuadAutoRow label="時間外手当" valueC={otC} valueX={otX} valueR={otR} valueF={otF} />
+        <AutoRow label="時間外手当" valueC={otC} valueF={otF} />
         {fixed.shinyateate > 0 && (
           <>
             <Divider />
@@ -398,12 +352,9 @@ export default function SalarySimulation() {
         <Divider sx={{ my: 0.5 }} />
         <Stack direction="row" justifyContent="space-between" sx={{ pt: 0.5 }}>
           <Typography variant="body2" fontWeight={600}>支給額合計</Typography>
-          <Stack direction="row" gap={1.5}>
-            <Typography variant="body2" fontWeight={700} color="#1565c0">{rowC != null ? `¥${fmt(rowC.totalPay)}` : '—'}</Typography>
-            <Typography variant="body2" fontWeight={500} color="primary.dark">¥{fmt(rowX.totalPay)}</Typography>
-            <Typography variant="body2" fontWeight={500} color="primary.dark" sx={{ opacity: 0.7 }}>¥{fmt(rowR.totalPay)}</Typography>
-            <Typography variant="body2" fontWeight={500} color="primary.dark" sx={{ opacity: 0.5 }}>¥{fmt(rowF.totalPay)}</Typography>
-          </Stack>
+          <Typography variant="body2" fontWeight={700} color={rowC != null ? '#1565c0' : 'primary.dark'}>
+            ¥{fmt((rowC ?? rowF).totalPay)}
+          </Typography>
         </Stack>
       </SectionCard>
 
@@ -413,9 +364,9 @@ export default function SalarySimulation() {
         <Divider />
         <FixedRow label="厚生年金保険" value={fixed.kouseinenkin} editMode={editMode} fieldKey="kouseinenkin" onEdit={editFixed} />
         <Divider />
-        <QuadAutoRow label="雇用保険" valueC={rowC?.koyou ?? null} valueX={rowX.koyou} valueR={rowR.koyou} valueF={rowF.koyou} />
+        <AutoRow label="雇用保険" valueC={rowC?.koyou ?? null} valueF={rowF.koyou} />
         <Divider />
-        <QuadAutoRow label="所得税" valueC={rowC?.shotoku ?? null} valueX={rowX.shotoku} valueR={rowR.shotoku} valueF={rowF.shotoku} />
+        <AutoRow label="所得税" valueC={rowC?.shotoku ?? null} valueF={rowF.shotoku} />
         <Divider />
         <FixedRow label="住民税"   value={fixed.jyuuminzei} editMode={editMode} fieldKey="jyuuminzei" onEdit={editFixed} />
         <Divider />
@@ -425,12 +376,9 @@ export default function SalarySimulation() {
         <Divider sx={{ my: 0.5 }} />
         <Stack direction="row" justifyContent="space-between" sx={{ pt: 0.5 }}>
           <Typography variant="body2" fontWeight={600}>控除額合計</Typography>
-          <Stack direction="row" gap={1.5}>
-            <Typography variant="body2" fontWeight={700} color="#c62828">{rowC != null ? `¥${fmt(rowC.totalDed)}` : '—'}</Typography>
-            <Typography variant="body2" fontWeight={500} color="error.main">¥{fmt(rowX.totalDed)}</Typography>
-            <Typography variant="body2" fontWeight={500} color="error.main" sx={{ opacity: 0.7 }}>¥{fmt(rowR.totalDed)}</Typography>
-            <Typography variant="body2" fontWeight={500} color="error.main" sx={{ opacity: 0.5 }}>¥{fmt(rowF.totalDed)}</Typography>
-          </Stack>
+          <Typography variant="body2" fontWeight={700} color="error.main">
+            ¥{fmt((rowC ?? rowF).totalDed)}
+          </Typography>
         </Stack>
       </SectionCard>
 
