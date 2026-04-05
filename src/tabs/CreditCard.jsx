@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   Box, Card, CardContent, Typography, Stack, Chip, Divider,
   IconButton, Button, TextField, Dialog, DialogTitle, DialogContent,
@@ -489,7 +489,6 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
   const [fromCard, setFromCard] = useState(currentCardId)
   const [toCard,   setToCard]   = useState(currentCardId === 'jcb' ? 'smbc' : 'jcb')
   const [catOpen,  setCatOpen]  = useState(false)
-  const dateRef = useRef(null)
 
   useEffect(() => { if (!open) { setDate(defaultDate); setCard(currentCardId) } }, [defaultDate, currentCardId, open])
 
@@ -548,11 +547,11 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
       {/* フォームエリア（スクロール可） */}
       <Box sx={{ flex: 1, overflowY: 'auto' }}>
         {/* 日付 */}
-        <Box sx={{ ...ROW, cursor: 'pointer' }} onClick={() => dateRef.current?.showPicker?.()}>
+        <Box sx={{ ...ROW, position: 'relative' }}>
           <Typography sx={LABEL}>日付</Typography>
           <Typography sx={{ flex: 1, fontSize: 15 }}>{fmtDate(date)}</Typography>
-          <input ref={dateRef} type="date" value={date} onChange={e => setDate(e.target.value)}
-            style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} />
+          <input type="date" value={date} onChange={e => setDate(e.target.value)}
+            style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }} />
         </Box>
 
         {/* 収入 / 支出 */}

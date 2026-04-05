@@ -20,9 +20,9 @@ import AccountSettings from './settings/AccountSettings'
 import DataSettings from './settings/DataSettings'
 
 const TABS = [
-  { label: '給与',     icon: <AccountBalanceWalletIcon /> },
   { label: 'カード',   icon: <CreditCardIcon /> },
   { label: '口座',     icon: <SavingsIcon /> },
+  { label: '給与',     icon: <AccountBalanceWalletIcon /> },
   { label: '資産計画', icon: <TrendingUpIcon /> },
 ]
 
@@ -63,9 +63,9 @@ export default function App() {
 
         {/* Content */}
         <Box sx={{ flex: 1, overflowY: 'auto', pb: 'calc(56px + env(safe-area-inset-bottom))' }}>
-          {activeTab === 0 && <SalarySimulation />}
-          {activeTab === 1 && <CreditCard />}
-          {activeTab === 2 && <BankAccounts />}
+          {activeTab === 0 && <CreditCard />}
+          {activeTab === 1 && <BankAccounts />}
+          {activeTab === 2 && <SalarySimulation />}
           {activeTab === 3 && <AssetFlowSimulation />}
         </Box>
 
