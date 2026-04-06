@@ -40,6 +40,48 @@ const CARDS = {
 function cutoffLabel(card) { return card.cutoffDay === 0 ? '月末締め' : `${card.cutoffDay}日締め` }
 function paymentLabel(card) { return `翌月${card.paymentDay}日払い` }
 
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
+
+function prevBusinessDay(date) {
+  const d = new Date(date)
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1)
+  return d
+}
+
+// ym='YYYY-MM' に対応する締め日・支払日（土日は前営業日）
+function cycleDates(card, ym) {
+  const [y, m] = ym.split('-').map(Number)
+  const lastDay = new Date(y, m, 0).getDate()
+  const cutoffDay = card.cutoffDay === 0 ? lastDay : card.cutoffDay
+  const cutoffDate = new Date(y, m - 1, cutoffDay)
+  const payRaw = new Date(y, m, card.paymentDay)
+  const payDate = prevBusinessDay(payRaw)
+  return { cutoffDate, payDate }
+}
+
+function fmtCycleDate(date) {
+  return `${date.getMonth() + 1}/${date.getDate()}(${WEEKDAYS[date.getDay()]})`
+}
+
+// 給与日（毎月25日、土日は前営業日）
+function nextPayDay(from = new Date()) {
+  let candidate = new Date(from.getFullYear(), from.getMonth(), 25)
+  if (candidate <= from) candidate = new Date(from.getFullYear(), from.getMonth() + 1, 25)
+  return prevBusinessDay(candidate)
+}
+
+// from（含まない）から to（含む）までの金曜日数
+function countFridaysUntil(from, to) {
+  let count = 0
+  const d = new Date(from)
+  d.setDate(d.getDate() + 1)
+  while (d <= to) {
+    if (d.getDay() === 5) count++
+    d.setDate(d.getDate() + 1)
+  }
+  return count
+}
+
 // ─── ストレージ ────────────────────────────────────────────
 
 function fixedKey(cardId) { return `cc_fixed_${cardId}` }
@@ -1003,19 +1045,31 @@ function CategoryBreakdown({ fixedList, varList }) {
 
 // ─── 2枚合計＋給与比較 ──────────────────────────────────
 
+const FIXED_ITEMS = [
+  { label: '家賃',     amount: 82330 },
+  { label: '奨学金',   amount: 13262 },
+  { label: '都民共済', amount: 3000 },
+]
+
 function CombinedSummary({ ym }) {
   const jcb  = getCCTotal('jcb',  ym)
   const smbc = getCCTotal('smbc', ym)
   const combined = jcb.total + smbc.total
 
-  // 給与タブから自動取得（最小値・万円切捨）、手動上書き可能
-  const autoSalary = getSalaryTakeHome()
   const savedOverride = loadSalaryOverride()
-  const [salaryInput, setSalaryInput] = useState(savedOverride !== '' ? savedOverride : String(autoSalary || ''))
+  const [salaryInput, setSalaryInput] = useState(savedOverride)
 
-  const salary   = parseFloat(salaryInput) || 0
-  const diff     = salary - combined
+  const salary = parseFloat(salaryInput) || 0
   const hasSalary = salary > 0
+
+  // 生活費 = 今日から次の給与日（毎月25日・土日は前営業日）までの金曜日数 × 10,000
+  const today = new Date()
+  const payDay = nextPayDay(today)
+  const fridays = countFridaysUntil(today, payDay)
+  const livingCost = fridays * 10000
+  const fixedTotal = FIXED_ITEMS.reduce((s, i) => s + i.amount, 0) + livingCost
+
+  const diff = salary - fixedTotal - combined
 
   return (
     <Card sx={{ mb: 2, bgcolor: '#263238', color: '#fff' }}>
@@ -1029,7 +1083,7 @@ function CombinedSummary({ ym }) {
             <Typography variant="subtitle1" fontWeight={700}>¥{fmt(jcb.total)}</Typography>
           </Stack>
           <Stack>
-            <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>SMBC</Typography>
+            <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>VISA</Typography>
             <Typography variant="subtitle1" fontWeight={700}>¥{fmt(smbc.total)}</Typography>
           </Stack>
           <Stack>
@@ -1042,25 +1096,18 @@ function CombinedSummary({ ym }) {
 
         {/* 給与入力 */}
         <Stack direction="row" alignItems="flex-start" gap={1.5}>
-          <Stack sx={{ pt: 0.5 }}>
-            <Typography variant="caption" sx={{ opacity: .7, minWidth: 36 }}>給与</Typography>
-            {autoSalary > 0 && (
-              <Typography variant="caption" sx={{ opacity: .45, fontSize: 9 }}>
-                自動: ¥{fmt(autoSalary)}
-              </Typography>
-            )}
-          </Stack>
+          <Typography variant="caption" sx={{ opacity: .7, minWidth: 36, pt: 0.5 }}>給与</Typography>
           <Box sx={{ flex: 1 }}>
             <AmountField
               dark
               value={salaryInput}
               onChange={(raw) => { setSalaryInput(raw); saveSalaryOverride(raw) }}
-              placeholder={autoSalary > 0 ? fmtInput(String(autoSalary)) : '手取り額'}
+              placeholder="手取り額"
               inputSx={{ '& .MuiInputBase-root': { height: 32 } }}
             />
           </Box>
           {hasSalary && (
-            <Stack sx={{ pt: 0.5 }}>
+            <Stack sx={{ pt: 0.5, alignItems: 'flex-end' }}>
               <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>差引残り</Typography>
               <Typography variant="subtitle1" fontWeight={700}
                 sx={{ color: diff >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
@@ -1069,6 +1116,32 @@ function CombinedSummary({ ym }) {
             </Stack>
           )}
         </Stack>
+
+        {/* 固定費内訳 */}
+        {hasSalary && (
+          <Box sx={{ mt: 1.5, pl: 0.5 }}>
+            <Typography variant="caption" sx={{ opacity: .45, letterSpacing: .5 }}>固定費内訳</Typography>
+            <Stack spacing={0.25} sx={{ mt: 0.5 }}>
+              {FIXED_ITEMS.map(item => (
+                <Stack key={item.label} direction="row" justifyContent="space-between">
+                  <Typography variant="caption" sx={{ opacity: .6 }}>{item.label}</Typography>
+                  <Typography variant="caption" sx={{ opacity: .6 }}>¥{fmt(item.amount)}</Typography>
+                </Stack>
+              ))}
+              <Stack direction="row" justifyContent="space-between">
+                <Typography variant="caption" sx={{ opacity: .6 }}>
+                  生活費（{fridays}週 × 10,000）
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: .6 }}>¥{fmt(livingCost)}</Typography>
+              </Stack>
+              <Divider sx={{ borderColor: 'rgba(255,255,255,.1)', my: 0.5 }} />
+              <Stack direction="row" justifyContent="space-between">
+                <Typography variant="caption" sx={{ opacity: .8 }}>固定費合計</Typography>
+                <Typography variant="caption" sx={{ opacity: .8 }}>¥{fmt(fixedTotal)}</Typography>
+              </Stack>
+            </Stack>
+          </Box>
+        )}
       </CardContent>
     </Card>
   )
@@ -1267,9 +1340,18 @@ export default function CreditCard() {
                 <Typography variant="caption" sx={{ opacity: .75 }}>固定 ¥{fmt(fixedTotal)}</Typography>
                 <Typography variant="caption" sx={{ opacity: .75 }}>変動 ¥{fmt(varTotal)}</Typography>
               </Stack>
-              <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
-                <Typography variant="caption" sx={{ opacity: .55 }}>{cutoffLabel(card)}</Typography>
-                <Typography variant="caption" sx={{ opacity: .55 }}>{paymentLabel(card)}</Typography>
+              <Stack sx={{ mt: 0.5 }}>
+                <Typography variant="caption" sx={{ opacity: .55 }}>
+                  {cutoffLabel(card)}　{paymentLabel(card)}
+                </Typography>
+                {(() => {
+                  const { cutoffDate, payDate } = cycleDates(card, ym)
+                  return (
+                    <Typography variant="caption" sx={{ opacity: .4 }}>
+                      {fmtCycleDate(cutoffDate)}締め　{fmtCycleDate(payDate)}払い
+                    </Typography>
+                  )
+                })()}
               </Stack>
               {/* 上限入力 */}
               <Box sx={{ mt: 1.5 }}>
