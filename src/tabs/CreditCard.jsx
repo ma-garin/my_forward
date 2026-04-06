@@ -1296,6 +1296,15 @@ export default function CreditCard() {
   return (
     <Box sx={{ px: 2, pt: 2, pb: 10 }}>
 
+      {/* 月ナビゲーション */}
+      <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
+        <IconButton size="small" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
+        <Typography variant="subtitle2" fontWeight={600} sx={{ minWidth: 80, textAlign: 'center' }}>
+          {year}年{month}月
+        </Typography>
+        <IconButton size="small" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
+      </Stack>
+
       {/* 2枚合計サマリー */}
       <CombinedSummary ym={ym} />
 
@@ -1392,15 +1401,6 @@ export default function CreditCard() {
           </Card>
         )
       })()}
-
-      {/* 月ナビゲーション */}
-      <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
-        <IconButton size="small" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
-        <Typography variant="subtitle2" fontWeight={600} sx={{ minWidth: 80, textAlign: 'center' }}>
-          {year}年{month}月
-        </Typography>
-        <IconButton size="small" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
-      </Stack>
 
       {/* 固定費テーブル */}
       <Card sx={{ mb: 1.5 }}>
