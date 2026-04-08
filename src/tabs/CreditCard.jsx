@@ -64,18 +64,16 @@ function fmtCycleDate(date) {
 }
 
 // 給与日（毎月25日、土日は前営業日）
-function nextPayDay(from = new Date()) {
-  let candidate = new Date(from.getFullYear(), from.getMonth(), 25)
-  if (candidate <= from) candidate = new Date(from.getFullYear(), from.getMonth() + 1, 25)
-  return prevBusinessDay(candidate)
+// 毎月25日の給料日（土日は前営業日）
+function salaryPayDay(year, month) {
+  return prevBusinessDay(new Date(year, month - 1, 25))
 }
 
-// from（含まない）から to（含む）までの金曜日数
-function countFridaysUntil(from, to) {
+// from（含む）から to（含まない）までの金曜日数
+function countFridaysInRange(from, to) {
   let count = 0
   const d = new Date(from)
-  d.setDate(d.getDate() + 1)
-  while (d <= to) {
+  while (d < to) {
     if (d.getDay() === 5) count++
     d.setDate(d.getDate() + 1)
   }
@@ -1062,10 +1060,11 @@ function CombinedSummary({ ym }) {
   const salary = parseFloat(salaryInput) || 0
   const hasSalary = salary > 0
 
-  // 生活費 = 今日から次の給与日（毎月25日・土日は前営業日）までの金曜日数 × 10,000
-  const today = new Date()
-  const payDay = nextPayDay(today)
-  const fridays = countFridaysUntil(today, payDay)
+  // 生活費 = 当月給料日から翌月給料日までの金曜日数 × 10,000
+  const [ymY, ymM] = ym.split('-').map(Number)
+  const thisPayDay = salaryPayDay(ymY, ymM)
+  const nextPay    = salaryPayDay(ymM === 12 ? ymY + 1 : ymY, ymM === 12 ? 1 : ymM + 1)
+  const fridays = countFridaysInRange(thisPayDay, nextPay)
   const livingCost = fridays * 10000
   const fixedTotal = FIXED_ITEMS.reduce((s, i) => s + i.amount, 0) + livingCost
 
