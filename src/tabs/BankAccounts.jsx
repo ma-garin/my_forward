@@ -137,6 +137,8 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
     onChange(s.length <= 1 ? '' : s.slice(0, -1))
   }
 
+  const pressClear = () => { onChange(''); setStored(null); setOp(null); setFresh(false) }
+
   const pressEquals = () => {
     if (stored !== null && op) {
       const r = calc(stored, parseAmount(value), op)
@@ -161,10 +163,12 @@ function CalcPad({ value, onChange, onConfirm, disabled }) {
       {opBtn('+')} {opBtn('−')} {opBtn('×')} {opBtn('÷')}
       {numBtn('7')} {numBtn('8')} {numBtn('9')}
       <Button onClick={pressEquals} sx={{ ...BASE, ...bg('#0288d1'), fontSize: 24, fontWeight: 700 }}>=</Button>
-      {numBtn('4')} {numBtn('5')} {numBtn('6')} {numBtn('00')}
+      {numBtn('4')} {numBtn('5')} {numBtn('6')}
+      <Button onClick={pressClear} sx={{ ...BASE, ...bg('#78909c'), fontWeight: 700 }}>C</Button>
       {numBtn('1')} {numBtn('2')} {numBtn('3')}
       <Button onClick={pressBackspace} sx={{ ...BASE, ...bg('#37474f') }}>⌫</Button>
-      <Button onClick={() => pressDigit('0')} sx={{ ...BASE, ...bg('#546e7a'), gridColumn: 'span 3' }}>0</Button>
+      <Button onClick={() => pressDigit('0')} sx={{ ...BASE, ...bg('#546e7a'), gridColumn: 'span 2' }}>0</Button>
+      {numBtn('00')}
       <Button onClick={pressConfirm} disabled={disabled}
         sx={{ ...BASE, ...bg(disabled ? '#455a64' : '#c62828'), fontWeight: 700, fontSize: 18 }}>確認</Button>
     </Box>
