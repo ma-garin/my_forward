@@ -130,6 +130,25 @@ function loadSalaryOverride() {
 }
 function saveSalaryOverride(v) { localStorage.setItem('cc_salary_override', v) }
 
+const DEFAULT_SUMMARY_FIXED = [
+  { id: 's1', label: '家賃',     amount: 82330 },
+  { id: 's2', label: '奨学金',   amount: 13262 },
+  { id: 's3', label: '都民共済', amount: 3000 },
+]
+function loadSummaryFixed() {
+  try {
+    const s = localStorage.getItem('cc_summary_fixed')
+    return s ? JSON.parse(s) : DEFAULT_SUMMARY_FIXED.map(x => ({ ...x }))
+  } catch { return DEFAULT_SUMMARY_FIXED.map(x => ({ ...x })) }
+}
+function saveSummaryFixed(list) { localStorage.setItem('cc_summary_fixed', JSON.stringify(list)) }
+
+function loadLivingUnit() {
+  const v = parseInt(localStorage.getItem('cc_living_unit') || '', 10)
+  return isNaN(v) ? 10000 : v
+}
+function saveLivingUnit(v) { localStorage.setItem('cc_living_unit', String(v)) }
+
 // ─── 金額入力ユーティリティ ──────────────────────────────
 
 /** 生文字列（カンマなし）→ カンマ付き表示文字列 */
@@ -1049,31 +1068,56 @@ function CategoryBreakdown({ fixedList, varList }) {
 
 // ─── 2枚合計＋給与比較 ──────────────────────────────────
 
-const FIXED_ITEMS = [
-  { label: '家賃',     amount: 82330 },
-  { label: '奨学金',   amount: 13262 },
-  { label: '都民共済', amount: 3000 },
-]
-
 function CombinedSummary({ ym }) {
   const jcb  = getCCTotal('jcb',  ym)
   const smbc = getCCTotal('smbc', ym)
   const combined = jcb.total + smbc.total
 
-  const savedOverride = loadSalaryOverride()
-  const [salaryInput, setSalaryInput] = useState(savedOverride)
+  const [salaryInput, setSalaryInput] = useState(loadSalaryOverride)
+  const [fixedItems, setFixedItems]   = useState(loadSummaryFixed)
+  const [livingUnit, setLivingUnit]   = useState(loadLivingUnit)
+
+  // ダイアログ: { mode:'add'|'edit'|'living', id? }
+  const [dlg, setDlg]         = useState(null)
+  const [dlgLabel, setDlgLabel] = useState('')
+  const [dlgAmount, setDlgAmount] = useState('')
 
   const salary = parseFloat(salaryInput) || 0
   const hasSalary = salary > 0
 
-  // 生活費 = 今日から次の給与日（毎月25日・土日は前営業日）までの金曜日数 × 10,000
   const today = new Date()
   const payDay = nextPayDay(today)
   const fridays = countFridaysUntil(today, payDay)
-  const livingCost = fridays * 10000
-  const fixedTotal = FIXED_ITEMS.reduce((s, i) => s + i.amount, 0) + livingCost
-
+  const livingCost = fridays * livingUnit
+  const fixedTotal = fixedItems.reduce((s, i) => s + i.amount, 0) + livingCost
   const diff = salary - fixedTotal - combined
+
+  function openAdd() { setDlgLabel(''); setDlgAmount(''); setDlg({ mode: 'add' }) }
+  function openEdit(item) { setDlgLabel(item.label); setDlgAmount(String(item.amount)); setDlg({ mode: 'edit', id: item.id }) }
+  function openLiving() { setDlgAmount(String(livingUnit)); setDlg({ mode: 'living' }) }
+
+  function handleDelete(id) {
+    const next = fixedItems.filter(x => x.id !== id)
+    setFixedItems(next); saveSummaryFixed(next)
+  }
+
+  function handleSave() {
+    const amt = parseInt(dlgAmount, 10)
+    if (!dlgLabel.trim() && dlg.mode !== 'living') return
+    if (isNaN(amt) || amt <= 0) return
+    if (dlg.mode === 'living') {
+      setLivingUnit(amt); saveLivingUnit(amt)
+    } else if (dlg.mode === 'add') {
+      const next = [...fixedItems, { id: newId(), label: dlgLabel.trim(), amount: amt }]
+      setFixedItems(next); saveSummaryFixed(next)
+    } else {
+      const next = fixedItems.map(x => x.id === dlg.id ? { ...x, label: dlgLabel.trim(), amount: amt } : x)
+      setFixedItems(next); saveSummaryFixed(next)
+    }
+    setDlg(null)
+  }
+
+  const iconSx = { p: 0.3, color: 'rgba(255,255,255,.4)', '&:hover': { color: 'rgba(255,255,255,.8)' } }
 
   return (
     <Card sx={{ mb: 2, bgcolor: '#263238', color: '#fff' }}>
@@ -1124,19 +1168,37 @@ function CombinedSummary({ ym }) {
         {/* 固定費内訳 */}
         {hasSalary && (
           <Box sx={{ mt: 1.5, pl: 0.5 }}>
-            <Typography variant="caption" sx={{ opacity: .45, letterSpacing: .5 }}>固定費内訳</Typography>
-            <Stack spacing={0.25} sx={{ mt: 0.5 }}>
-              {FIXED_ITEMS.map(item => (
-                <Stack key={item.label} direction="row" justifyContent="space-between">
-                  <Typography variant="caption" sx={{ opacity: .6 }}>{item.label}</Typography>
-                  <Typography variant="caption" sx={{ opacity: .6 }}>¥{fmt(item.amount)}</Typography>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+              <Typography variant="caption" sx={{ opacity: .45, letterSpacing: .5 }}>固定費内訳</Typography>
+              <IconButton size="small" sx={{ ...iconSx, p: 0.2 }} onClick={openAdd}>
+                <AddIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+            </Stack>
+            <Stack spacing={0.25}>
+              {fixedItems.map(item => (
+                <Stack key={item.id} direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="caption" sx={{ opacity: .6, flex: 1 }}>{item.label}</Typography>
+                  <Stack direction="row" alignItems="center" gap={0.25}>
+                    <Typography variant="caption" sx={{ opacity: .6 }}>¥{fmt(item.amount)}</Typography>
+                    <IconButton size="small" sx={iconSx} onClick={() => openEdit(item)}>
+                      <EditIcon sx={{ fontSize: 11 }} />
+                    </IconButton>
+                    <IconButton size="small" sx={iconSx} onClick={() => handleDelete(item.id)}>
+                      <DeleteIcon sx={{ fontSize: 11 }} />
+                    </IconButton>
+                  </Stack>
                 </Stack>
               ))}
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="caption" sx={{ opacity: .6 }}>
-                  生活費（{fridays}週 × 10,000）
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="caption" sx={{ opacity: .6, flex: 1 }}>
+                  生活費（{fridays}週 × {fmt(livingUnit)}）
                 </Typography>
-                <Typography variant="caption" sx={{ opacity: .6 }}>¥{fmt(livingCost)}</Typography>
+                <Stack direction="row" alignItems="center" gap={0.25}>
+                  <Typography variant="caption" sx={{ opacity: .6 }}>¥{fmt(livingCost)}</Typography>
+                  <IconButton size="small" sx={iconSx} onClick={openLiving}>
+                    <EditIcon sx={{ fontSize: 11 }} />
+                  </IconButton>
+                </Stack>
               </Stack>
               <Divider sx={{ borderColor: 'rgba(255,255,255,.1)', my: 0.5 }} />
               <Stack direction="row" justifyContent="space-between">
@@ -1147,6 +1209,33 @@ function CombinedSummary({ ym }) {
           </Box>
         )}
       </CardContent>
+
+      {/* 編集ダイアログ */}
+      <Dialog open={dlg !== null} onClose={() => setDlg(null)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ pb: 1, fontSize: 15 }}>
+          {dlg?.mode === 'add' ? '固定費を追加' : dlg?.mode === 'living' ? '生活費（週あたり）を編集' : '固定費を編集'}
+        </DialogTitle>
+        <DialogContent sx={{ pt: '8px !important' }}>
+          <Stack gap={2}>
+            {dlg?.mode !== 'living' && (
+              <TextField label="項目名" value={dlgLabel} onChange={e => setDlgLabel(e.target.value)}
+                size="small" fullWidth autoFocus />
+            )}
+            <AmountField
+              value={dlgAmount}
+              onChange={setDlgAmount}
+              label="金額"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDlg(null)} size="small">キャンセル</Button>
+          <Button onClick={handleSave} variant="contained" size="small"
+            disabled={(!dlgLabel.trim() && dlg?.mode !== 'living') || parseInt(dlgAmount, 10) <= 0}>
+            保存
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   )
 }
