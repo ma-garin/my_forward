@@ -123,7 +123,7 @@ function AutoRow({ label, valueC, valueF }) {
 
 // ─── ドラムロール ─────────────────────────────────────────────
 
-const ITEM_H = 30
+const ITEM_H = 24
 const DRUM_H = ITEM_H * 5  // 5 items visible
 const HOUR_ITEMS = Array.from({ length: 81 }, (_, i) => i)
 const MINUTE_ITEMS = Array.from({ length: 60 }, (_, i) => i)
@@ -164,7 +164,7 @@ function DrumRoll({ items, value, onChange, format = (v) => String(v) }) {
 
   return (
     <Box
-      sx={{ position: 'relative', width: 64, height: DRUM_H, overflow: 'hidden', userSelect: 'none', touchAction: 'none' }}
+      sx={{ position: 'relative', width: 52, height: DRUM_H, overflow: 'hidden', userSelect: 'none', touchAction: 'none' }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -180,7 +180,7 @@ function DrumRoll({ items, value, onChange, format = (v) => String(v) }) {
           return (
             <Box key={String(item)} sx={{ height: ITEM_H, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Typography sx={{
-                fontSize: sel ? 18 : 12, fontWeight: sel ? 700 : 400,
+                fontSize: sel ? 15 : 10, fontWeight: sel ? 700 : 400,
                 color: sel ? 'primary.dark' : 'text.disabled',
                 lineHeight: 1, transition: isDragging ? 'none' : 'all 0.15s',
               }}>
@@ -223,7 +223,7 @@ function OvertimeInput({ overtime, onChange }) {
         <DrumRoll items={HOUR_ITEMS} value={hours} onChange={(h) => onChange(h + minutes / 60)} />
         <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>時間</Typography>
       </Stack>
-      <Typography variant="h6" color="text.disabled" sx={{ mb: 2, lineHeight: 1 }}>:</Typography>
+      <Typography variant="body1" color="text.disabled" sx={{ mb: 1.5, lineHeight: 1 }}>:</Typography>
       <Stack alignItems="center">
         <DrumRoll
           items={MINUTE_ITEMS} value={minutes}
