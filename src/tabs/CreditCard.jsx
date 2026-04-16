@@ -124,6 +124,32 @@ function loadBilled(cardId, ym) {
 }
 function saveBilled(cardId, ym, ids) { localStorage.setItem(`cc_billed_${cardId}_${ym}`, JSON.stringify(ids)) }
 
+function loadWeeklyBudget() {
+  const v = parseInt(localStorage.getItem('life_weekly_budget') || '', 10)
+  return isNaN(v) ? 10000 : v
+}
+function saveWeeklyBudget(v) { localStorage.setItem('life_weekly_budget', String(v)) }
+
+// 今週の月曜〜日曜を YYYY-MM-DD 文字列で返す
+function getThisWeekRange() {
+  const today = new Date()
+  const day = today.getDay()
+  const monday = new Date(today)
+  monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1))
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const toStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return { mondayStr: toStr(monday), sundayStr: toStr(sunday), label: `${monday.getMonth() + 1}/${monday.getDate()} 〜 ${sunday.getMonth() + 1}/${sunday.getDate()}` }
+}
+
+// 生活費カテゴリの合計（date でフィルタする場合は from/to に YYYY-MM-DD を渡す）
+function sumLiving(list, fromStr, toStr) {
+  return list
+    .filter(x => x.category === '生活費' && x.sign !== 1 && x.date)
+    .filter(x => (!fromStr || x.date >= fromStr) && (!toStr || x.date <= toStr))
+    .reduce((s, x) => s + x.amount, 0)
+}
+
 function loadSalaryOverride() {
   const v = parseFloat(localStorage.getItem('cc_salary_override') || '')
   return isNaN(v) ? '' : String(v)
@@ -1068,6 +1094,113 @@ function CategoryBreakdown({ fixedList, varList }) {
 
 // ─── 2枚合計＋給与比較 ──────────────────────────────────
 
+// ─── 生活費カード ────────────────────────────────────────────
+
+function LivingExpenseCard({ ym }) {
+  const [weeklyBudget, setWeeklyBudget] = useState(loadWeeklyBudget)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editVal, setEditVal] = useState('')
+
+  const { mondayStr, sundayStr, label } = getThisWeekRange()
+
+  // 週またぎ対応: 月曜と日曜が別月なら両月ロード
+  const mondayYm = mondayStr.slice(0, 7)
+  const sundayYm = sundayStr.slice(0, 7)
+  const weekMonths = [...new Set([mondayYm, sundayYm])]
+  const weekList = weekMonths.flatMap(m => [
+    ...loadVar('jcb', m),
+    ...loadVar('smbc', m),
+  ])
+  const weekUsed = sumLiving(weekList, mondayStr, sundayStr)
+  const weekRemain = weeklyBudget - weekUsed
+  const weekPct = weeklyBudget > 0 ? Math.min(weekUsed / weeklyBudget * 100, 100) : 0
+
+  // 今月（選択月）
+  const monthList = [...loadVar('jcb', ym), ...loadVar('smbc', ym)]
+  const monthUsed = sumLiving(monthList)
+  const today = new Date()
+  const fridays = countFridaysUntil(today, nextPayDay(today))
+  const monthlyBudget = fridays * weeklyBudget
+  const monthRemain = monthlyBudget - monthUsed
+  const monthPct = monthlyBudget > 0 ? Math.min(monthUsed / monthlyBudget * 100, 100) : 0
+
+  const barColor = (pct) => pct >= 100 ? '#ef9a9a' : pct >= 80 ? '#ffe082' : 'rgba(255,255,255,.6)'
+
+  const handleSave = () => {
+    const v = parseInt(editVal.replace(/,/g, ''), 10)
+    if (!isNaN(v) && v > 0) { setWeeklyBudget(v); saveWeeklyBudget(v) }
+    setEditOpen(false)
+  }
+
+  return (
+    <Card sx={{ mb: 2, bgcolor: '#1b5e20', color: '#fff' }}>
+      <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
+        <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>生活費</Typography>
+
+        {/* 今週 */}
+        <Box sx={{ mt: 1 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+            <Typography variant="caption" sx={{ opacity: .8, fontSize: 11, fontWeight: 600 }}>今週</Typography>
+            <Typography variant="caption" sx={{ opacity: .45, fontSize: 10 }}>{label}</Typography>
+          </Stack>
+          <Box sx={{ mt: 0.75, height: 5, bgcolor: 'rgba(255,255,255,.2)', borderRadius: 3, overflow: 'hidden' }}>
+            <Box sx={{ height: '100%', width: `${weekPct}%`, bgcolor: barColor(weekPct), borderRadius: 3, transition: 'width .4s' }} />
+          </Box>
+          <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
+            <Typography variant="caption" sx={{ opacity: .65, fontSize: 10 }}>¥{fmt(weekUsed)} 使用 ／ ¥{fmt(weeklyBudget)}</Typography>
+            <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, color: weekRemain >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
+              {weekRemain >= 0 ? `残り ¥${fmt(weekRemain)}` : `¥${fmt(-weekRemain)} オーバー`}
+            </Typography>
+          </Stack>
+        </Box>
+
+        <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 1.25 }} />
+
+        {/* 今月 */}
+        <Box>
+          <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+            <Typography variant="caption" sx={{ opacity: .8, fontSize: 11, fontWeight: 600 }}>今月（{ym}）</Typography>
+            <Typography variant="caption" sx={{ opacity: .45, fontSize: 10 }}>¥{fmt(weeklyBudget)} × {fridays}週</Typography>
+          </Stack>
+          <Box sx={{ mt: 0.75, height: 5, bgcolor: 'rgba(255,255,255,.2)', borderRadius: 3, overflow: 'hidden' }}>
+            <Box sx={{ height: '100%', width: `${monthPct}%`, bgcolor: barColor(monthPct), borderRadius: 3, transition: 'width .4s' }} />
+          </Box>
+          <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
+            <Typography variant="caption" sx={{ opacity: .65, fontSize: 10 }}>¥{fmt(monthUsed)} 使用 ／ ¥{fmt(monthlyBudget)}</Typography>
+            <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, color: monthRemain >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
+              {monthRemain >= 0 ? `残り ¥${fmt(monthRemain)}` : `¥${fmt(-monthRemain)} オーバー`}
+            </Typography>
+          </Stack>
+        </Box>
+
+        <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 1.25 }} />
+
+        {/* 週予算編集 */}
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>週予算 ¥{fmt(weeklyBudget)}</Typography>
+          <Button size="small" onClick={() => { setEditVal(String(weeklyBudget)); setEditOpen(true) }}
+            sx={{ color: 'rgba(255,255,255,.6)', fontSize: 10, minWidth: 0, px: 1, py: 0.25, textTransform: 'none' }}>
+            編集
+          </Button>
+        </Stack>
+      </CardContent>
+
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ pb: 1, fontSize: 15 }}>週予算を編集</DialogTitle>
+        <DialogContent sx={{ pt: '8px !important' }}>
+          <AmountField value={editVal} onChange={setEditVal} label="週予算（円）" autoFocus />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditOpen(false)} size="small">キャンセル</Button>
+          <Button onClick={handleSave} variant="contained" size="small">保存</Button>
+        </DialogActions>
+      </Dialog>
+    </Card>
+  )
+}
+
+// ─── 2枚合計 ─────────────────────────────────────────────────
+
 function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   const jcb  = getCCTotal('jcb',  ym)
   const smbc = getCCTotal('smbc', ym)
@@ -1422,6 +1555,7 @@ export default function CreditCard() {
 
       {/* 2枚合計サマリー */}
       <CombinedSummary ym={ym} jcbLimit={parseFloat(limitInputs.jcb) || 0} smbcLimit={parseFloat(limitInputs.smbc) || 0} />
+      <LivingExpenseCard ym={ym} />
 
       {/* カード選択 */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
