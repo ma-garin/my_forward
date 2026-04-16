@@ -1093,7 +1093,6 @@ function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   const livingCost = fridays * livingUnit
   const fixedTotal = fixedItems.reduce((s, i) => s + i.amount, 0) + livingCost
   const diff = salary - fixedTotal - combined
-  const c = salary - fixedTotal - combinedLimit
 
   function openAdd() { setDlgLabel(''); setDlgAmount(''); setDlg({ mode: 'add' }) }
   function openEdit(item) { setDlgLabel(item.label); setDlgAmount(String(item.amount)); setDlg({ mode: 'edit', id: item.id }) }
@@ -1143,37 +1142,6 @@ function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
           </Stack>
         </Stack>
 
-        {/* 利用上限・想定残高 */}
-        {combinedLimit > 0 && (
-          <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,.08)', borderRadius: 1 }}>
-            <Stack direction="row" spacing={2} sx={{ mb: 0.75 }}>
-              {jcbLimit > 0 && <Typography variant="caption" sx={{ opacity: .65, fontSize: 10 }}>JCB ¥{fmt(jcbLimit)}</Typography>}
-              {smbcLimit > 0 && <Typography variant="caption" sx={{ opacity: .65, fontSize: 10 }}>VISA ¥{fmt(smbcLimit)}</Typography>}
-              <Typography variant="caption" sx={{ opacity: .8, fontSize: 10, fontWeight: 600 }}>合計上限 ¥{fmt(combinedLimit)}</Typography>
-            </Stack>
-            {(() => {
-              const af = combinedLimit - fixedOnlyTotal
-              const ag = combinedLimit - combined
-              return (
-                <Stack gap={0.25}>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定費後</Typography>
-                    <Typography variant="caption" sx={{ fontSize: 10, color: af >= 0 ? 'rgba(255,255,255,.7)' : '#ef9a9a' }}>
-                      {af >= 0 ? `残り ¥${fmt(af)}` : `¥${fmt(-af)} オーバー`}
-                    </Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定＋変動後</Typography>
-                    <Typography variant="caption" sx={{ fontSize: 10, color: ag >= 0 ? 'rgba(255,255,255,.7)' : '#ef9a9a' }}>
-                      {ag >= 0 ? `残り ¥${fmt(ag)}` : `¥${fmt(-ag)} オーバー`}
-                    </Typography>
-                  </Stack>
-                </Stack>
-              )
-            })()}
-          </Box>
-        )}
-
         <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 1.5 }} />
 
         {/* 給与入力 */}
@@ -1199,21 +1167,21 @@ function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
           )}
         </Stack>
 
-        {/* 給与 − 固定費(A) − CC上限(B) = C */}
-        {hasSalary && combinedLimit > 0 && (
+        {/* 給与 - 固定費 - 変動費 = 残高 */}
+        {hasSalary && (
           <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,.06)', borderRadius: 1 }}>
             <Typography variant="caption" sx={{ opacity: .5, fontSize: 9, display: 'block', mb: 0.5 }}>
-              給与 − 固定費(A) − CC上限(B) = C
+              給与 - 固定費 - 変動費 = 残高
             </Typography>
             <Stack direction="row" alignItems="center" gap={0.5} flexWrap="wrap">
               <Typography variant="caption" sx={{ opacity: .75, fontSize: 10 }}>¥{fmt(salary)}</Typography>
               <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>−</Typography>
               <Typography variant="caption" sx={{ opacity: .75, fontSize: 10 }}>¥{fmt(fixedTotal)}</Typography>
               <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>−</Typography>
-              <Typography variant="caption" sx={{ opacity: .75, fontSize: 10 }}>¥{fmt(combinedLimit)}</Typography>
+              <Typography variant="caption" sx={{ opacity: .75, fontSize: 10 }}>¥{fmt(combined)}</Typography>
               <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>=</Typography>
-              <Typography variant="caption" fontWeight={700} sx={{ fontSize: 13, color: c >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
-                {c < 0 ? '−' : ''}¥{fmt(Math.abs(c))}
+              <Typography variant="caption" fontWeight={700} sx={{ fontSize: 13, color: diff >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
+                {diff < 0 ? '−' : ''}¥{fmt(Math.abs(diff))}
               </Typography>
             </Stack>
           </Box>
