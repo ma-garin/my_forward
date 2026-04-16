@@ -142,10 +142,13 @@ function getThisWeekRange() {
   return { mondayStr: toStr(monday), sundayStr: toStr(sunday), label: `${monday.getMonth() + 1}/${monday.getDate()} 〜 ${sunday.getMonth() + 1}/${sunday.getDate()}` }
 }
 
+// 生活費として集計するカテゴリ
+const LIVING_CATEGORIES = ['生活費', '食費', '日用品']
+
 // 生活費カテゴリの合計（date でフィルタする場合は from/to に YYYY-MM-DD を渡す）
 function sumLiving(list, fromStr, toStr) {
   return list
-    .filter(x => x.category === '生活費' && x.sign !== 1 && x.date)
+    .filter(x => LIVING_CATEGORIES.includes(x.category) && x.sign !== 1 && x.date)
     .filter(x => (!fromStr || x.date >= fromStr) && (!toStr || x.date <= toStr))
     .reduce((s, x) => s + x.amount, 0)
 }
@@ -579,7 +582,8 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
   const [card,     setCard]     = useState(currentCardId)
   const [fromCard, setFromCard] = useState(currentCardId)
   const [toCard,   setToCard]   = useState(currentCardId === 'jcb' ? 'smbc' : 'jcb')
-  const [catOpen,  setCatOpen]  = useState(false)
+  const [catOpen,     setCatOpen]     = useState(false)
+  const [textFocused, setTextFocused] = useState(false)
   const dateInputRef = useRef(null)
 
   // キーボード表示時にDrawerをvisual viewport内に収める
@@ -688,13 +692,15 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
             <Box sx={ROW}>
               <Typography sx={LABEL}>支払先</Typography>
               <InputBase fullWidth placeholder="省略可" value={payee}
-                onChange={e => setPayee(e.target.value)} sx={{ flex: 1, fontSize: 15 }} />
+                onChange={e => setPayee(e.target.value)} sx={{ flex: 1, fontSize: 15 }}
+                onFocus={() => setTextFocused(true)} onBlur={() => setTextFocused(false)} />
             </Box>
 
             <Box sx={ROW}>
               <Typography sx={LABEL}>項目名</Typography>
               <InputBase fullWidth placeholder="省略可" value={name}
-                onChange={e => setName(e.target.value)} sx={{ flex: 1, fontSize: 15 }} />
+                onChange={e => setName(e.target.value)} sx={{ flex: 1, fontSize: 15 }}
+                onFocus={() => setTextFocused(true)} onBlur={() => setTextFocused(false)} />
             </Box>
 
             {type === 'expense' && (
@@ -732,30 +738,33 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
             <Box sx={ROW}>
               <Typography sx={LABEL}>内容</Typography>
               <InputBase fullWidth placeholder="省略可" value={memo}
-                onChange={e => setMemo(e.target.value)} sx={{ flex: 1, fontSize: 15 }} />
+                onChange={e => setMemo(e.target.value)} sx={{ flex: 1, fontSize: 15 }}
+                onFocus={() => setTextFocused(true)} onBlur={() => setTextFocused(false)} />
             </Box>
           </>
         )}
       </Box>
 
-      {/* 金額ディスプレイ（下固定） */}
-      <Box sx={{
-        bgcolor: '#263238', px: 2, py: 1.5, flexShrink: 0,
-        display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 0.5,
-      }}>
-        {type !== 'transfer' && (
-          <Typography sx={{ color: typeColor, fontSize: 20, fontWeight: 700, mr: 0.25 }}>
-            {type === 'income' ? '+' : '−'}
-          </Typography>
-        )}
-        <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
-        <Typography sx={{ color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums', minHeight: 44 }}>
-          {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
-        </Typography>
-      </Box>
-
-      {/* 電卓（下固定） */}
-      <CalcPad value={amount} onChange={setAmount} onConfirm={doSave} disabled={parseAmount(amount) <= 0} />
+      {/* 金額ディスプレイ・電卓（テキスト入力中は非表示） */}
+      {!textFocused && (
+        <>
+          <Box sx={{
+            bgcolor: '#263238', px: 2, py: 1.5, flexShrink: 0,
+            display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 0.5,
+          }}>
+            {type !== 'transfer' && (
+              <Typography sx={{ color: typeColor, fontSize: 20, fontWeight: 700, mr: 0.25 }}>
+                {type === 'income' ? '+' : '−'}
+              </Typography>
+            )}
+            <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
+            <Typography sx={{ color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums', minHeight: 44 }}>
+              {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
+            </Typography>
+          </Box>
+          <CalcPad value={amount} onChange={setAmount} onConfirm={doSave} disabled={parseAmount(amount) <= 0} />
+        </>
+      )}
     </SwipeableDrawer>
   )
 }
