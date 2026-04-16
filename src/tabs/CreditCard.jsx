@@ -1068,10 +1068,12 @@ function CategoryBreakdown({ fixedList, varList }) {
 
 // ─── 2枚合計＋給与比較 ──────────────────────────────────
 
-function CombinedSummary({ ym }) {
+function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   const jcb  = getCCTotal('jcb',  ym)
   const smbc = getCCTotal('smbc', ym)
   const combined = jcb.total + smbc.total
+  const combinedLimit = jcbLimit + smbcLimit
+  const fixedOnlyTotal = jcb.fixed + smbc.fixed
 
   const [salaryInput, setSalaryInput] = useState(loadSalaryOverride)
   const [fixedItems, setFixedItems]   = useState(loadSummaryFixed)
@@ -1139,6 +1141,37 @@ function CombinedSummary({ ym }) {
             <Typography variant="h5" fontWeight={700} sx={{ letterSpacing: -.5 }}>¥{fmt(combined)}</Typography>
           </Stack>
         </Stack>
+
+        {/* 利用上限・想定残高 */}
+        {combinedLimit > 0 && (
+          <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,.08)', borderRadius: 1 }}>
+            <Stack direction="row" spacing={2} sx={{ mb: 0.75 }}>
+              {jcbLimit > 0 && <Typography variant="caption" sx={{ opacity: .65, fontSize: 10 }}>JCB ¥{fmt(jcbLimit)}</Typography>}
+              {smbcLimit > 0 && <Typography variant="caption" sx={{ opacity: .65, fontSize: 10 }}>VISA ¥{fmt(smbcLimit)}</Typography>}
+              <Typography variant="caption" sx={{ opacity: .8, fontSize: 10, fontWeight: 600 }}>合計上限 ¥{fmt(combinedLimit)}</Typography>
+            </Stack>
+            {(() => {
+              const af = combinedLimit - fixedOnlyTotal
+              const ag = combinedLimit - combined
+              return (
+                <Stack gap={0.25}>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定費後</Typography>
+                    <Typography variant="caption" sx={{ fontSize: 10, color: af >= 0 ? 'rgba(255,255,255,.7)' : '#ef9a9a' }}>
+                      {af >= 0 ? `残り ¥${fmt(af)}` : `¥${fmt(-af)} オーバー`}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定＋変動後</Typography>
+                    <Typography variant="caption" sx={{ fontSize: 10, color: ag >= 0 ? 'rgba(255,255,255,.7)' : '#ef9a9a' }}>
+                      {ag >= 0 ? `残り ¥${fmt(ag)}` : `¥${fmt(-ag)} オーバー`}
+                    </Typography>
+                  </Stack>
+                </Stack>
+              )
+            })()}
+          </Box>
+        )}
 
         <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 1.5 }} />
 
@@ -1258,7 +1291,7 @@ export default function CreditCard() {
   const [categories,   setCategories]   = useState(loadCategories)
   const [dlg,          setDlg]          = useState(null)
   const [catDlgOpen,   setCatDlgOpen]   = useState(false)
-  const [limitInput,   setLimitInput]   = useState(() => loadLimit(cardId))
+  const [limitInputs,  setLimitInputs]  = useState(() => ({ jcb: loadLimit('jcb'), smbc: loadLimit('smbc') }))
   const [snack,        setSnack]        = useState({ open: false, severity: 'success', message: '' })
   const [fixedOpen,    setFixedOpen]    = useState(false)
   const [varOpen,      setVarOpen]      = useState(false)
@@ -1272,7 +1305,6 @@ export default function CreditCard() {
     setCardId(id)
     setFixedList(loadFixed(id))
     setVarList(loadVar(id, ym))
-    setLimitInput(loadLimit(id))
     setBilledIds(loadBilled(id, ym))
   }
 
@@ -1399,7 +1431,7 @@ export default function CreditCard() {
       </Stack>
 
       {/* 2枚合計サマリー */}
-      <CombinedSummary ym={ym} />
+      <CombinedSummary ym={ym} jcbLimit={parseFloat(limitInputs.jcb) || 0} smbcLimit={parseFloat(limitInputs.smbc) || 0} />
 
       {/* カード選択 */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
@@ -1423,6 +1455,7 @@ export default function CreditCard() {
 
       {/* 個別カードサマリー */}
       {(() => {
+        const limitInput = limitInputs[cardId]
         const limit = parseFloat(limitInput) || 0
         const pct   = limit > 0 ? Math.min(grandTotal / limit * 100, 100) : 0
         const over  = limit > 0 && grandTotal > limit
@@ -1450,14 +1483,25 @@ export default function CreditCard() {
                     <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: barColor, borderRadius: 3,
                       transition: 'width .4s ease' }} />
                   </Box>
-                  <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
-                    <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>
-                      {pct.toFixed(0)}% 使用
-                    </Typography>
-                    <Typography variant="caption" sx={{ fontSize: 10,
-                      color: over ? '#ef9a9a' : 'rgba(255,255,255,.6)' }}>
-                      {over ? `¥${fmt(grandTotal - limit)} オーバー` : `残り ¥${fmt(limit - grandTotal)}`}
-                    </Typography>
+                  <Stack sx={{ mt: 0.5, gap: 0.25 }}>
+                    <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>{pct.toFixed(0)}% 使用</Typography>
+                    {(() => {
+                      const af = limit - fixedTotal
+                      return (
+                        <Stack direction="row" justifyContent="space-between">
+                          <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定費後</Typography>
+                          <Typography variant="caption" sx={{ fontSize: 10, color: af >= 0 ? 'rgba(255,255,255,.6)' : '#ef9a9a' }}>
+                            {af >= 0 ? `残り ¥${fmt(af)}` : `¥${fmt(-af)} オーバー`}
+                          </Typography>
+                        </Stack>
+                      )
+                    })()}
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定＋変動後</Typography>
+                      <Typography variant="caption" sx={{ fontSize: 10, color: over ? '#ef9a9a' : 'rgba(255,255,255,.6)' }}>
+                        {over ? `¥${fmt(grandTotal - limit)} オーバー` : `残り ¥${fmt(limit - grandTotal)}`}
+                      </Typography>
+                    </Stack>
                   </Stack>
                 </Box>
               )}
@@ -1485,7 +1529,7 @@ export default function CreditCard() {
                 <AmountField
                   dark
                   value={limitInput}
-                  onChange={(raw) => { setLimitInput(raw); saveLimit(cardId, raw) }}
+                  onChange={(raw) => { setLimitInputs(prev => ({ ...prev, [cardId]: raw })); saveLimit(cardId, raw) }}
                   placeholder="設定なし"
                   inputSx={{ mt: 0.5, '& .MuiInputBase-root': { height: 30 } }}
                 />
