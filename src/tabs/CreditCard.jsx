@@ -1483,24 +1483,34 @@ export default function CreditCard() {
                     <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: barColor, borderRadius: 3,
                       transition: 'width .4s ease' }} />
                   </Box>
-                  <Stack sx={{ mt: 0.5, gap: 0.25 }}>
+                  <Stack sx={{ mt: 0.5, gap: 0.5 }}>
                     <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>{pct.toFixed(0)}% 使用</Typography>
                     {(() => {
                       const af = limit - fixedTotal
                       return (
-                        <Stack direction="row" justifyContent="space-between">
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
                           <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定費後</Typography>
-                          <Typography variant="caption" sx={{ fontSize: 10, color: af >= 0 ? 'rgba(255,255,255,.6)' : '#ef9a9a' }}>
-                            {af >= 0 ? `残り ¥${fmt(af)}` : `¥${fmt(-af)} オーバー`}
-                          </Typography>
+                          <Stack alignItems="flex-end">
+                            <Typography variant="caption" sx={{ fontSize: 10, color: af >= 0 ? 'rgba(255,255,255,.6)' : '#ef9a9a' }}>
+                              {af >= 0 ? `残り ¥${fmt(af)}` : `¥${fmt(-af)} オーバー`}
+                            </Typography>
+                            <Typography variant="caption" sx={{ opacity: .4, fontSize: 9 }}>
+                              ¥{fmt(limit)} − ¥{fmt(fixedTotal)}
+                            </Typography>
+                          </Stack>
                         </Stack>
                       )
                     })()}
-                    <Stack direction="row" justifyContent="space-between">
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
                       <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定＋変動後</Typography>
-                      <Typography variant="caption" sx={{ fontSize: 10, color: over ? '#ef9a9a' : 'rgba(255,255,255,.6)' }}>
-                        {over ? `¥${fmt(grandTotal - limit)} オーバー` : `残り ¥${fmt(limit - grandTotal)}`}
-                      </Typography>
+                      <Stack alignItems="flex-end">
+                        <Typography variant="caption" sx={{ fontSize: 10, color: over ? '#ef9a9a' : 'rgba(255,255,255,.6)' }}>
+                          {over ? `¥${fmt(grandTotal - limit)} オーバー` : `残り ¥${fmt(limit - grandTotal)}`}
+                        </Typography>
+                        <Typography variant="caption" sx={{ opacity: .4, fontSize: 9 }}>
+                          ¥{fmt(limit)} − ¥{fmt(fixedTotal)} − ¥{fmt(varTotal)}
+                        </Typography>
+                      </Stack>
                     </Stack>
                   </Stack>
                 </Box>
