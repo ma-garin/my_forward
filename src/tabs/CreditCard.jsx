@@ -582,6 +582,16 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
   const [catOpen,  setCatOpen]  = useState(false)
   const dateInputRef = useRef(null)
 
+  // キーボード表示時にDrawerをvisual viewport内に収める
+  const [maxH, setMaxH] = useState('90vh')
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const onResize = () => setMaxH(vv.height)
+    vv.addEventListener('resize', onResize)
+    return () => vv.removeEventListener('resize', onResize)
+  }, [])
+
   useEffect(() => { if (!open) { setDate(defaultDate); setCard(currentCardId) } }, [defaultDate, currentCardId, open])
 
   const reset = () => {
@@ -621,7 +631,7 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
       anchor="bottom" open={open}
       onClose={onClose} onOpen={reset}
       disableSwipeToOpen disableScrollLock
-      PaperProps={{ sx: { borderRadius: '16px 16px 0 0', maxWidth: 600, mx: 'auto', display: 'flex', flexDirection: 'column', maxHeight: '90vh' } }}
+      PaperProps={{ sx: { borderRadius: '16px 16px 0 0', maxWidth: 600, mx: 'auto', display: 'flex', flexDirection: 'column', maxHeight: maxH } }}
     >
       {/* タイプタブ */}
       <Stack direction="row" sx={{ borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
