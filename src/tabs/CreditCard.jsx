@@ -1093,6 +1093,7 @@ function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   const livingCost = fridays * livingUnit
   const fixedTotal = fixedItems.reduce((s, i) => s + i.amount, 0) + livingCost
   const diff = salary - fixedTotal - combined
+  const simBalance = salary - fixedTotal - combinedLimit
 
   function openAdd() { setDlgLabel(''); setDlgAmount(''); setDlg({ mode: 'add' }) }
   function openEdit(item) { setDlgLabel(item.label); setDlgAmount(String(item.amount)); setDlg({ mode: 'edit', id: item.id }) }
@@ -1167,8 +1168,8 @@ function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
           )}
         </Stack>
 
-        {/* 給与 - 固定費 - 変動費 = 残高 */}
-        {hasSalary && (
+        {/* 給与 - 固定費 - 変動費(上限) = 残高 */}
+        {hasSalary && combinedLimit > 0 && (
           <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,.06)', borderRadius: 1 }}>
             <Typography variant="caption" sx={{ opacity: .5, fontSize: 9, display: 'block', mb: 0.5 }}>
               給与 - 固定費 - 変動費 = 残高
@@ -1178,10 +1179,10 @@ function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
               <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>−</Typography>
               <Typography variant="caption" sx={{ opacity: .75, fontSize: 10 }}>¥{fmt(fixedTotal)}</Typography>
               <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>−</Typography>
-              <Typography variant="caption" sx={{ opacity: .75, fontSize: 10 }}>¥{fmt(combined)}</Typography>
+              <Typography variant="caption" sx={{ opacity: .75, fontSize: 10 }}>¥{fmt(combinedLimit)}</Typography>
               <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>=</Typography>
-              <Typography variant="caption" fontWeight={700} sx={{ fontSize: 13, color: diff >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
-                {diff < 0 ? '−' : ''}¥{fmt(Math.abs(diff))}
+              <Typography variant="caption" fontWeight={700} sx={{ fontSize: 13, color: simBalance >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
+                {simBalance < 0 ? '−' : ''}¥{fmt(Math.abs(simBalance))}
               </Typography>
             </Stack>
           </Box>
