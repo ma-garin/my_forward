@@ -956,9 +956,8 @@ function VarExpenseTable({ varList, onEdit, onDelete }) {
               </TableCell>
               <TableCell sx={{ fontSize: 12, py: 0.75, color: 'text.secondary' }}>{item.payee || '—'}</TableCell>
               <TableCell sx={{ fontSize: 12, py: 0.75 }}>{item.name}</TableCell>
-              <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', fontWeight: 500,
-                color: item.sign === 1 ? '#1565c0' : 'inherit' }}>
-                {item.sign === 1 ? '+' : '−'}¥{fmt(item.amount)}
+              <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', fontWeight: 500 }}>
+                ¥{fmt(item.amount)}
               </TableCell>
               <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', color: 'text.secondary' }}>¥{fmt(item.subtotal)}</TableCell>
               <TableCell sx={{ py: 0.5, px: 0.5 }}>
