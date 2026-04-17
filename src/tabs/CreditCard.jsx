@@ -135,12 +135,12 @@ function saveWeeklyBudget(v) { localStorage.setItem('life_weekly_budget', String
 function getThisWeekRange() {
   const today = new Date()
   const day = today.getDay()
-  const monday = new Date(today)
-  monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1))
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
+  const sunday = new Date(today)
+  sunday.setDate(today.getDate() - day)
+  const saturday = new Date(sunday)
+  saturday.setDate(sunday.getDate() + 6)
   const toStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  return { mondayStr: toStr(monday), sundayStr: toStr(sunday), label: `${monday.getMonth() + 1}/${monday.getDate()} 〜 ${sunday.getMonth() + 1}/${sunday.getDate()}` }
+  return { mondayStr: toStr(sunday), sundayStr: toStr(saturday), label: `${sunday.getMonth() + 1}/${sunday.getDate()} 〜 ${saturday.getMonth() + 1}/${saturday.getDate()}` }
 }
 
 // 生活費として集計するカテゴリ
