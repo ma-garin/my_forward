@@ -1263,11 +1263,12 @@ function LivingExpenseCard({ ym }) {
   const weekRemain = weeklyBudget - weekUsed
   const weekPct = weeklyBudget > 0 ? Math.min(weekUsed / weeklyBudget * 100, 100) : 0
 
-  // 今月（選択月）
+  // 今月（選択月）— JCB締め日基準: 当月16日〜翌月15日
   const monthList = [...loadVar('jcb', ym), ...loadVar('smbc', ym)]
   const monthUsed = sumLiving(monthList)
-  const today = new Date()
-  const fridays = countFridaysUntil(today, nextPayDay(today))
+  const [vy, vm] = ym.split('-').map(Number)
+  const cutoff = CARDS.jcb.cutoffDay  // 15
+  const fridays = countFridaysUntil(new Date(vy, vm - 1, cutoff), new Date(vy, vm, cutoff))
   const monthlyBudget = fridays * weeklyBudget
   const monthRemain = monthlyBudget - monthUsed
   const monthPct = monthlyBudget > 0 ? Math.min(monthUsed / monthlyBudget * 100, 100) : 0
@@ -1307,7 +1308,7 @@ function LivingExpenseCard({ ym }) {
         {/* 今月 */}
         <Box>
           <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-            <Typography variant="caption" sx={{ opacity: .8, fontSize: 11, fontWeight: 600 }}>今月（{ym}）</Typography>
+            <Typography variant="caption" sx={{ opacity: .8, fontSize: 11, fontWeight: 600 }}>今月（{vm}/{cutoff + 1}〜{vm === 12 ? 1 : vm + 1}/{cutoff}）</Typography>
             <Typography variant="caption" sx={{ opacity: .45, fontSize: 10 }}>¥{fmt(weeklyBudget)} × {fridays}週</Typography>
           </Stack>
           <Box sx={{ mt: 0.75, height: 5, bgcolor: 'rgba(255,255,255,.2)', borderRadius: 3, overflow: 'hidden' }}>
