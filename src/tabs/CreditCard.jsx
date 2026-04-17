@@ -9,6 +9,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import SettingsIcon from '@mui/icons-material/Settings'
@@ -1113,6 +1114,125 @@ function CategoryBreakdown({ fixedList, varList }) {
 
 // ─── 2枚合計＋給与比較 ──────────────────────────────────
 
+// ─── 支出入力（フルスクリーン）────────────────────────────────
+
+function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, currentCardId, onEditCategories }) {
+  const [amount,   setAmount]   = useState('')
+  const [category, setCategory] = useState(categories[0] ?? '食費')
+  const [date,     setDate]     = useState(defaultDate)
+  const [payee,    setPayee]    = useState('')
+  const [name,     setName]     = useState('')
+  const [cardId,   setCardId]   = useState(currentCardId)
+  const dateRef = useRef(null)
+
+  useEffect(() => {
+    if (open) {
+      setAmount(''); setPayee(''); setName('')
+      setCategory(categories[0] ?? '食費')
+      setDate(defaultDate); setCardId(currentCardId)
+    }
+  }, [open, defaultDate, currentCardId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const doSave = () => {
+    const a = parseAmount(amount)
+    if (a <= 0) return
+    onSave({ cardId, item: { name: name.trim() || category, payee: payee.trim(), amount: a, category, date } })
+    onClose()
+  }
+
+  if (!open) return null
+
+  const fmtD = (d) => { const [y, m, day] = d.split('-'); return `${y}/${m}/${day}` }
+  const IROW   = { display: 'flex', alignItems: 'center', px: 2, minHeight: 52, borderBottom: '1px solid #f0f0f0' }
+  const ILABEL = { fontSize: 13, color: '#757575', width: 56, flexShrink: 0 }
+
+  return (
+    <Box sx={{ position: 'fixed', inset: 0, zIndex: 1300, bgcolor: '#fafafa', display: 'flex', flexDirection: 'column', maxWidth: 600, mx: 'auto' }}>
+
+      {/* ヘッダー */}
+      <Box sx={{ bgcolor: 'primary.main', color: '#fff', px: 1, display: 'flex', alignItems: 'center', minHeight: 56, flexShrink: 0 }}>
+        <IconButton onClick={onClose} sx={{ color: '#fff' }}>
+          <ArrowBackIcon />
+        </IconButton>
+        <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1, textAlign: 'center' }}>支出を追加</Typography>
+        <Button onClick={doSave} disabled={parseAmount(amount) <= 0}
+          sx={{ color: '#fff', fontWeight: 700, opacity: parseAmount(amount) > 0 ? 1 : 0.5 }}>
+          保存
+        </Button>
+      </Box>
+
+      {/* フォーム（スクロール可） */}
+      <Box sx={{ overflowY: 'auto', bgcolor: '#fff', borderBottom: '1px solid #e0e0e0' }}>
+
+        {/* 日付 */}
+        <Box sx={{ ...IROW, cursor: 'pointer' }} onClick={() => dateRef.current?.click()}>
+          <Typography sx={ILABEL}>日付</Typography>
+          <Typography sx={{ flex: 1, fontSize: 15 }}>{fmtD(date)}</Typography>
+          <input ref={dateRef} type="date" value={date} onChange={e => setDate(e.target.value)}
+            style={{ position: 'fixed', opacity: 0, pointerEvents: 'none', width: 1, height: 1, top: '-100px' }} />
+        </Box>
+
+        {/* カード */}
+        <Box sx={IROW}>
+          <Typography sx={ILABEL}>カード</Typography>
+          <Stack direction="row" spacing={1}>
+            {Object.values(CARDS).map(c => (
+              <Chip key={c.id} label={c.shortName} size="small" onClick={() => setCardId(c.id)}
+                sx={{ fontWeight: 600, fontSize: 12, bgcolor: cardId === c.id ? c.color : 'transparent',
+                  color: cardId === c.id ? '#fff' : 'text.secondary', border: `1px solid ${c.color}` }} />
+            ))}
+          </Stack>
+        </Box>
+
+        {/* 分類 */}
+        <Box sx={{ px: 2, py: 1.25, borderBottom: '1px solid #f0f0f0' }}>
+          <Stack direction="row" alignItems="center" sx={{ mb: 0.75 }}>
+            <Typography sx={ILABEL}>分類</Typography>
+            <Box sx={{ flex: 1 }} />
+            <IconButton size="small" onClick={onEditCategories} sx={{ p: 0.25 }}>
+              <SettingsIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+            </IconButton>
+          </Stack>
+          <Stack direction="row" flexWrap="wrap" gap={0.75}>
+            {categories.map(cat => (
+              <Chip key={cat} label={cat} size="small" onClick={() => setCategory(cat)}
+                sx={{ fontWeight: category === cat ? 700 : 400, fontSize: 12,
+                  bgcolor: category === cat ? (CATEGORY_COLORS[cat] ?? '#e0e0e0') : '#f5f5f5',
+                  border: category === cat ? '2px solid' : '1px solid transparent',
+                  borderColor: category === cat ? 'primary.main' : 'transparent' }} />
+            ))}
+          </Stack>
+        </Box>
+
+        {/* 支払先 */}
+        <Box sx={IROW}>
+          <Typography sx={ILABEL}>支払先</Typography>
+          <InputBase fullWidth placeholder="省略可" value={payee}
+            onChange={e => setPayee(e.target.value)} sx={{ flex: 1, fontSize: 15 }} />
+        </Box>
+
+        {/* 項目名 */}
+        <Box sx={IROW}>
+          <Typography sx={ILABEL}>項目名</Typography>
+          <InputBase fullWidth placeholder="省略可" value={name}
+            onChange={e => setName(e.target.value)} sx={{ flex: 1, fontSize: 15 }} />
+        </Box>
+      </Box>
+
+      {/* 金額ディスプレイ */}
+      <Box sx={{ bgcolor: '#263238', px: 2, py: 1, flexShrink: 0, display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 0.5 }}>
+        <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 18, mr: 0.5 }}>¥</Typography>
+        <Typography sx={{ color: '#fff', fontSize: 34, fontWeight: 700, fontVariantNumeric: 'tabular-nums', minHeight: 40 }}>
+          {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
+        </Typography>
+      </Box>
+
+      {/* 電卓 */}
+      <CalcPad value={amount} onChange={setAmount} onConfirm={doSave} disabled={parseAmount(amount) <= 0} />
+    </Box>
+  )
+}
+
 // ─── 生活費カード ────────────────────────────────────────────
 
 function LivingExpenseCard({ ym }) {
@@ -1437,7 +1557,7 @@ export default function CreditCard() {
   const [snack,        setSnack]        = useState({ open: false, severity: 'success', message: '' })
   const [fixedOpen,    setFixedOpen]    = useState(false)
   const [varOpen,      setVarOpen]      = useState(false)
-  const [quickOpen,    setQuickOpen]    = useState(false)
+  const [addOpen,      setAddOpen]      = useState(false)
 
   const notify = (severity, message) => setSnack({ open: true, severity, message })
 
@@ -1506,33 +1626,16 @@ export default function CreditCard() {
   }
 
   // QuickAddDrawer からの保存（収入/支出/振替対応）
-  const handleQuickSave = ({ cardId: targetCard, item, transfer, fromCard, toCard }) => {
+  const handleAddSave = ({ cardId: targetCard, item }) => {
     try {
-      if (transfer) {
-        // 振替：fromCard に支出、toCard に収入を記録（振替は表示月に保存）
-        const outItem = { id: newId(), ...item }
-        const inItem  = { id: newId(), ...item, sign: 1, name: item.name + '（受取）' }
-        const outList = loadVar(fromCard, ym)
-        const inList  = loadVar(toCard,   ym)
-        const nextOut = [...outList, outItem].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1)
-        const nextIn  = [...inList,  inItem ].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1)
-        saveVar(fromCard, ym, nextOut)
-        saveVar(toCard,   ym, nextIn)
-        if (fromCard === cardId) setVarList(nextOut)
-        else if (toCard === cardId) setVarList(nextIn)
-        notify('success', '振替を記録しました')
-      } else {
-        // 日付から正しい請求月を計算
-        const targetYm = getBillingYm(item.date, targetCard)
-        const newItem = { id: newId(), ...item }
-        const existing = loadVar(targetCard, targetYm)
-        const nextList = [...existing, newItem].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1)
-        saveVar(targetCard, targetYm, nextList)
-        // 表示中の月と一致する場合のみ画面を更新
-        if (targetCard === cardId && targetYm === ym) setVarList(nextList)
-        const ymLabel = `${targetYm.replace('-', '年')}月`
-        notify('success', `${item.sign === 1 ? '収入' : '支出'}を${ymLabel}分として記録しました`)
-      }
+      const targetYm = getBillingYm(item.date, targetCard)
+      const newItem = { id: newId(), ...item }
+      const existing = loadVar(targetCard, targetYm)
+      const nextList = [...existing, newItem].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1)
+      saveVar(targetCard, targetYm, nextList)
+      if (targetCard === cardId && targetYm === ym) setVarList(nextList)
+      const ymLabel = `${targetYm.replace('-', '年')}月`
+      notify('success', `支出を${ymLabel}分として記録しました`)
     } catch { notify('error', '保存に失敗しました') }
   }
   const editVar = (data) => {
@@ -1775,23 +1878,22 @@ export default function CreditCard() {
         open={catDlgOpen} onClose={() => setCatDlgOpen(false)}
         categories={categories} onChange={handleCategoryChange} />
 
-      {/* FAB: クイック入力（収入/支出/振替） */}
+      {/* FAB: 支出入力 */}
       <Fab
         color="primary"
-        onClick={() => setQuickOpen(true)}
+        onClick={() => setAddOpen(true)}
         sx={{ position: 'fixed', bottom: 'calc(88px + env(safe-area-inset-bottom))', right: 16, zIndex: 200 }}
       >
         <AddIcon />
       </Fab>
 
-      {/* クイック入力ドロワー */}
-      <QuickAddDrawer
-        open={quickOpen}
-        onClose={() => setQuickOpen(false)}
-        onSave={handleQuickSave}
+      <AddExpenseScreen
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSave={handleAddSave}
         categories={categories}
         defaultDate={ym === todayStr.slice(0, 7) ? todayStr : `${ym}-01`}
-        onEditCategories={() => { setQuickOpen(false); setCatDlgOpen(true) }}
+        onEditCategories={() => setCatDlgOpen(true)}
         currentCardId={cardId}
       />
 
