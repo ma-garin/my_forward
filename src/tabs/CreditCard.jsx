@@ -1130,14 +1130,23 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
       setAmount(''); setPayee(''); setName('')
       setCategory(categories[0] ?? '食費')
       setDate(defaultDate); setCardId(currentCardId)
+      window.history.pushState({ addExpenseOpen: true }, '')
+      const handlePop = () => onClose()
+      window.addEventListener('popstate', handlePop)
+      return () => window.removeEventListener('popstate', handlePop)
     }
   }, [open, defaultDate, currentCardId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const doClose = () => {
+    if (window.history.state?.addExpenseOpen) window.history.back()
+    else onClose()
+  }
 
   const doSave = () => {
     const a = parseAmount(amount)
     if (a <= 0) return
     onSave({ cardId, item: { name: name.trim() || category, payee: payee.trim(), amount: a, category, date } })
-    onClose()
+    doClose()
   }
 
   if (!open) return null
@@ -1151,7 +1160,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
 
       {/* ヘッダー */}
       <Box sx={{ bgcolor: 'primary.main', color: '#fff', px: 1, display: 'flex', alignItems: 'center', minHeight: 56, flexShrink: 0 }}>
-        <IconButton onClick={onClose} sx={{ color: '#fff' }}>
+        <IconButton onClick={doClose} sx={{ color: '#fff' }}>
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="subtitle1" fontWeight={600} sx={{ flex: 1, textAlign: 'center' }}>支出を追加</Typography>
