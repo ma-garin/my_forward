@@ -5,19 +5,28 @@
   <!-- Card (slightly tilted, peeking from wallet) -->
   <g transform="rotate(-8, 256, 200)">
     <rect x="92" y="88" width="328" height="210" rx="24" fill="#0288d1"/>
+    <!-- Card top band (darker) -->
     <rect x="92" y="88" width="328" height="76" rx="24" fill="#0277bd"/>
+    <!-- Chip -->
     <rect x="130" y="148" width="64" height="48" rx="10" fill="rgba(255,255,255,0.22)"/>
     <rect x="137" y="155" width="50" height="34" rx="6" fill="rgba(255,255,255,0.18)"/>
+    <!-- Contactless waves (simple arcs) -->
     <path d="M248 158 Q262 171 248 184" stroke="rgba(255,255,255,0.4)" stroke-width="6" fill="none" stroke-linecap="round"/>
     <path d="M264 148 Q284 171 264 194" stroke="rgba(255,255,255,0.3)" stroke-width="6" fill="none" stroke-linecap="round"/>
     <path d="M280 138 Q308 171 280 204" stroke="rgba(255,255,255,0.2)" stroke-width="6" fill="none" stroke-linecap="round"/>
   </g>
 
-  <!-- Wallet body -->
+  <!-- Wallet body (sits in front, covers bottom of card) -->
   <rect x="60" y="272" width="392" height="196" rx="28" fill="#eceff1"/>
+  <!-- Top fold shadow -->
   <rect x="60" y="272" width="392" height="42" rx="28" fill="#b0bec5"/>
+  <!-- Card slot line -->
   <rect x="88" y="332" width="336" height="4" rx="2" fill="#cfd8dc"/>
 
-  <!-- Upward arrow -->
-  <path d="M256 296 L214 348 L238 348 L238 400 L274 400 L274 348 L298 348 Z" fill="#0288d1"/>
+  <!-- Upward arrow (bold, centered on wallet face) -->
+  <path d="M256 296
+           L214 348 L238 348
+           L238 400 L274 400
+           L274 348 L298 348 Z"
+        fill="#0288d1"/>
 </svg>
