@@ -4,7 +4,7 @@ import {
   IconButton, Button, TextField, Dialog, DialogTitle, DialogContent,
   DialogActions, Select, MenuItem, FormControl, InputLabel, InputAdornment,
   Table, TableHead, TableBody, TableRow, TableCell, Fab,
-  Snackbar, Alert, Collapse, InputBase, Checkbox,
+  Snackbar, Alert, Collapse, InputBase, Checkbox, Menu,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -81,6 +81,30 @@ function countFridaysUntil(from, to) {
     d.setDate(d.getDate() + 1)
   }
   return count
+}
+
+// ─── 入力履歴 ─────────────────────────────────────────────
+function loadHistory(key) { try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] } }
+function addToHistory(key, val) {
+  if (!val?.trim()) return
+  const next = [val.trim(), ...loadHistory(key).filter(x => x !== val.trim())].slice(0, 30)
+  localStorage.setItem(key, JSON.stringify(next))
+}
+
+// 直近 n 週（日〜土）を新しい順で返す
+function getRecentWeeks(n = 4) {
+  const { mondayStr } = getThisWeekRange() // 今週の日曜
+  const weeks = []
+  let d = new Date(mondayStr)
+  for (let i = 0; i < n; i++) {
+    const sun = new Date(d)
+    const sat = new Date(d)
+    sat.setDate(sat.getDate() + 6)
+    const toStr = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+    weeks.push({ from: toStr(sun), to: toStr(sat), label: `${sun.getMonth() + 1}/${sun.getDate()}〜${sat.getMonth() + 1}/${sat.getDate()}` })
+    d.setDate(d.getDate() - 7)
+  }
+  return weeks // 新しい順
 }
 
 // ─── ストレージ ────────────────────────────────────────────
@@ -917,6 +941,8 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onTogg
 // ─── 変動費テーブル ───────────────────────────────────────
 
 function VarExpenseTable({ varList, onEdit, onDelete }) {
+  const [ctxMenu, setCtxMenu] = useState(null) // { x, y, item }
+
   if (varList.length === 0) return (
     <Typography variant="caption" color="text.disabled" sx={{ py: 1, display: 'block' }}>
       この月の変動費を追加してください
@@ -946,6 +972,7 @@ function VarExpenseTable({ varList, onEdit, onDelete }) {
         <TableBody>
           {rows.map((item, i) => (
             <TableRow key={item.id}
+              onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, item }) }}
               sx={{ bgcolor: i % 2 === 0 ? '#fff' : '#fafafa', '&:hover': { bgcolor: '#f1f8e9' } }}>
               <TableCell sx={{ fontSize: 11, py: 0.75, whiteSpace: 'nowrap', color: 'text.secondary' }}>
                 {item.date ?? '—'}
@@ -974,6 +1001,50 @@ function VarExpenseTable({ varList, onEdit, onDelete }) {
           ))}
         </TableBody>
       </Table>
+    </Box>
+    <Menu open={!!ctxMenu} onClose={() => setCtxMenu(null)}
+      anchorReference="anchorPosition"
+      anchorPosition={ctxMenu ? { top: ctxMenu.y, left: ctxMenu.x } : undefined}>
+      <MenuItem onClick={() => { onEdit(ctxMenu.item); setCtxMenu(null) }}>
+        <EditIcon sx={{ mr: 1, fontSize: 16 }} />編集
+      </MenuItem>
+      <MenuItem onClick={() => { onDelete(ctxMenu.item.id); setCtxMenu(null) }} sx={{ color: 'error.main' }}>
+        <DeleteIcon sx={{ mr: 1, fontSize: 16 }} />削除
+      </MenuItem>
+    </Menu>
+  )
+}
+
+// ─── 日別棒グラフ ─────────────────────────────────────────
+
+function DailyBarChart({ varList }) {
+  if (varList.length === 0) return null
+  const byDate = {}
+  varList.forEach(x => {
+    if (!x.date || x.sign === 1) return
+    byDate[x.date] = (byDate[x.date] ?? 0) + x.amount
+  })
+  const dates = Object.keys(byDate).sort()
+  if (dates.length === 0) return null
+  const maxAmt = Math.max(...Object.values(byDate))
+  const CHART_H = 48
+
+  return (
+    <Box sx={{ px: 1.5, pt: 1.5, pb: 0.5, borderBottom: '1px solid #f5f5f5' }}>
+      <Typography variant="caption" sx={{ fontSize: 9, color: 'text.disabled', display: 'block', mb: 0.5 }}>日別支出</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: CHART_H + 14, overflowX: 'auto' }}>
+        {dates.map(d => {
+          const amt = byDate[d]
+          const barH = Math.max(2, Math.round((amt / maxAmt) * CHART_H))
+          const day = parseInt(d.slice(8))
+          return (
+            <Box key={d} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 18 }}>
+              <Box sx={{ width: 14, height: barH, bgcolor: 'primary.main', borderRadius: '2px 2px 0 0', opacity: 0.75 }} />
+              <Typography variant="caption" sx={{ fontSize: 7, color: 'text.disabled', lineHeight: 1.8 }}>{day}</Typography>
+            </Box>
+          )
+        })}
+      </Box>
     </Box>
   )
 }
@@ -1126,6 +1197,58 @@ function CategoryBreakdown({ fixedList, varList }) {
   )
 }
 
+// ─── 年間サマリー ────────────────────────────────────────
+
+function YearlySummary({ year, cardId }) {
+  const [open, setOpen] = useState(false)
+  const data = Array.from({ length: 12 }, (_, i) => {
+    const m = i + 1
+    const ym = ymStr(year, m)
+    const fl = loadFixed(cardId).filter(x => !x.startYm || x.startYm <= ym)
+    const fixedTotal = fl.reduce((s, x) => s + x.amount, 0)
+    const vl = loadVar(cardId, ym)
+    const varTotal = vl.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
+    return { m, fixedTotal, varTotal, total: fixedTotal + varTotal }
+  })
+  const maxTotal = Math.max(...data.map(d => d.total), 1)
+  const yearTotal = data.reduce((s, d) => s + d.total, 0)
+
+  return (
+    <Card sx={{ mb: 1.5 }}>
+      <Box onClick={() => setOpen(v => !v)}
+        sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}>
+        <Stack direction="row" alignItems="center" gap={1}>
+          <ExpandMoreIcon sx={{ fontSize: 16, color: '#fff', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>年間サマリー {year}年</Typography>
+        </Stack>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.7)', fontSize: 10 }}>合計 ¥{fmt(yearTotal)}</Typography>
+      </Box>
+      <Collapse in={open}>
+        <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
+          {data.map(({ m, fixedTotal, varTotal, total }) => (
+            <Stack key={m} direction="row" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
+              <Typography variant="caption" sx={{ width: 24, flexShrink: 0, fontSize: 10, color: 'text.secondary' }}>{m}月</Typography>
+              <Box sx={{ flex: 1 }}>
+                <Box sx={{ height: 8, bgcolor: '#f0f0f0', borderRadius: 2, overflow: 'hidden', display: 'flex' }}>
+                  <Box sx={{ height: '100%', width: `${total > 0 ? fixedTotal / maxTotal * 100 : 0}%`, bgcolor: '#78909c', borderRadius: '2px 0 0 2px' }} />
+                  <Box sx={{ height: '100%', width: `${total > 0 ? varTotal / maxTotal * 100 : 0}%`, bgcolor: '#42a5f5' }} />
+                </Box>
+              </Box>
+              <Typography variant="caption" sx={{ fontSize: 10, fontWeight: total > 0 ? 600 : 400, width: 60, textAlign: 'right', flexShrink: 0, color: total > 0 ? 'text.primary' : 'text.disabled' }}>
+                {total > 0 ? `¥${fmt(total)}` : '—'}
+              </Typography>
+            </Stack>
+          ))}
+          <Stack direction="row" gap={2} sx={{ mt: 1 }}>
+            <Stack direction="row" alignItems="center" gap={0.5}><Box sx={{ width: 8, height: 8, bgcolor: '#78909c', borderRadius: 1 }} /><Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary' }}>固定</Typography></Stack>
+            <Stack direction="row" alignItems="center" gap={0.5}><Box sx={{ width: 8, height: 8, bgcolor: '#42a5f5', borderRadius: 1 }} /><Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary' }}>変動</Typography></Stack>
+          </Stack>
+        </CardContent>
+      </Collapse>
+    </Card>
+  )
+}
+
 // ─── 2枚合計＋給与比較 ──────────────────────────────────
 
 // ─── 支出入力（フルスクリーン）────────────────────────────────
@@ -1137,7 +1260,18 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
   const [payee,    setPayee]    = useState('')
   const [name,     setName]     = useState('')
   const [cardId,   setCardId]   = useState(currentCardId)
+  const [payeeHistory] = useState(() => loadHistory('cc_payee_history'))
+  const [nameHistory]  = useState(() => loadHistory('cc_name_history'))
+  const [showPayeeSugg, setShowPayeeSugg] = useState(false)
+  const [showNameSugg,  setShowNameSugg]  = useState(false)
   const dateRef = useRef(null)
+
+  const payeeSugg = payee
+    ? payeeHistory.filter(x => x.toLowerCase().includes(payee.toLowerCase()) && x !== payee).slice(0, 5)
+    : payeeHistory.slice(0, 5)
+  const nameSugg = name
+    ? nameHistory.filter(x => x.toLowerCase().includes(name.toLowerCase()) && x !== name).slice(0, 5)
+    : nameHistory.slice(0, 5)
 
   useEffect(() => {
     if (open) {
@@ -1159,6 +1293,8 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
   const doSave = () => {
     const a = parseAmount(amount)
     if (a <= 0) return
+    if (payee.trim()) addToHistory('cc_payee_history', payee.trim())
+    if (name.trim())  addToHistory('cc_name_history',  name.trim())
     onSave({ cardId, item: { name: name.trim() || category, payee: payee.trim(), amount: a, category, date } })
     doClose()
   }
@@ -1228,15 +1364,37 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
         <Box sx={IROW}>
           <Typography sx={ILABEL}>支払先</Typography>
           <InputBase fullWidth placeholder="省略可" value={payee}
-            onChange={e => setPayee(e.target.value)} sx={{ flex: 1, fontSize: 15 }} />
+            onChange={e => setPayee(e.target.value)}
+            onFocus={() => setShowPayeeSugg(true)}
+            onBlur={() => setTimeout(() => setShowPayeeSugg(false), 150)}
+            sx={{ flex: 1, fontSize: 15 }} />
         </Box>
+        {showPayeeSugg && payeeSugg.length > 0 && (
+          <Box sx={{ px: 2, pb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5, bgcolor: '#fff', borderBottom: '1px solid #f0f0f0' }}>
+            {payeeSugg.map(s => (
+              <Chip key={s} label={s} size="small" onMouseDown={() => setPayee(s)}
+                sx={{ fontSize: 11, height: 22, bgcolor: '#f0f4f8', cursor: 'pointer' }} />
+            ))}
+          </Box>
+        )}
 
         {/* 項目名 */}
         <Box sx={IROW}>
           <Typography sx={ILABEL}>項目名</Typography>
           <InputBase fullWidth placeholder="省略可" value={name}
-            onChange={e => setName(e.target.value)} sx={{ flex: 1, fontSize: 15 }} />
+            onChange={e => setName(e.target.value)}
+            onFocus={() => setShowNameSugg(true)}
+            onBlur={() => setTimeout(() => setShowNameSugg(false), 150)}
+            sx={{ flex: 1, fontSize: 15 }} />
         </Box>
+        {showNameSugg && nameSugg.length > 0 && (
+          <Box sx={{ px: 2, pb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5, bgcolor: '#fff', borderBottom: '1px solid #f0f0f0' }}>
+            {nameSugg.map(s => (
+              <Chip key={s} label={s} size="small" onMouseDown={() => setName(s)}
+                sx={{ fontSize: 11, height: 22, bgcolor: '#f0f4f8', cursor: 'pointer' }} />
+            ))}
+          </Box>
+        )}
       </Box>
 
       {/* 金額ディスプレイ */}
@@ -1335,6 +1493,34 @@ function LivingExpenseCard({ ym }) {
 
         <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 1.25 }} />
 
+        {/* 直近4週履歴 */}
+        {(() => {
+          const weeks = getRecentWeeks(4)
+          return (
+            <Box>
+              <Typography variant="caption" sx={{ opacity: .5, fontSize: 9, display: 'block', mb: 0.5 }}>直近4週</Typography>
+              {weeks.map((w, i) => {
+                const wMonths = [...new Set([w.from.slice(0, 7), w.to.slice(0, 7)])]
+                const wList = wMonths.flatMap(m => [...loadVar('jcb', m), ...loadVar('smbc', m)])
+                const used = sumLiving(wList, w.from, w.to)
+                const pct = weeklyBudget > 0 ? Math.min(used / weeklyBudget * 100, 100) : 0
+                const isThis = i === 0
+                return (
+                  <Stack key={w.from} direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                    <Typography variant="caption" sx={{ fontSize: 9, opacity: isThis ? 1 : .5, width: 64, flexShrink: 0 }}>{w.label}</Typography>
+                    <Box sx={{ flex: 1, height: 4, bgcolor: 'rgba(255,255,255,.15)', borderRadius: 2, overflow: 'hidden' }}>
+                      <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: barColor(pct), borderRadius: 2 }} />
+                    </Box>
+                    <Typography variant="caption" sx={{ fontSize: 9, opacity: isThis ? 1 : .6, width: 44, textAlign: 'right', flexShrink: 0 }}>¥{fmt(used)}</Typography>
+                  </Stack>
+                )
+              })}
+            </Box>
+          )
+        })()}
+
+        <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 1.25 }} />
+
         {/* 週予算編集 */}
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>週予算 ¥{fmt(weeklyBudget)}</Typography>
@@ -1347,8 +1533,20 @@ function LivingExpenseCard({ ym }) {
 
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle sx={{ pb: 1, fontSize: 15 }}>週予算を編集</DialogTitle>
-        <DialogContent sx={{ pt: '8px !important' }}>
+        <DialogContent sx={{ pt: '8px !important', display: 'flex', flexDirection: 'column', gap: 2 }}>
           <AmountField value={editVal} onChange={setEditVal} label="週予算（円）" autoFocus />
+          <Divider><Typography variant="caption" color="text.secondary">または月予算から逆算</Typography></Divider>
+          <Box>
+            <TextField
+              label={`月予算（÷ ${fridays}週 で割算）`}
+              size="small" fullWidth type="number" inputProps={{ min: 0 }}
+              onChange={(e) => {
+                const monthly = parseInt(e.target.value, 10)
+                if (!isNaN(monthly) && monthly > 0 && fridays > 0) setEditVal(String(Math.round(monthly / fridays)))
+              }}
+              helperText="入力すると週予算欄に自動反映されます"
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditOpen(false)} size="small">キャンセル</Button>
@@ -1650,13 +1848,14 @@ export default function CreditCard() {
   const handleAddSave = ({ cardId: targetCard, item }) => {
     try {
       const targetYm = getBillingYm(item.date, targetCard)
-      const newItem = { id: newId(), ...item }
       const existing = loadVar(targetCard, targetYm)
+      const dup = existing.find(x => x.date === item.date && x.amount === item.amount && x.category === item.category)
+      if (dup) notify('warning', `同日・同金額・同カテゴリの支出が既に登録されています（${item.date} ¥${fmt(item.amount)} ${item.category}）`)
+      const newItem = { id: newId(), ...item }
       const nextList = [...existing, newItem].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1)
       saveVar(targetCard, targetYm, nextList)
       if (targetCard === cardId && targetYm === ym) setVarList(nextList)
-      const ymLabel = `${targetYm.replace('-', '年')}月`
-      notify('success', `支出を${ymLabel}分として記録しました`)
+      if (!dup) notify('success', `支出を${targetYm.replace('-', '年')}月分として記録しました`)
     } catch { notify('error', '保存に失敗しました') }
   }
   const editVar = (data) => {
@@ -1678,6 +1877,15 @@ export default function CreditCard() {
     catch { notify('error', 'カテゴリの保存に失敗しました') }
   }
 
+  // スワイプで月切り替え
+  const swipeRef = useRef({ startX: 0, startY: 0 })
+  const handleTouchStart = (e) => { swipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY } }
+  const handleTouchEnd = (e) => {
+    const dx = e.changedTouches[0].clientX - swipeRef.current.startX
+    const dy = e.changedTouches[0].clientY - swipeRef.current.startY
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) changeMonth(dx < 0 ? 1 : -1)
+  }
+
   // 開始年月でフィルタリングされた固定費（選択中の月に有効なもののみ）
   const filteredFixed = fixedList.filter((x) => !x.startYm || x.startYm <= ym)
   const fixedTotal = filteredFixed.reduce((s, x) => s + x.amount, 0)
@@ -1685,7 +1893,7 @@ export default function CreditCard() {
   const grandTotal = fixedTotal + varTotal
 
   return (
-    <Box sx={{ px: 2, pt: 2, pb: 10 }}>
+    <Box sx={{ px: 2, pt: 2, pb: 10 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
 
       {/* 月ナビゲーション */}
       <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
@@ -1849,6 +2057,13 @@ export default function CreditCard() {
 
       {/* 変動費 */}
       <Card sx={{ mb: 1.5 }}>
+        {(() => {
+          const prevM = month === 1 ? 12 : month - 1
+          const prevY = month === 1 ? year - 1 : year
+          const prevVarList = loadVar(cardId, ymStr(prevY, prevM))
+          const prevVarTotal = prevVarList.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
+          const varDiff = varTotal - prevVarTotal
+          return (
         <Box
           onClick={() => setVarOpen((v) => !v)}
           sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}
@@ -1859,14 +2074,24 @@ export default function CreditCard() {
             <Chip label={`${year}年${month}月`} size="small" sx={{ height: 16, fontSize: 9, bgcolor: 'rgba(255,255,255,.2)', color: '#fff' }} />
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
-            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.8)', fontWeight: 600 }}>¥{fmt(varTotal)}</Typography>
+            <Stack alignItems="flex-end">
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.8)', fontWeight: 600 }}>¥{fmt(varTotal)}</Typography>
+              {prevVarTotal > 0 && (
+                <Typography variant="caption" sx={{ fontSize: 9, color: varDiff > 0 ? '#ef9a9a' : '#a5d6a7' }}>
+                  先月比 {varDiff >= 0 ? '+' : '−'}¥{fmt(Math.abs(varDiff))}
+                </Typography>
+              )}
+            </Stack>
             <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'var' }) }} sx={{ p: 0.25, color: '#fff' }}>
               <AddIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Stack>
         </Box>
+          )
+        })()}
         <Collapse in={varOpen}>
           <CardContent sx={{ px: 0, py: 0, '&:last-child': { pb: 0 } }}>
+            <DailyBarChart varList={varList} />
             <VarExpenseTable
               varList={varList}
               onEdit={(it) => setDlg({ type: 'var', initial: it })}
@@ -1881,6 +2106,9 @@ export default function CreditCard() {
 
       {/* カテゴリ別集計 */}
       <CategoryBreakdown fixedList={filteredFixed} varList={varList} />
+
+      {/* 年間サマリー */}
+      <YearlySummary year={year} cardId={cardId} />
 
       {/* ダイアログ */}
       {dlg?.type === 'fixed' && (
