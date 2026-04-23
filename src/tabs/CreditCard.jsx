@@ -1193,23 +1193,20 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
         </Box>
 
         {/* 分類 */}
-        <Box sx={{ px: 2, py: 1.25, borderBottom: '1px solid #f0f0f0' }}>
-          <Stack direction="row" alignItems="center" sx={{ mb: 0.75 }}>
-            <Typography sx={ILABEL}>分類</Typography>
-            <Box sx={{ flex: 1 }} />
-            <IconButton size="small" onClick={onEditCategories} sx={{ p: 0.25 }}>
-              <SettingsIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-            </IconButton>
-          </Stack>
-          <Stack direction="row" flexWrap="wrap" gap={0.75}>
-            {categories.map(cat => (
-              <Chip key={cat} label={cat} size="small" onClick={() => setCategory(cat)}
-                sx={{ fontWeight: category === cat ? 700 : 400, fontSize: 12,
-                  bgcolor: category === cat ? (CATEGORY_COLORS[cat] ?? '#e0e0e0') : '#f5f5f5',
-                  border: category === cat ? '2px solid' : '1px solid transparent',
-                  borderColor: category === cat ? 'primary.main' : 'transparent' }} />
-            ))}
-          </Stack>
+        <Box sx={IROW}>
+          <Typography sx={ILABEL}>分類</Typography>
+          <Select
+            value={categories.includes(category) ? category : (categories[0] ?? '')}
+            onChange={e => setCategory(e.target.value)}
+            variant="standard"
+            disableUnderline
+            sx={{ flex: 1, fontSize: 15 }}
+          >
+            {categories.map(cat => <MenuItem key={cat} value={cat}>{cat}</MenuItem>)}
+          </Select>
+          <IconButton size="small" onClick={onEditCategories} sx={{ p: 0.25 }}>
+            <SettingsIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+          </IconButton>
         </Box>
 
         {/* 支払先 */}
