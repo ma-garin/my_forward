@@ -999,36 +999,35 @@ function DonutChart({ data, size = 160 }) {
   if (total === 0) return null
 
   const cx = size / 2, cy = size / 2
-  const R = size * 0.38, r = size * 0.22
+  const R = size * 0.46  // 外径
+  const ri = size * 0.26  // 内径（リング幅を広く）
+  const GAP = 0.025       // スライス間の隙間（ラジアン）
   let angle = -Math.PI / 2
 
   const slices = data.map((d, i) => {
-    const theta = (d.value / total) * 2 * Math.PI
-    const x1 = cx + R * Math.cos(angle)
-    const y1 = cy + R * Math.sin(angle)
-    angle += theta
-    const x2 = cx + R * Math.cos(angle)
-    const y2 = cy + R * Math.sin(angle)
+    const full = (d.value / total) * 2 * Math.PI
+    const theta = Math.max(full - GAP, 0.001)
+    const a1 = angle + GAP / 2
+    const a2 = a1 + theta
+    angle += full
+
     const large = theta > Math.PI ? 1 : 0
-    const xi1 = cx + r * Math.cos(angle - theta)
-    const yi1 = cy + r * Math.sin(angle - theta)
-    const xi2 = cx + r * Math.cos(angle)
-    const yi2 = cy + r * Math.sin(angle)
-    return {
-      d: `M${x1} ${y1} A${R} ${R} 0 ${large} 1 ${x2} ${y2} L${xi2} ${yi2} A${r} ${r} 0 ${large} 0 ${xi1} ${yi1} Z`,
-      color: CHART_COLORS[i % CHART_COLORS.length],
-      label: d.label,
-      value: d.value,
-    }
+    const p = (a) => [cx + R * Math.cos(a), cy + R * Math.sin(a)]
+    const q = (a) => [cx + ri * Math.cos(a), cy + ri * Math.sin(a)]
+    const [ox1, oy1] = p(a1), [ox2, oy2] = p(a2)
+    const [ix1, iy1] = q(a1), [ix2, iy2] = q(a2)
+    const path = `M${ox1} ${oy1} A${R} ${R} 0 ${large} 1 ${ox2} ${oy2} L${ix2} ${iy2} A${ri} ${ri} 0 ${large} 0 ${ix1} ${iy1} Z`
+
+    return { path, color: CHART_COLORS[i % CHART_COLORS.length] }
   })
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       {slices.map((s, i) => (
-        <path key={i} d={s.d} fill={s.color} stroke="#fff" strokeWidth={1.5} />
+        <path key={i} d={s.path} fill={s.color} />
       ))}
-      <text x={cx} y={cy - 6} textAnchor="middle" fontSize={9} fill="#78909c">合計</text>
-      <text x={cx} y={cy + 8} textAnchor="middle" fontSize={11} fontWeight="bold" fill="#37474f">
+      <text x={cx} y={cy - 7} textAnchor="middle" fontSize={9} fill="#90a4ae">合計</text>
+      <text x={cx} y={cy + 9} textAnchor="middle" fontSize={13} fontWeight="bold" fill="#37474f">
         ¥{fmt(total)}
       </text>
     </svg>
@@ -1056,21 +1055,27 @@ function CategoryChart({ fixedList, varList }) {
       <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 2 } }}>
         <Stack direction="row" alignItems="center" spacing={2}>
           <DonutChart data={data} size={140} />
-          <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
-            {entries.map(([cat, val], i) => (
-              <Stack key={cat} spacing={0.5}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Stack direction="row" alignItems="center" gap={0.75}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
-                    <Typography variant="caption" sx={{ fontSize: 10 }} noWrap>{cat}</Typography>
+          <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+            {entries.map(([cat, val], i) => {
+              const pct = Math.round(val / total * 100)
+              return (
+                <Stack key={cat} spacing={0.4}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Stack direction="row" alignItems="center" gap={0.75}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
+                      <Typography variant="caption" sx={{ fontSize: 10 }} noWrap>{cat}</Typography>
+                    </Stack>
+                    <Stack direction="row" alignItems="baseline" gap={0.5}>
+                      <Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary' }}>{pct}%</Typography>
+                      <Typography variant="caption" fontWeight={700} sx={{ fontSize: 10 }}>¥{fmt(val)}</Typography>
+                    </Stack>
                   </Stack>
-                  <Typography variant="caption" fontWeight={600} sx={{ fontSize: 10 }}>¥{fmt(val)}</Typography>
+                  <Box sx={{ height: 6, bgcolor: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
+                    <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: CHART_COLORS[i % CHART_COLORS.length], borderRadius: 2 }} />
+                  </Box>
                 </Stack>
-                <Box sx={{ height: 4, bgcolor: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
-                  <Box sx={{ height: '100%', width: `${(val / total) * 100}%`, bgcolor: CHART_COLORS[i % CHART_COLORS.length], borderRadius: 2 }} />
-                </Box>
-              </Stack>
-            ))}
+              )
+            })}
           </Stack>
         </Stack>
       </CardContent>
@@ -1086,6 +1091,7 @@ function CategoryBreakdown({ fixedList, varList }) {
 
   const map = {}
   all.forEach((x) => { map[x.category] = (map[x.category] ?? 0) + x.amount })
+  const grandTotal = Object.values(map).reduce((s, v) => s + v, 0)
   const entries = Object.entries(map).sort((a, b) => b[1] - a[1])
 
   return (
@@ -1096,16 +1102,25 @@ function CategoryBreakdown({ fixedList, varList }) {
         </Typography>
       </Box>
       <CardContent sx={{ px: 2, py: 1, '&:last-child': { pb: 1.5 } }}>
-        {entries.map(([cat, total], i) => (
-          <Box key={cat}>
-            {i > 0 && <Divider />}
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 0.75 }}>
-              <Chip label={cat} size="small"
-                sx={{ height: 16, fontSize: 10, bgcolor: '#eceff1', color: '#546e7a' }} />
-              <Typography variant="body2" fontWeight={600}>¥{fmt(total)}</Typography>
-            </Stack>
-          </Box>
-        ))}
+        {entries.map(([cat, total], i) => {
+          const pct = grandTotal > 0 ? Math.round(total / grandTotal * 100) : 0
+          const color = CHART_COLORS[i % CHART_COLORS.length]
+          return (
+            <Box key={cat}>
+              {i > 0 && <Divider />}
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 0.75 }}>
+                <Stack direction="row" alignItems="center" gap={0.75}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
+                  <Typography variant="caption" sx={{ fontSize: 12, color: '#546e7a' }}>{cat}</Typography>
+                </Stack>
+                <Stack direction="row" alignItems="baseline" gap={1}>
+                  <Typography variant="caption" sx={{ fontSize: 11, color: 'text.secondary' }}>{pct}%</Typography>
+                  <Typography variant="body2" fontWeight={600}>¥{fmt(total)}</Typography>
+                </Stack>
+              </Stack>
+            </Box>
+          )
+        })}
       </CardContent>
     </Card>
   )
