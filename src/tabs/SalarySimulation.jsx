@@ -52,12 +52,14 @@ function deriveRowLocal(f, otPay) {
   const baseOtR  = Math.floor(overtimeUnitPrice(f) * 20)
   const basePay  = calcTotalPay(f, 20)
   const totalPay = basePay - baseOtR + otPay
-  const koyou    = calcKoyouhoken(totalPay)
+  const koyouCalc  = calcKoyouhoken(totalPay)
+  const koyou      = f.koyouOverride != null ? f.koyouOverride : koyouCalc
   const taxable  = totalPay - f.tsuukinteate
   const social   = f.kenkouhoken + f.kouseinenkin + koyou
-  const shotoku  = calcShotokuzei(taxable, social)
+  const shotokuCalc = calcShotokuzei(taxable, social)
+  const shotoku     = f.shotokuOverride != null ? f.shotokuOverride : shotokuCalc
   const totalDed = f.kenkouhoken + f.kouseinenkin + koyou + shotoku + f.jyuuminzei + f.kumiaifi + f.shokuhi
-  return { totalPay, koyou, shotoku, totalDed, takeHome: totalPay - totalDed }
+  return { totalPay, koyouCalc, koyou, shotokuCalc, shotoku, totalDed, takeHome: totalPay - totalDed }
 }
 
 // ─── 時間変換ユーティリティ ──────────────────────────────────
@@ -98,6 +100,42 @@ function FixedRow({ label, value, editMode, fieldKey, onEdit }) {
         />
       ) : (
         <Typography variant="body2" fontWeight={500}>¥{fmt(value)}</Typography>
+      )}
+    </Stack>
+  )
+}
+
+// ─── 手動上書き可能な自動計算行 ─────────────────────────────
+
+function OverrideRow({ label, autoValue, overrideValue, editMode, fieldKey, onEdit, onClear }) {
+  const isOverridden = overrideValue != null
+  const displayValue = isOverridden ? overrideValue : autoValue
+  return (
+    <Stack direction="row" alignItems="center" justifyContent="space-between"
+      sx={{ py: 0.75, px: 1, mx: -1, borderRadius: 1, bgcolor: '#f1f8e9' }}>
+      <Stack direction="row" alignItems="center" gap={0.75}>
+        <Typography variant="body2" color="text.secondary">{label}</Typography>
+        <Chip label={isOverridden ? '手動' : '自動'} size="small"
+          sx={{ height: 16, fontSize: 10,
+            bgcolor: isOverridden ? '#e3f2fd' : '#c8e6c9',
+            color:   isOverridden ? '#1565c0' : '#2e7d32' }} />
+      </Stack>
+      {editMode ? (
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          <TextField size="small" type="number"
+            inputProps={{ min: 0, style: { textAlign: 'right', width: 90 } }}
+            value={displayValue}
+            onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 0) onEdit(fieldKey, v) }}
+            sx={{ '& .MuiInputBase-root': { height: 32, fontSize: 13 } }} />
+          {isOverridden && (
+            <Button size="small" onClick={() => onClear(fieldKey)}
+              sx={{ fontSize: 9, minWidth: 0, px: 0.75, py: 0.25, color: 'text.disabled' }}>自動</Button>
+          )}
+        </Stack>
+      ) : (
+        <Typography variant="body2" fontWeight={600} color={isOverridden ? 'primary.main' : 'text.primary'}>
+          ¥{fmt(displayValue)}
+        </Typography>
       )}
     </Stack>
   )
@@ -259,6 +297,14 @@ export default function SalarySimulation() {
     })
   }, [overtime, customUnit])
 
+  const clearFixed = useCallback((key) => {
+    setFixed((prev) => {
+      const next = { ...prev, [key]: null }
+      save(next, overtime, customUnit)
+      return next
+    })
+  }, [overtime, customUnit])
+
   const handleOvertimeChange = (val) => {
     const v = Math.round(val * 100) / 100
     if (!isNaN(v) && v >= 0) {
@@ -384,9 +430,13 @@ export default function SalarySimulation() {
         <Divider />
         <FixedRow label="厚生年金保険" value={fixed.kouseinenkin} editMode={editMode} fieldKey="kouseinenkin" onEdit={editFixed} />
         <Divider />
-        <AutoRow label="雇用保険" valueC={rowC?.koyou ?? null} valueF={rowF.koyou} />
+        <OverrideRow label="雇用保険"
+          autoValue={rowF.koyouCalc} overrideValue={fixed.koyouOverride ?? null}
+          editMode={editMode} fieldKey="koyouOverride" onEdit={editFixed} onClear={clearFixed} />
         <Divider />
-        <AutoRow label="所得税" valueC={rowC?.shotoku ?? null} valueF={rowF.shotoku} />
+        <OverrideRow label="所得税"
+          autoValue={rowF.shotokuCalc} overrideValue={fixed.shotokuOverride ?? null}
+          editMode={editMode} fieldKey="shotokuOverride" onEdit={editFixed} onClear={clearFixed} />
         <Divider />
         <FixedRow label="住民税"   value={fixed.jyuuminzei} editMode={editMode} fieldKey="jyuuminzei" onEdit={editFixed} />
         <Divider />
