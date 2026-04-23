@@ -36,13 +36,16 @@ function exportKeys(keys, filename) {
   keys.forEach(k => {
     try { data[k] = JSON.parse(localStorage.getItem(k)) } catch {}
   })
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  // application/octet-stream にすることで Android が「アプリで開く」ではなく Downloads に保存する
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/octet-stream' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = `${filename}_${new Date().toISOString().slice(0, 10)}.json`
+  document.body.appendChild(a)
   a.click()
-  URL.revokeObjectURL(url)
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 100)
 }
 
 function importFile(file, onDone) {
@@ -79,7 +82,7 @@ function DataRow({ label, exportFilename, exportKeys: getExportKeys }) {
         <Button size="small" variant="outlined" startIcon={<UploadFileIcon />}
           component="label" sx={{ fontSize: 12 }}>
           読込
-          <input type="file" accept=".json" hidden
+          <input type="file" accept="*/*" hidden
             onChange={(e) => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = '' }} />
         </Button>
       </Stack>
@@ -106,7 +109,7 @@ export default function DataSettings() {
           </Button>
           <Button variant="contained" startIcon={<UploadFileIcon />} fullWidth component="label">
             一括インポート
-            <input type="file" accept=".json" hidden
+            <input type="file" accept="*/*" hidden
               onChange={(e) => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = '' }} />
           </Button>
         </Stack>

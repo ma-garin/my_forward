@@ -23,13 +23,15 @@ function exportAll() {
     const v = localStorage.getItem(k)
     if (v) data[k] = JSON.parse(v)
   })
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/octet-stream' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = `myforward_backup_${new Date().toISOString().slice(0, 10)}.json`
+  document.body.appendChild(a)
   a.click()
-  URL.revokeObjectURL(url)
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 100)
 }
 
 function importAll(file, onDone) {
@@ -89,7 +91,7 @@ export default function Settings() {
             データをインポート
             <input
               type="file"
-              accept=".json"
+              accept="*/*"
               hidden
               onChange={(e) => {
                 const file = e.target.files?.[0]
