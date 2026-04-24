@@ -1935,6 +1935,8 @@ export default function CreditCard() {
         const pct   = limit > 0 ? Math.min(grandTotal / limit * 100, 100) : 0
         const over  = limit > 0 && grandTotal > limit
         const barColor = pct >= 90 ? '#ef9a9a' : pct >= 70 ? '#ffe082' : 'rgba(255,255,255,.55)'
+        const livingTotal = sumLiving(varList)
+        const otherVarTotal = varTotal - livingTotal
         return (
           <Card sx={{ mb: 2, bgcolor: card.color, color: '#fff' }}>
             <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
@@ -1977,7 +1979,7 @@ export default function CreditCard() {
                       )
                     })()}
                     <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
-                      <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定＋変動後</Typography>
+                      <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定＋変動後（生活費含む）</Typography>
                       <Stack alignItems="flex-end">
                         <Typography variant="caption" sx={{ fontSize: 10, color: over ? '#ef9a9a' : 'rgba(255,255,255,.6)' }}>
                           {over ? `¥${fmt(grandTotal - limit)} オーバー` : `残り ¥${fmt(limit - grandTotal)}`}
@@ -1991,9 +1993,11 @@ export default function CreditCard() {
                 </Box>
               )}
 
+              {/* 内訳フッター */}
               <Stack direction="row" spacing={2} sx={{ mt: limit > 0 ? 0 : 1 }}>
                 <Typography variant="caption" sx={{ opacity: .75 }}>固定 ¥{fmt(fixedTotal)}</Typography>
-                <Typography variant="caption" sx={{ opacity: .75 }}>変動 ¥{fmt(varTotal)}</Typography>
+                <Typography variant="caption" sx={{ opacity: .75 }}>生活費 ¥{fmt(livingTotal)}</Typography>
+                <Typography variant="caption" sx={{ opacity: .75 }}>その他 ¥{fmt(otherVarTotal)}</Typography>
               </Stack>
               <Stack sx={{ mt: 0.5 }}>
                 <Typography variant="caption" sx={{ opacity: .55 }}>
