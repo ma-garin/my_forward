@@ -1978,12 +1978,13 @@ export default function CreditCard() {
                     <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>{pct.toFixed(0)}% 使用</Typography>
                     {(() => {
                       const af = limit - fixedTotal
+                      const afPct = limit > 0 ? (af / limit * 100) : 0
                       return (
                         <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
                           <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定費後</Typography>
                           <Stack alignItems="flex-end">
                             <Typography variant="caption" sx={{ fontSize: 10, color: af >= 0 ? 'rgba(255,255,255,.6)' : '#ef9a9a' }}>
-                              {af >= 0 ? `残り ¥${fmt(af)}` : `¥${fmt(-af)} オーバー`}
+                              {af >= 0 ? `残り ¥${fmt(af)} (${afPct.toFixed(0)}%)` : `¥${fmt(-af)} オーバー`}
                             </Typography>
                             <Typography variant="caption" sx={{ opacity: .4, fontSize: 9 }}>
                               ¥{fmt(limit)} − ¥{fmt(fixedTotal)}
@@ -1992,17 +1993,23 @@ export default function CreditCard() {
                         </Stack>
                       )
                     })()}
-                    <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
-                      <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定＋変動後（生活費含む）</Typography>
-                      <Stack alignItems="flex-end">
-                        <Typography variant="caption" sx={{ fontSize: 10, color: over ? '#ef9a9a' : 'rgba(255,255,255,.6)' }}>
-                          {over ? `¥${fmt(grandTotal - limit)} オーバー` : `残り ¥${fmt(limit - grandTotal)}`}
-                        </Typography>
-                        <Typography variant="caption" sx={{ opacity: .4, fontSize: 9 }}>
-                          ¥{fmt(limit)} − ¥{fmt(fixedTotal)} − ¥{fmt(varTotal)}
-                        </Typography>
-                      </Stack>
-                    </Stack>
+                    {(() => {
+                      const rem = limit - grandTotal
+                      const remPct = limit > 0 ? (rem / limit * 100) : 0
+                      return (
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
+                          <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定＋変動後（生活費含む）</Typography>
+                          <Stack alignItems="flex-end">
+                            <Typography variant="caption" sx={{ fontSize: 10, color: over ? '#ef9a9a' : 'rgba(255,255,255,.6)' }}>
+                              {over ? `¥${fmt(grandTotal - limit)} オーバー` : `残り ¥${fmt(rem)} (${remPct.toFixed(0)}%)`}
+                            </Typography>
+                            <Typography variant="caption" sx={{ opacity: .4, fontSize: 9 }}>
+                              ¥{fmt(limit)} − ¥{fmt(fixedTotal)} − ¥{fmt(varTotal)}
+                            </Typography>
+                          </Stack>
+                        </Stack>
+                      )
+                    })()}
                   </Stack>
                 </Box>
               )}
