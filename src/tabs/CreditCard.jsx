@@ -956,6 +956,7 @@ function VarExpenseTable({ varList, onEdit, onDelete }) {
   })
 
   return (
+    <>
     <Box sx={{ overflowX: 'auto', mx: -2 }}>
       <Table size="small" sx={{ minWidth: 520 }}>
         <TableHead>
@@ -1012,6 +1013,7 @@ function VarExpenseTable({ varList, onEdit, onDelete }) {
         <DeleteIcon sx={{ mr: 1, fontSize: 16 }} />削除
       </MenuItem>
     </Menu>
+    </>
   )
 }
 
