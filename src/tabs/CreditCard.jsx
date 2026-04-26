@@ -2079,53 +2079,73 @@ export default function CreditCard() {
       {(() => {
         const limit = parseFloat(limitInputs[cardId]) || 0
         if (limit === 0) return null
-        const af = limit - fixedTotal
-        const afPct = (af / limit * 100)
-        const rem = limit - grandTotal
-        const remPct = (rem / limit * 100)
-        const over = grandTotal > limit
 
-        const Row = ({ label, value, pctVal, formula, highlight }) => (
-          <Box sx={{ py: 1.25, borderBottom: '1px solid #f0f0f0', '&:last-child': { borderBottom: 'none' } }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: 13 }}>{label}</Typography>
-              <Stack alignItems="flex-end">
-                <Typography sx={{
-                  fontSize: 16, fontWeight: highlight ? 700 : 600,
-                  color: value >= 0 ? (highlight ? '#2e7d32' : 'text.primary') : '#c62828'
-                }}>
-                  {value >= 0 ? `¥${fmt(value)}` : `−¥${fmt(-value)}`}
-                  <Typography component="span" sx={{ fontSize: 12, color: value >= 0 ? 'text.secondary' : '#c62828', ml: 0.5 }}>
-                    ({pctVal >= 0 ? pctVal.toFixed(0) : '−'}%)
-                  </Typography>
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: 10 }}>{formula}</Typography>
+        // JCBのみ生活費予算を計算
+        let livingBudget = 0
+        if (cardId === 'jcb') {
+          const [vy, vm] = ym.split('-').map(Number)
+          const cutoff = CARDS.jcb.cutoffDay
+          const wBudget = loadWeeklyBudget()
+          const fridayCount = countFridaysUntil(new Date(vy, vm - 1, cutoff), new Date(vy, vm, cutoff))
+          livingBudget = fridayCount * wBudget
+        }
+
+        const A = limit - fixedTotal          // 固定費後
+        const B = A - livingBudget            // 変動費予算（JCBのみ）
+        const C = (cardId === 'jcb' ? B : A) - varTotal  // 残高
+
+        const amtColor = (v) => v >= 0 ? '#1b5e20' : '#b71c1c'
+        const amtBg   = (v) => v >= 0 ? '#e8f5e9' : '#ffebee'
+
+        const StepRow = ({ minus, label, amount }) => (
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 0.5 }}>
+            <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+              {minus && <Typography component="span" sx={{ mr: 0.5, color: 'text.disabled' }}>−</Typography>}
+              {label}
+            </Typography>
+            <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'text.primary' }}>
+              ¥{fmt(amount)}
+            </Typography>
+          </Stack>
+        )
+
+        const ResultRow = ({ badge, label, value }) => (
+          <Box sx={{ bgcolor: amtBg(value), borderRadius: 1.5, px: 1.5, py: 1, mt: 0.5 }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Stack direction="row" alignItems="center" gap={0.75}>
+                <Box sx={{ bgcolor: amtColor(value), color: '#fff', borderRadius: '50%',
+                  width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography sx={{ fontSize: 10, fontWeight: 700 }}>{badge}</Typography>
+                </Box>
+                <Typography sx={{ fontSize: 13, fontWeight: 600, color: amtColor(value) }}>{label}</Typography>
               </Stack>
+              <Typography sx={{ fontSize: 17, fontWeight: 700, color: amtColor(value) }}>
+                {value >= 0 ? `¥${fmt(value)}` : `−¥${fmt(-value)}`}
+              </Typography>
             </Stack>
           </Box>
         )
 
         return (
-          <Card sx={{ mb: 1.5, px: 2, py: 0.5 }}>
-            <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: 11, fontWeight: 600, letterSpacing: .5, display: 'block', pt: 1 }}>予算内訳</Typography>
-            <Row label="固定費後" value={af} pctVal={afPct}
-              formula={`¥${fmt(limit)} − ¥${fmt(fixedTotal)}`} />
-            {cardId === 'jcb' && (() => {
-              const [vy, vm] = ym.split('-').map(Number)
-              const cutoff = CARDS.jcb.cutoffDay
-              const wBudget = loadWeeklyBudget()
-              const fridayCount = countFridaysUntil(new Date(vy, vm - 1, cutoff), new Date(vy, vm, cutoff))
-              const livingBudget = fridayCount * wBudget
-              const varBudget = limit - fixedTotal - livingBudget
-              const varBudgetPct = varBudget / limit * 100
-              return (
-                <Row label="変動費予算" value={varBudget} pctVal={varBudgetPct}
-                  formula={`¥${fmt(limit)} − ¥${fmt(fixedTotal)} − 生活費¥${fmt(livingBudget)}`}
-                  highlight />
-              )
-            })()}
-            <Row label="固定＋変動後" value={rem} pctVal={remPct}
-              formula={`¥${fmt(limit)} − ¥${fmt(fixedTotal)} − ¥${fmt(varTotal)}`} />
+          <Card sx={{ mb: 1.5, px: 2, pt: 1, pb: 1.5 }}>
+            <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: 11, fontWeight: 600, letterSpacing: .5, display: 'block', mb: 0.5 }}>
+              予算内訳
+            </Typography>
+
+            <StepRow label="予算総額（上限）" amount={limit} />
+            <StepRow minus label="固定費" amount={fixedTotal} />
+            <Divider sx={{ my: 0.5 }} />
+            <ResultRow badge="A" label="固定費後" value={A} />
+
+            {cardId === 'jcb' && <>
+              <StepRow minus label="生活費予算" amount={livingBudget} />
+              <Divider sx={{ my: 0.5 }} />
+              <ResultRow badge="B" label="変動費予算" value={B} />
+            </>}
+
+            <StepRow minus label="変動費" amount={varTotal} />
+            <Divider sx={{ my: 0.5 }} />
+            <ResultRow badge="C" label="残高" value={C} />
           </Card>
         )
       })()}
