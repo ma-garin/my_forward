@@ -1955,22 +1955,34 @@ export default function CreditCard() {
           <Card sx={{ mb: 2, bgcolor: card.color, color: '#fff' }}>
             <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
               <Typography variant="caption" sx={{ opacity: .65, letterSpacing: .5 }}>{card.name}</Typography>
-              <Stack direction="row" alignItems="flex-end" justifyContent="space-between" sx={{ mt: 0.5 }}>
-                <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: -.5,
-                  color: over ? '#ef9a9a' : '#fff' }}>
-                  ¥{fmt(grandTotal)}
-                </Typography>
-                {limit > 0 && (
-                  <Stack alignItems="flex-end" sx={{ mb: 0.5 }}>
-                    <Typography variant="caption" sx={{ opacity: .7 }}>
-                      上限 ¥{fmt(limit)}
-                    </Typography>
-                    <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 600, color: over ? '#ef9a9a' : 'rgba(255,255,255,.85)' }}>
-                      残り ¥{fmt(Math.max(limit - grandTotal, 0))}
+
+              {/* 使用額 / 上限 / 残り の3列 */}
+              {limit > 0 ? (
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mt: 0.5 }}>
+                  <Stack>
+                    <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>使用額</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: -.5, color: over ? '#ef9a9a' : '#fff' }}>
+                      ¥{fmt(grandTotal)}
                     </Typography>
                   </Stack>
-                )}
-              </Stack>
+                  <Stack alignItems="center">
+                    <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>上限</Typography>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, opacity: .75 }}>
+                      ¥{fmt(limit)}
+                    </Typography>
+                  </Stack>
+                  <Stack alignItems="flex-end">
+                    <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>残り</Typography>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: over ? '#ef9a9a' : '#a5d6a7' }}>
+                      {over ? `−¥${fmt(grandTotal - limit)}` : `¥${fmt(limit - grandTotal)}`}
+                    </Typography>
+                  </Stack>
+                </Stack>
+              ) : (
+                <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: -.5, mt: 0.5 }}>
+                  ¥{fmt(grandTotal)}
+                </Typography>
+              )}
 
               {/* プログレスバー */}
               {limit > 0 && (
