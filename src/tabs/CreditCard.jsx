@@ -1961,9 +1961,14 @@ export default function CreditCard() {
                   ¥{fmt(grandTotal)}
                 </Typography>
                 {limit > 0 && (
-                  <Typography variant="caption" sx={{ opacity: .7, mb: 0.5 }}>
-                    上限 ¥{fmt(limit)}
-                  </Typography>
+                  <Stack alignItems="flex-end" sx={{ mb: 0.5 }}>
+                    <Typography variant="caption" sx={{ opacity: .7 }}>
+                      上限 ¥{fmt(limit)}
+                    </Typography>
+                    <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 600, color: over ? '#ef9a9a' : 'rgba(255,255,255,.85)' }}>
+                      残り ¥{fmt(Math.max(limit - grandTotal, 0))}
+                    </Typography>
+                  </Stack>
                 )}
               </Stack>
 
