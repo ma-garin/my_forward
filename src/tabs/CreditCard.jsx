@@ -1839,35 +1839,14 @@ function saveLivingOverride(cardId, ym, v) {
 function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onLimitChange }) {
   const [editMode, setEditMode] = useState(false)
   const [limitVal, setLimitVal] = useState(String(limit))
-  const [livingOverride, setLivingOverride] = useState(() => loadLivingOverride(cardId, ym))
-  const [livingEditVal, setLivingEditVal] = useState('')
 
   useEffect(() => { setLimitVal(String(limit)) }, [limit])
-  useEffect(() => {
-    const ov = loadLivingOverride(cardId, ym)
-    setLivingOverride(ov)
-    setLivingEditVal('')
-  }, [cardId, ym])
 
   if (limit === 0) return null
 
-  // 生活費予算（JCBのみ）
-  let livingAuto = 0
-  if (cardId === 'jcb') {
-    const [vy, vm] = ym.split('-').map(Number)
-    const fridayCount = countFridaysUntil(new Date(vy, vm - 1, CARDS.jcb.cutoffDay), new Date(vy, vm, CARDS.jcb.cutoffDay))
-    livingAuto = fridayCount * loadWeeklyBudget()
-  }
-  const livingBudget = cardId === 'jcb' ? (livingOverride ?? livingAuto) : 0
-  const isLivingOverridden = livingOverride != null
-
   const effectiveLimit = parseFloat(limitVal) || limit
-  const otherVarBudget = effectiveLimit - fixedTotal - livingBudget
-
-  // 実績
-  const livingActual   = cardId === 'jcb' ? sumLiving(varList) : 0
-  const otherVarActual = varTotal - livingActual
-  const balance        = effectiveLimit - fixedTotal - varTotal
+  const fixedAfter = effectiveLimit - fixedTotal
+  const balance    = fixedAfter - varTotal
 
   const handleSave = () => {
     const parsed = parseFloat(limitVal)
@@ -1875,125 +1854,76 @@ function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onL
     setEditMode(false)
   }
 
-  const diffColor = (d) => d >= 0 ? '#2e7d32' : '#b71c1c'
-  const diffText  = (d) => d >= 0 ? `+¥${fmt(d)}` : `−¥${fmt(-d)}`
+  const balColor = balance >= 0 ? '#1b5e20' : '#b71c1c'
+  const balBg    = balance >= 0 ? '#e8f5e9'  : '#ffebee'
 
-  const Col = ({ children, right, flex = 1 }) => (
-    <Box sx={{ flex, textAlign: right ? 'right' : 'left' }}>{children}</Box>
-  )
-
-  const Head = ({ label }) => (
-    <Typography sx={{ fontSize: 10, fontWeight: 700, color: 'text.disabled', letterSpacing: .5 }}>{label}</Typography>
-  )
-
-  const Row = ({ label, budget, actual, editable, overridden, editVal, onEditVal, onClear }) => {
-    const d = budget != null ? budget - actual : null
-    return (
-      <Stack direction="row" alignItems="center" sx={{ py: 0.75, borderBottom: '1px solid #f5f5f5' }}>
-        <Col flex={1.3}>
-          <Stack direction="row" alignItems="center" gap={0.5}>
-            <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{label}</Typography>
-            {overridden && <Chip label="手動" size="small" sx={{ height: 14, fontSize: 8, bgcolor: '#e3f2fd', color: '#1565c0' }} />}
-          </Stack>
-        </Col>
-        <Col right flex={1}>
-          {editMode && editable ? (
-            <Stack direction="row" alignItems="center" justifyContent="flex-end" gap={0.5}>
-              <TextField size="small" type="number" value={editVal}
-                onChange={(e) => { onEditVal(e.target.value) }}
-                inputProps={{ min: 0, style: { textAlign: 'right', width: 72, fontSize: 12 } }}
-                sx={{ '& .MuiInputBase-root': { height: 26 } }} />
-              {overridden && (
-                <Button size="small" onClick={onClear}
-                  sx={{ fontSize: 8, minWidth: 0, px: 0.5, py: 0, color: 'text.disabled' }}>自動</Button>
-              )}
-            </Stack>
-          ) : (
-            <Typography sx={{ fontSize: 13, fontWeight: 500, color: '#1565c0' }}>
-              {budget != null ? `¥${fmt(budget)}` : '—'}
-            </Typography>
-          )}
-        </Col>
-        <Col right flex={1}>
-          <Typography sx={{ fontSize: 13, fontWeight: 500, color: '#2e7d32' }}>¥{fmt(actual)}</Typography>
-        </Col>
-        <Col right flex={0.8}>
-          {d != null && (
-            <Typography sx={{ fontSize: 12, fontWeight: 600, color: diffColor(d) }}>{diffText(d)}</Typography>
-          )}
-        </Col>
+  const WfRow = ({ sign, label, amount, sub, bold, indent }) => (
+    <Stack direction="row" alignItems="baseline" justifyContent="space-between"
+      sx={{ py: 0.6, pl: indent ? 1.5 : 0, borderBottom: '1px solid #f5f5f5' }}>
+      <Stack direction="row" alignItems="baseline" gap={0.5}>
+        {sign && <Typography sx={{ fontSize: 13, color: 'text.disabled', minWidth: 12 }}>{sign}</Typography>}
+        <Box>
+          <Typography sx={{ fontSize: 13, fontWeight: bold ? 700 : 400, color: bold ? 'text.primary' : 'text.secondary' }}>
+            {label}
+          </Typography>
+          {sub && <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>{sub}</Typography>}
+        </Box>
       </Stack>
-    )
-  }
+      <Typography sx={{ fontSize: 13, fontWeight: bold ? 700 : 500, color: bold ? 'text.primary' : 'inherit' }}>
+        ¥{fmt(amount)}
+      </Typography>
+    </Stack>
+  )
 
   return (
     <Card sx={{ mb: 1.5, px: 2, pt: 1, pb: 1.5 }}>
       {/* ヘッダー */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.75 }}>
-        <Stack direction="row" alignItems="baseline" gap={1}>
-          <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: 11, fontWeight: 600, letterSpacing: .5 }}>予実内訳</Typography>
-          {editMode ? (
-            <Stack direction="row" alignItems="center" gap={0.5}>
-              <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>上限</Typography>
-              <TextField size="small" type="number" value={limitVal}
-                onChange={(e) => setLimitVal(e.target.value)}
-                inputProps={{ min: 0, style: { textAlign: 'right', width: 80, fontSize: 12 } }}
-                sx={{ '& .MuiInputBase-root': { height: 26 } }} />
-            </Stack>
-          ) : (
-            <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>上限 ¥{fmt(effectiveLimit)}</Typography>
-          )}
-        </Stack>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+        <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: 11, fontWeight: 600, letterSpacing: .5 }}>予算内訳</Typography>
         {editMode ? (
-          <Button size="small" onClick={handleSave} variant="contained" sx={{ fontSize: 11, py: 0.25, minWidth: 0, px: 1.5 }}>保存</Button>
+          <Stack direction="row" alignItems="center" gap={0.75}>
+            <TextField size="small" type="number" value={limitVal}
+              onChange={(e) => setLimitVal(e.target.value)}
+              inputProps={{ min: 0, style: { textAlign: 'right', width: 90, fontSize: 12 } }}
+              sx={{ '& .MuiInputBase-root': { height: 26 } }} />
+            <Button size="small" onClick={handleSave} variant="contained"
+              sx={{ fontSize: 11, py: 0.25, minWidth: 0, px: 1.5 }}>保存</Button>
+          </Stack>
         ) : (
-          <IconButton size="small" onClick={() => { setEditMode(true); setLivingEditVal(String(livingBudget)) }} sx={{ p: 0.25 }}>
+          <IconButton size="small" onClick={() => setEditMode(true)} sx={{ p: 0.25 }}>
             <EditIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
           </IconButton>
         )}
       </Stack>
 
-      {/* 列ヘッダー */}
-      <Stack direction="row" sx={{ pb: 0.5, borderBottom: '2px solid #e0e0e0' }}>
-        <Box sx={{ flex: 1.3 }}><Head label="項目" /></Box>
-        <Box sx={{ flex: 1, textAlign: 'right' }}><Head label="予算" /></Box>
-        <Box sx={{ flex: 1, textAlign: 'right' }}><Head label="実績" /></Box>
-        <Box sx={{ flex: 0.8, textAlign: 'right' }}><Head label="差額" /></Box>
+      {/* 予算総額 */}
+      <WfRow label="予算総額" amount={effectiveLimit} bold />
+      {/* − 固定費 */}
+      <WfRow sign="−" label="固定費" amount={fixedTotal} />
+      {/* A: 固定費後 */}
+      <Stack direction="row" alignItems="baseline" justifyContent="space-between"
+        sx={{ py: 0.6, bgcolor: '#f5f5f5', borderRadius: 1, px: 1, my: 0.25 }}>
+        <Stack direction="row" alignItems="baseline" gap={0.5}>
+          <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'primary.main', minWidth: 14 }}>A</Typography>
+          <Box>
+            <Typography sx={{ fontSize: 13, fontWeight: 600 }}>固定費後</Typography>
+            <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>変動費に使える枠</Typography>
+          </Box>
+        </Stack>
+        <Typography sx={{ fontSize: 14, fontWeight: 700, color: 'primary.main' }}>¥{fmt(fixedAfter)}</Typography>
       </Stack>
-
-      {/* 固定費 */}
-      <Row label="固定費" budget={fixedTotal} actual={fixedTotal} />
-
-      {/* 生活費（JCBのみ） */}
-      {cardId === 'jcb' && (
-        <Row label="生活費" budget={livingBudget} actual={livingActual}
-          editable overridden={isLivingOverridden}
-          editVal={livingEditVal || String(livingBudget)}
-          onEditVal={(v) => {
-            setLivingEditVal(v)
-            const n = parseInt(v, 10)
-            if (!isNaN(n) && n >= 0) { setLivingOverride(n); saveLivingOverride(cardId, ym, n) }
-          }}
-          onClear={() => {
-            setLivingOverride(null); saveLivingOverride(cardId, ym, null)
-            setLivingEditVal(String(livingAuto))
-          }}
-        />
-      )}
-
-      {/* その他変動費 */}
-      <Row
-        label={cardId === 'jcb' ? 'その他変動費' : '変動費'}
-        budget={otherVarBudget}
-        actual={cardId === 'jcb' ? otherVarActual : varTotal}
-      />
+      {/* − 変動費合計 */}
+      <WfRow sign="−" label="変動費合計" amount={varTotal} sub="生活費込み" />
 
       {/* 残高 */}
       <Divider sx={{ mt: 0.5, mb: 0.75 }} />
-      <Box sx={{ bgcolor: balance >= 0 ? '#e8f5e9' : '#ffebee', borderRadius: 1.5, px: 1.5, py: 1 }}>
+      <Box sx={{ bgcolor: balBg, borderRadius: 1.5, px: 1.5, py: 1 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Typography sx={{ fontSize: 13, fontWeight: 600, color: balance >= 0 ? '#1b5e20' : '#b71c1c' }}>残高</Typography>
-          <Typography sx={{ fontSize: 18, fontWeight: 700, color: balance >= 0 ? '#1b5e20' : '#b71c1c' }}>
+          <Stack direction="row" alignItems="baseline" gap={0.5}>
+            <Typography sx={{ fontSize: 11, fontWeight: 700, color: balColor, minWidth: 14 }}>C</Typography>
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: balColor }}>残高</Typography>
+          </Stack>
+          <Typography sx={{ fontSize: 18, fontWeight: 700, color: balColor }}>
             {balance >= 0 ? `¥${fmt(balance)}` : `−¥${fmt(-balance)}`}
           </Typography>
         </Stack>
