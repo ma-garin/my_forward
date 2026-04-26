@@ -27,7 +27,7 @@ import SwipeableDrawer from '@mui/material/SwipeableDrawer'
 
 // ─── カード定義 ────────────────────────────────────────────
 
-const CARDS = {
+export const CARDS = {
   jcb: {
     id: 'jcb', name: 'JCBゴールド', shortName: 'JCB',
     cutoffDay: 15, paymentDay: 10, color: '#37474f',
@@ -72,7 +72,7 @@ function nextPayDay(from = new Date()) {
 }
 
 // from（含まない）から to（含む）までの金曜日数
-function countFridaysUntil(from, to) {
+export function countFridaysUntil(from, to) {
   let count = 0
   const d = new Date(from)
   d.setDate(d.getDate() + 1)
@@ -92,7 +92,7 @@ function addToHistory(key, val) {
 }
 
 // 直近 n 週（日〜土）を新しい順で返す
-function getRecentWeeks(n = 4) {
+export function getRecentWeeks(n = 4) {
   const { mondayStr } = getThisWeekRange() // 今週の日曜
   const weeks = []
   let d = new Date(mondayStr)
@@ -114,7 +114,7 @@ function varKey(cardId, ym) { return `cc_var_${cardId}_${ym}` }
 
 const INIT_FLAG = 'cc_init_v3'
 
-function loadFixed(cardId) {
+export function loadFixed(cardId) {
   try {
     // リセットフラグがない場合は強制初期化
     if (!localStorage.getItem(INIT_FLAG)) {
@@ -133,7 +133,7 @@ function loadFixed(cardId) {
 }
 function saveFixed(cardId, list) { localStorage.setItem(fixedKey(cardId), JSON.stringify(list)) }
 
-function loadVar(cardId, ym) {
+export function loadVar(cardId, ym) {
   try { return JSON.parse(localStorage.getItem(varKey(cardId, ym)) || '[]') } catch { return [] }
 }
 function saveVar(cardId, ym, list) { localStorage.setItem(varKey(cardId, ym), JSON.stringify(list)) }
@@ -149,14 +149,14 @@ function loadBilled(cardId, ym) {
 }
 function saveBilled(cardId, ym, ids) { localStorage.setItem(`cc_billed_${cardId}_${ym}`, JSON.stringify(ids)) }
 
-function loadWeeklyBudget() {
+export function loadWeeklyBudget() {
   const v = parseInt(localStorage.getItem('life_weekly_budget') || '', 10)
   return isNaN(v) ? 10000 : v
 }
 function saveWeeklyBudget(v) { localStorage.setItem('life_weekly_budget', String(v)) }
 
 // 今週の月曜〜日曜を YYYY-MM-DD 文字列で返す
-function getThisWeekRange() {
+export function getThisWeekRange() {
   const today = new Date()
   const day = today.getDay()
   const sunday = new Date(today)
@@ -168,40 +168,40 @@ function getThisWeekRange() {
 }
 
 // 生活費として集計するカテゴリ
-const LIVING_CATEGORIES = ['生活費', '食費', '日用品']
+export const LIVING_CATEGORIES = ['生活費', '食費', '日用品']
 
 // 生活費カテゴリの合計（date でフィルタする場合は from/to に YYYY-MM-DD を渡す）
-function sumLiving(list, fromStr, toStr) {
+export function sumLiving(list, fromStr, toStr) {
   return list
     .filter(x => LIVING_CATEGORIES.includes(x.category) && x.sign !== 1 && x.date)
     .filter(x => (!fromStr || x.date >= fromStr) && (!toStr || x.date <= toStr))
     .reduce((s, x) => s + x.amount, 0)
 }
 
-function loadSalaryOverride() {
+export function loadSalaryOverride() {
   const v = parseFloat(localStorage.getItem('cc_salary_override') || '')
   return isNaN(v) ? '' : String(v)
 }
-function saveSalaryOverride(v) { localStorage.setItem('cc_salary_override', v) }
+export function saveSalaryOverride(v) { localStorage.setItem('cc_salary_override', v) }
 
 const DEFAULT_SUMMARY_FIXED = [
   { id: 's1', label: '家賃',     amount: 82330 },
   { id: 's2', label: '奨学金',   amount: 13262 },
   { id: 's3', label: '都民共済', amount: 3000 },
 ]
-function loadSummaryFixed() {
+export function loadSummaryFixed() {
   try {
     const s = localStorage.getItem('cc_summary_fixed')
     return s ? JSON.parse(s) : DEFAULT_SUMMARY_FIXED.map(x => ({ ...x }))
   } catch { return DEFAULT_SUMMARY_FIXED.map(x => ({ ...x })) }
 }
-function saveSummaryFixed(list) { localStorage.setItem('cc_summary_fixed', JSON.stringify(list)) }
+export function saveSummaryFixed(list) { localStorage.setItem('cc_summary_fixed', JSON.stringify(list)) }
 
-function loadLivingUnit() {
+export function loadLivingUnit() {
   const v = parseInt(localStorage.getItem('cc_living_unit') || '', 10)
   return isNaN(v) ? 10000 : v
 }
-function saveLivingUnit(v) { localStorage.setItem('cc_living_unit', String(v)) }
+export function saveLivingUnit(v) { localStorage.setItem('cc_living_unit', String(v)) }
 
 // ─── 金額入力ユーティリティ ──────────────────────────────
 
@@ -467,7 +467,7 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
 
 // ─── 変動費クイック入力（ボトムシート）──────────────────
 
-const CATEGORY_COLORS = {
+export const CATEGORY_COLORS = {
   '水道光熱費': '#e3f2fd',
   '通信費':     '#f3e5f5',
   '遊興費':     '#fce4ec',
@@ -1110,7 +1110,7 @@ function DailyBarChart({ varList }) {
 
 // ─── カテゴリ別グラフ（SVGドーナツ）────────────────────────
 
-const CHART_COLORS = [
+export const CHART_COLORS = [
   '#e53935', // 赤
   '#f4511e', // 深オレンジ
   '#fb8c00', // オレンジ
@@ -1164,7 +1164,7 @@ function DonutChart({ data, size = 160 }) {
   )
 }
 
-function CategoryChart({ fixedList, varList }) {
+export function CategoryChart({ fixedList, varList }) {
   const all = [...fixedList, ...varList]
   if (all.length === 0) return null
 
@@ -1215,7 +1215,7 @@ function CategoryChart({ fixedList, varList }) {
 
 // ─── カテゴリ別集計 ───────────────────────────────────────
 
-function CategoryBreakdown({ fixedList, varList }) {
+export function CategoryBreakdown({ fixedList, varList }) {
   const all = [...fixedList, ...varList]
   if (all.length === 0) return null
 
@@ -1472,7 +1472,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
 
 // ─── 生活費カード ────────────────────────────────────────────
 
-function LivingExpenseCard({ ym }) {
+export function LivingExpenseCard({ ym }) {
   const [weeklyBudget, setWeeklyBudget] = useState(loadWeeklyBudget)
   const [editOpen, setEditOpen] = useState(false)
   const [editVal, setEditVal] = useState('')
@@ -1618,7 +1618,7 @@ function LivingExpenseCard({ ym }) {
 
 // ─── 2枚合計 ─────────────────────────────────────────────────
 
-function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
+export function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   const jcb  = getCCTotal('jcb',  ym)
   const smbc = getCCTotal('smbc', ym)
   const combined = jcb.total + smbc.total
@@ -1967,10 +1967,6 @@ export default function CreditCard() {
         <IconButton size="small" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
       </Stack>
 
-      {/* 2枚合計サマリー */}
-      <CombinedSummary ym={ym} jcbLimit={parseFloat(limitInputs.jcb) || 0} smbcLimit={parseFloat(limitInputs.smbc) || 0} />
-      <LivingExpenseCard ym={ym} />
-
       {/* カード選択 */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Stack direction="row" spacing={1}>
@@ -2210,12 +2206,6 @@ export default function CreditCard() {
           </CardContent>
         </Collapse>
       </Card>
-
-      {/* カテゴリ別グラフ */}
-      <CategoryChart fixedList={filteredFixed} varList={varList} />
-
-      {/* カテゴリ別集計 */}
-      <CategoryBreakdown fixedList={filteredFixed} varList={varList} />
 
       {/* 年間サマリー */}
       <YearlySummary year={year} cardId={cardId} />

@@ -3,11 +3,13 @@ import { ThemeProvider, CssBaseline } from '@mui/material'
 import { Box, AppBar, Toolbar, Typography, BottomNavigation, BottomNavigationAction, Paper, IconButton, Drawer } from '@mui/material'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
 import CreditCardIcon from '@mui/icons-material/CreditCard'
+import HomeIcon from '@mui/icons-material/Home'
 import SettingsIcon from '@mui/icons-material/Settings'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import theme from './theme'
 import SalarySimulation from './tabs/SalarySimulation'
 import CreditCard from './tabs/CreditCard'
+import Kakeibo from './tabs/Kakeibo'
 import SalaryHistory from './tabs/SalaryHistory'
 import SettingsMain from './settings/SettingsMain'
 import SalarySettings from './settings/SalarySettings'
@@ -16,6 +18,7 @@ import DataSettings from './settings/DataSettings'
 
 const TABS = [
   { label: 'カード', icon: <CreditCardIcon /> },
+  { label: '家計',   icon: <HomeIcon /> },
   { label: '給与',   icon: <AccountBalanceWalletIcon /> },
 ]
 
@@ -56,7 +59,8 @@ export default function App() {
         {/* Content */}
         <Box sx={{ flex: 1, overflowY: 'auto', pb: 'calc(56px + env(safe-area-inset-bottom))' }}>
           {activeTab === 0 && <CreditCard />}
-          {activeTab === 1 && <SalarySimulation />}
+          {activeTab === 1 && <Kakeibo />}
+          {activeTab === 2 && <SalarySimulation />}
         </Box>
 
         {/* Bottom Navigation */}
