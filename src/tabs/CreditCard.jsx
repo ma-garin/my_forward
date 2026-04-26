@@ -2060,6 +2060,29 @@ export default function CreditCard() {
                       )
                     })()}
                     {(() => {
+                      if (cardId !== 'jcb') return null
+                      const [vy, vm] = ym.split('-').map(Number)
+                      const cutoff = CARDS.jcb.cutoffDay
+                      const wBudget = loadWeeklyBudget()
+                      const fridayCount = countFridaysUntil(new Date(vy, vm - 1, cutoff), new Date(vy, vm, cutoff))
+                      const livingBudget = fridayCount * wBudget
+                      const varBudget = limit - fixedTotal - livingBudget
+                      const varBudgetPct = limit > 0 ? (varBudget / limit * 100) : 0
+                      return (
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
+                          <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>変動費予算</Typography>
+                          <Stack alignItems="flex-end">
+                            <Typography variant="caption" sx={{ fontSize: 10, color: varBudget >= 0 ? '#a5d6a7' : '#ef9a9a', fontWeight: 600 }}>
+                              {varBudget >= 0 ? `¥${fmt(varBudget)} (${varBudgetPct.toFixed(0)}%)` : `¥${fmt(-varBudget)} 不足`}
+                            </Typography>
+                            <Typography variant="caption" sx={{ opacity: .4, fontSize: 9 }}>
+                              ¥{fmt(limit)} − ¥{fmt(fixedTotal)} − 生活費¥{fmt(livingBudget)}
+                            </Typography>
+                          </Stack>
+                        </Stack>
+                      )
+                    })()}
+                    {(() => {
                       const rem = limit - grandTotal
                       const remPct = limit > 0 ? (rem / limit * 100) : 0
                       return (
