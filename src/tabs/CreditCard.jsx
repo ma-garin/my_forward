@@ -1948,14 +1948,6 @@ export default function CreditCard() {
     catch { notify('error', 'カテゴリの保存に失敗しました') }
   }
 
-  // スワイプで月切り替え
-  const swipeRef = useRef({ startX: 0, startY: 0 })
-  const handleTouchStart = (e) => { swipeRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY } }
-  const handleTouchEnd = (e) => {
-    const dx = e.changedTouches[0].clientX - swipeRef.current.startX
-    const dy = e.changedTouches[0].clientY - swipeRef.current.startY
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) changeMonth(dx < 0 ? 1 : -1)
-  }
 
   // 開始年月でフィルタリングされた固定費（選択中の月に有効なもののみ）
   const filteredFixed = fixedList.filter((x) => !x.startYm || x.startYm <= ym)
@@ -1964,7 +1956,7 @@ export default function CreditCard() {
   const grandTotal = fixedTotal + varTotal
 
   return (
-    <Box sx={{ px: 2, pt: 2, pb: 10 }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <Box sx={{ px: 2, pt: 2, pb: 10 }}>
 
       {/* 月ナビゲーション */}
       <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
