@@ -3,33 +3,25 @@ import { ThemeProvider, CssBaseline } from '@mui/material'
 import { Box, AppBar, Toolbar, Typography, BottomNavigation, BottomNavigationAction, Paper, IconButton, Drawer } from '@mui/material'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
 import CreditCardIcon from '@mui/icons-material/CreditCard'
-import SavingsIcon from '@mui/icons-material/Savings'
-import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import SettingsIcon from '@mui/icons-material/Settings'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import theme from './theme'
 import SalarySimulation from './tabs/SalarySimulation'
 import CreditCard from './tabs/CreditCard'
-import BankAccounts from './tabs/BankAccounts'
-import AssetFlowSimulation from './tabs/AssetFlowSimulation'
 import SalaryHistory from './tabs/SalaryHistory'
 import SettingsMain from './settings/SettingsMain'
 import SalarySettings from './settings/SalarySettings'
 import CardSettings from './settings/CardSettings'
-import AccountSettings from './settings/AccountSettings'
 import DataSettings from './settings/DataSettings'
 
 const TABS = [
-  { label: 'カード',   icon: <CreditCardIcon /> },
-  { label: '口座',     icon: <SavingsIcon /> },
-  { label: '給与',     icon: <AccountBalanceWalletIcon /> },
-  { label: '資産計画', icon: <TrendingUpIcon /> },
+  { label: 'カード', icon: <CreditCardIcon /> },
+  { label: '給与',   icon: <AccountBalanceWalletIcon /> },
 ]
 
 const SETTINGS_TITLES = {
   salary:        '給与設定',
   card:          'カード設定',
-  account:       '口座設定',
   data:          'データ管理',
   salaryHistory: '給与履歴',
 }
@@ -64,9 +56,7 @@ export default function App() {
         {/* Content */}
         <Box sx={{ flex: 1, overflowY: 'auto', pb: 'calc(56px + env(safe-area-inset-bottom))' }}>
           {activeTab === 0 && <CreditCard />}
-          {activeTab === 1 && <BankAccounts />}
-          {activeTab === 2 && <SalarySimulation />}
-          {activeTab === 3 && <AssetFlowSimulation />}
+          {activeTab === 1 && <SalarySimulation />}
         </Box>
 
         {/* Bottom Navigation */}
@@ -99,7 +89,6 @@ export default function App() {
             {!settingsPage                    && <SettingsMain onNavigate={navigateTo} />}
             {settingsPage === 'salary'        && <SalarySettings />}
             {settingsPage === 'card'          && <CardSettings />}
-            {settingsPage === 'account'       && <AccountSettings />}
             {settingsPage === 'data'          && <DataSettings />}
             {settingsPage === 'salaryHistory' && <SalaryHistory />}
           </Box>

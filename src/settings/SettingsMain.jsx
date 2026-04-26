@@ -1,7 +1,6 @@
 import { List, ListItem, ListItemButton, ListItemText, ListItemIcon, Divider, Typography, Box } from '@mui/material'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
 import CreditCardIcon from '@mui/icons-material/CreditCard'
-import SavingsIcon from '@mui/icons-material/Savings'
 import HistoryIcon from '@mui/icons-material/History'
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -9,7 +8,6 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 const ITEMS = [
   { key: 'salary',        label: '給与設定',   sub: '基本給・支給項目・控除項目',    icon: <AccountBalanceWalletIcon /> },
   { key: 'card',          label: 'カード設定',  sub: '保有カード・締め日・支払い日',   icon: <CreditCardIcon /> },
-  { key: 'account',       label: '口座設定',    sub: '口座の追加・削除・名称変更',    icon: <SavingsIcon /> },
   { key: 'salaryHistory', label: '給与履歴',    sub: '給与明細の履歴・推移グラフ',    icon: <HistoryIcon /> },
   { key: 'data',          label: 'データ管理',  sub: 'エクスポート・インポート',       icon: <CloudDownloadIcon /> },
 ]
