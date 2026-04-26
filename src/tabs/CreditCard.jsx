@@ -2035,71 +2035,12 @@ export default function CreditCard() {
 
               {/* プログレスバー */}
               {limit > 0 && (
-                <Box sx={{ mt: 1, mb: 0.75 }}>
+                <Box sx={{ mt: 1, mb: 0.5 }}>
                   <Box sx={{ height: 6, bgcolor: 'rgba(255,255,255,.2)', borderRadius: 3, overflow: 'hidden' }}>
                     <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: barColor, borderRadius: 3,
                       transition: 'width .4s ease' }} />
                   </Box>
-                  <Stack sx={{ mt: 0.5, gap: 0.5 }}>
-                    <Typography variant="caption" sx={{ opacity: .6, fontSize: 11 }}>{pct.toFixed(0)}% 使用</Typography>
-                    {(() => {
-                      const af = limit - fixedTotal
-                      const afPct = limit > 0 ? (af / limit * 100) : 0
-                      return (
-                        <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
-                          <Typography variant="caption" sx={{ opacity: .6, fontSize: 12 }}>固定費後</Typography>
-                          <Stack alignItems="flex-end">
-                            <Typography sx={{ fontSize: 12, color: af >= 0 ? 'rgba(255,255,255,.75)' : '#ef9a9a' }}>
-                              {af >= 0 ? `残り ¥${fmt(af)} (${afPct.toFixed(0)}%)` : `¥${fmt(-af)} オーバー`}
-                            </Typography>
-                            <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>
-                              ¥{fmt(limit)} − ¥{fmt(fixedTotal)}
-                            </Typography>
-                          </Stack>
-                        </Stack>
-                      )
-                    })()}
-                    {(() => {
-                      if (cardId !== 'jcb') return null
-                      const [vy, vm] = ym.split('-').map(Number)
-                      const cutoff = CARDS.jcb.cutoffDay
-                      const wBudget = loadWeeklyBudget()
-                      const fridayCount = countFridaysUntil(new Date(vy, vm - 1, cutoff), new Date(vy, vm, cutoff))
-                      const livingBudget = fridayCount * wBudget
-                      const varBudget = limit - fixedTotal - livingBudget
-                      const varBudgetPct = limit > 0 ? (varBudget / limit * 100) : 0
-                      return (
-                        <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
-                          <Typography variant="caption" sx={{ opacity: .6, fontSize: 12 }}>変動費予算</Typography>
-                          <Stack alignItems="flex-end">
-                            <Typography sx={{ fontSize: 13, color: varBudget >= 0 ? '#a5d6a7' : '#ef9a9a', fontWeight: 700 }}>
-                              {varBudget >= 0 ? `¥${fmt(varBudget)} (${varBudgetPct.toFixed(0)}%)` : `¥${fmt(-varBudget)} 不足`}
-                            </Typography>
-                            <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>
-                              ¥{fmt(limit)} − ¥{fmt(fixedTotal)} − 生活費¥{fmt(livingBudget)}
-                            </Typography>
-                          </Stack>
-                        </Stack>
-                      )
-                    })()}
-                    {(() => {
-                      const rem = limit - grandTotal
-                      const remPct = limit > 0 ? (rem / limit * 100) : 0
-                      return (
-                        <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
-                          <Typography variant="caption" sx={{ opacity: .6, fontSize: 12 }}>固定＋変動後（生活費含む）</Typography>
-                          <Stack alignItems="flex-end">
-                            <Typography sx={{ fontSize: 12, color: over ? '#ef9a9a' : 'rgba(255,255,255,.75)' }}>
-                              {over ? `¥${fmt(grandTotal - limit)} オーバー` : `残り ¥${fmt(rem)} (${remPct.toFixed(0)}%)`}
-                            </Typography>
-                            <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>
-                              ¥{fmt(limit)} − ¥{fmt(fixedTotal)} − ¥{fmt(varTotal)}
-                            </Typography>
-                          </Stack>
-                        </Stack>
-                      )
-                    })()}
-                  </Stack>
+                  <Typography variant="caption" sx={{ opacity: .6, fontSize: 11, mt: 0.5, display: 'block' }}>{pct.toFixed(0)}% 使用</Typography>
                 </Box>
               )}
 
@@ -2134,6 +2075,61 @@ export default function CreditCard() {
                 />
               </Box>
             </CardContent>
+          </Card>
+        )
+      })()}
+
+      {/* 予算内訳カード */}
+      {(() => {
+        const limit = parseFloat(limitInputs[cardId]) || 0
+        if (limit === 0) return null
+        const af = limit - fixedTotal
+        const afPct = (af / limit * 100)
+        const rem = limit - grandTotal
+        const remPct = (rem / limit * 100)
+        const over = grandTotal > limit
+
+        const Row = ({ label, value, pctVal, formula, highlight }) => (
+          <Box sx={{ py: 1.25, borderBottom: '1px solid #f0f0f0', '&:last-child': { borderBottom: 'none' } }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: 13 }}>{label}</Typography>
+              <Stack alignItems="flex-end">
+                <Typography sx={{
+                  fontSize: 16, fontWeight: highlight ? 700 : 600,
+                  color: value >= 0 ? (highlight ? '#2e7d32' : 'text.primary') : '#c62828'
+                }}>
+                  {value >= 0 ? `¥${fmt(value)}` : `−¥${fmt(-value)}`}
+                  <Typography component="span" sx={{ fontSize: 12, color: value >= 0 ? 'text.secondary' : '#c62828', ml: 0.5 }}>
+                    ({pctVal >= 0 ? pctVal.toFixed(0) : '−'}%)
+                  </Typography>
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: 10 }}>{formula}</Typography>
+              </Stack>
+            </Stack>
+          </Box>
+        )
+
+        return (
+          <Card sx={{ mb: 1.5, px: 2, py: 0.5 }}>
+            <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: 11, fontWeight: 600, letterSpacing: .5, display: 'block', pt: 1 }}>予算内訳</Typography>
+            <Row label="固定費後" value={af} pctVal={afPct}
+              formula={`¥${fmt(limit)} − ¥${fmt(fixedTotal)}`} />
+            {cardId === 'jcb' && (() => {
+              const [vy, vm] = ym.split('-').map(Number)
+              const cutoff = CARDS.jcb.cutoffDay
+              const wBudget = loadWeeklyBudget()
+              const fridayCount = countFridaysUntil(new Date(vy, vm - 1, cutoff), new Date(vy, vm, cutoff))
+              const livingBudget = fridayCount * wBudget
+              const varBudget = limit - fixedTotal - livingBudget
+              const varBudgetPct = varBudget / limit * 100
+              return (
+                <Row label="変動費予算" value={varBudget} pctVal={varBudgetPct}
+                  formula={`¥${fmt(limit)} − ¥${fmt(fixedTotal)} − 生活費¥${fmt(livingBudget)}`}
+                  highlight />
+              )
+            })()}
+            <Row label="固定＋変動後" value={rem} pctVal={remPct}
+              formula={`¥${fmt(limit)} − ¥${fmt(fixedTotal)} − ¥${fmt(varTotal)}`} />
           </Card>
         )
       })()}
