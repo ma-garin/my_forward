@@ -2041,18 +2041,18 @@ export default function CreditCard() {
                       transition: 'width .4s ease' }} />
                   </Box>
                   <Stack sx={{ mt: 0.5, gap: 0.5 }}>
-                    <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>{pct.toFixed(0)}% 使用</Typography>
+                    <Typography variant="caption" sx={{ opacity: .6, fontSize: 11 }}>{pct.toFixed(0)}% 使用</Typography>
                     {(() => {
                       const af = limit - fixedTotal
                       const afPct = limit > 0 ? (af / limit * 100) : 0
                       return (
                         <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
-                          <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定費後</Typography>
+                          <Typography variant="caption" sx={{ opacity: .6, fontSize: 12 }}>固定費後</Typography>
                           <Stack alignItems="flex-end">
-                            <Typography variant="caption" sx={{ fontSize: 10, color: af >= 0 ? 'rgba(255,255,255,.6)' : '#ef9a9a' }}>
+                            <Typography sx={{ fontSize: 12, color: af >= 0 ? 'rgba(255,255,255,.75)' : '#ef9a9a' }}>
                               {af >= 0 ? `残り ¥${fmt(af)} (${afPct.toFixed(0)}%)` : `¥${fmt(-af)} オーバー`}
                             </Typography>
-                            <Typography variant="caption" sx={{ opacity: .4, fontSize: 9 }}>
+                            <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>
                               ¥{fmt(limit)} − ¥{fmt(fixedTotal)}
                             </Typography>
                           </Stack>
@@ -2070,12 +2070,12 @@ export default function CreditCard() {
                       const varBudgetPct = limit > 0 ? (varBudget / limit * 100) : 0
                       return (
                         <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
-                          <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>変動費予算</Typography>
+                          <Typography variant="caption" sx={{ opacity: .6, fontSize: 12 }}>変動費予算</Typography>
                           <Stack alignItems="flex-end">
-                            <Typography variant="caption" sx={{ fontSize: 10, color: varBudget >= 0 ? '#a5d6a7' : '#ef9a9a', fontWeight: 600 }}>
+                            <Typography sx={{ fontSize: 13, color: varBudget >= 0 ? '#a5d6a7' : '#ef9a9a', fontWeight: 700 }}>
                               {varBudget >= 0 ? `¥${fmt(varBudget)} (${varBudgetPct.toFixed(0)}%)` : `¥${fmt(-varBudget)} 不足`}
                             </Typography>
-                            <Typography variant="caption" sx={{ opacity: .4, fontSize: 9 }}>
+                            <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>
                               ¥{fmt(limit)} − ¥{fmt(fixedTotal)} − 生活費¥{fmt(livingBudget)}
                             </Typography>
                           </Stack>
@@ -2087,12 +2087,12 @@ export default function CreditCard() {
                       const remPct = limit > 0 ? (rem / limit * 100) : 0
                       return (
                         <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
-                          <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>固定＋変動後（生活費含む）</Typography>
+                          <Typography variant="caption" sx={{ opacity: .6, fontSize: 12 }}>固定＋変動後（生活費含む）</Typography>
                           <Stack alignItems="flex-end">
-                            <Typography variant="caption" sx={{ fontSize: 10, color: over ? '#ef9a9a' : 'rgba(255,255,255,.6)' }}>
+                            <Typography sx={{ fontSize: 12, color: over ? '#ef9a9a' : 'rgba(255,255,255,.75)' }}>
                               {over ? `¥${fmt(grandTotal - limit)} オーバー` : `残り ¥${fmt(rem)} (${remPct.toFixed(0)}%)`}
                             </Typography>
-                            <Typography variant="caption" sx={{ opacity: .4, fontSize: 9 }}>
+                            <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>
                               ¥{fmt(limit)} − ¥{fmt(fixedTotal)} − ¥{fmt(varTotal)}
                             </Typography>
                           </Stack>
