@@ -1839,14 +1839,31 @@ function saveLivingOverride(cardId, ym, v) {
 function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onLimitChange }) {
   const [editMode, setEditMode] = useState(false)
   const [limitVal, setLimitVal] = useState(String(limit))
+  const [livingOverride, setLivingOverride] = useState(() => loadLivingOverride(cardId, ym))
+  const [livingEditVal, setLivingEditVal] = useState('')
 
   useEffect(() => { setLimitVal(String(limit)) }, [limit])
+  useEffect(() => {
+    setLivingOverride(loadLivingOverride(cardId, ym))
+    setLivingEditVal('')
+  }, [cardId, ym])
 
   if (limit === 0) return null
 
+  // 生活費（JCBのみ）
+  let livingAuto = 0
+  if (cardId === 'jcb') {
+    const [vy, vm] = ym.split('-').map(Number)
+    const fridayCount = countFridaysUntil(new Date(vy, vm - 1, CARDS.jcb.cutoffDay), new Date(vy, vm, CARDS.jcb.cutoffDay))
+    livingAuto = fridayCount * loadWeeklyBudget()
+  }
+  const livingBudget   = cardId === 'jcb' ? (livingOverride ?? livingAuto) : 0
+  const livingActual   = cardId === 'jcb' ? sumLiving(varList ?? []) : 0
+  const otherVarActual = varTotal - livingActual
+
   const effectiveLimit = parseFloat(limitVal) || limit
-  const fixedAfter = effectiveLimit - fixedTotal
-  const balance    = fixedAfter - varTotal
+  const fixedAfter     = effectiveLimit - fixedTotal
+  const balance        = effectiveLimit - fixedTotal - varTotal
 
   const handleSave = () => {
     const parsed = parseFloat(limitVal)
@@ -1857,21 +1874,17 @@ function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onL
   const balColor = balance >= 0 ? '#1b5e20' : '#b71c1c'
   const balBg    = balance >= 0 ? '#e8f5e9'  : '#ffebee'
 
-  const WfRow = ({ sign, label, amount, sub, bold, indent }) => (
-    <Stack direction="row" alignItems="baseline" justifyContent="space-between"
-      sx={{ py: 0.6, pl: indent ? 1.5 : 0, borderBottom: '1px solid #f5f5f5' }}>
-      <Stack direction="row" alignItems="baseline" gap={0.5}>
-        {sign && <Typography sx={{ fontSize: 13, color: 'text.disabled', minWidth: 12 }}>{sign}</Typography>}
+  const WfRow = ({ sign, label, amount, sub }) => (
+    <Stack direction="row" alignItems="flex-start" justifyContent="space-between"
+      sx={{ py: 0.6, borderBottom: '1px solid #f5f5f5' }}>
+      <Stack direction="row" alignItems="flex-start" gap={0.5}>
+        {sign && <Typography sx={{ fontSize: 13, color: 'text.disabled', minWidth: 14, pt: 0.1 }}>{sign}</Typography>}
         <Box>
-          <Typography sx={{ fontSize: 13, fontWeight: bold ? 700 : 400, color: bold ? 'text.primary' : 'text.secondary' }}>
-            {label}
-          </Typography>
+          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{label}</Typography>
           {sub && <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>{sub}</Typography>}
         </Box>
       </Stack>
-      <Typography sx={{ fontSize: 13, fontWeight: bold ? 700 : 500, color: bold ? 'text.primary' : 'inherit' }}>
-        ¥{fmt(amount)}
-      </Typography>
+      <Typography sx={{ fontSize: 13, fontWeight: 500 }}>¥{fmt(amount)}</Typography>
     </Stack>
   )
 
@@ -1890,16 +1903,21 @@ function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onL
               sx={{ fontSize: 11, py: 0.25, minWidth: 0, px: 1.5 }}>保存</Button>
           </Stack>
         ) : (
-          <IconButton size="small" onClick={() => setEditMode(true)} sx={{ p: 0.25 }}>
+          <IconButton size="small" onClick={() => { setEditMode(true); setLivingEditVal(String(livingBudget)) }} sx={{ p: 0.25 }}>
             <EditIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
           </IconButton>
         )}
       </Stack>
 
       {/* 予算総額 */}
-      <WfRow label="予算総額" amount={effectiveLimit} bold />
+      <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ py: 0.6, borderBottom: '1px solid #f5f5f5' }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 700 }}>予算総額</Typography>
+        <Typography sx={{ fontSize: 13, fontWeight: 700 }}>¥{fmt(effectiveLimit)}</Typography>
+      </Stack>
+
       {/* − 固定費 */}
       <WfRow sign="−" label="固定費" amount={fixedTotal} />
+
       {/* A: 固定費後 */}
       <Stack direction="row" alignItems="baseline" justifyContent="space-between"
         sx={{ py: 0.6, bgcolor: '#f5f5f5', borderRadius: 1, px: 1, my: 0.25 }}>
@@ -1912,10 +1930,49 @@ function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onL
         </Stack>
         <Typography sx={{ fontSize: 14, fontWeight: 700, color: 'primary.main' }}>¥{fmt(fixedAfter)}</Typography>
       </Stack>
-      {/* − 変動費合計 */}
-      <WfRow sign="−" label="変動費合計" amount={varTotal} sub="生活費込み" />
 
-      {/* 残高 */}
+      {/* − 生活費（JCBのみ） */}
+      {cardId === 'jcb' && (
+        editMode ? (
+          <Stack direction="row" alignItems="center" justifyContent="space-between"
+            sx={{ py: 0.6, borderBottom: '1px solid #f5f5f5' }}>
+            <Stack direction="row" alignItems="flex-start" gap={0.5}>
+              <Typography sx={{ fontSize: 13, color: 'text.disabled', minWidth: 14 }}>−</Typography>
+              <Box>
+                <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>生活費</Typography>
+                <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>実績 ¥{fmt(livingActual)}</Typography>
+              </Box>
+            </Stack>
+            <Stack direction="row" alignItems="center" gap={0.5}>
+              <TextField size="small" type="number" value={livingEditVal}
+                onChange={(e) => {
+                  setLivingEditVal(e.target.value)
+                  const n = parseInt(e.target.value, 10)
+                  if (!isNaN(n) && n >= 0) { setLivingOverride(n); saveLivingOverride(cardId, ym, n) }
+                }}
+                inputProps={{ min: 0, style: { textAlign: 'right', width: 80, fontSize: 12 } }}
+                sx={{ '& .MuiInputBase-root': { height: 26 } }} />
+              {livingOverride != null && (
+                <Button size="small" onClick={() => {
+                  setLivingOverride(null); saveLivingOverride(cardId, ym, null)
+                  setLivingEditVal(String(livingAuto))
+                }} sx={{ fontSize: 9, minWidth: 0, px: 0.5, py: 0, color: 'text.disabled' }}>自動</Button>
+              )}
+            </Stack>
+          </Stack>
+        ) : (
+          <WfRow sign="−" label="生活費"
+            amount={livingActual}
+            sub={`予算 ¥${fmt(livingBudget)}　実績 ¥${fmt(livingActual)}`} />
+        )
+      )}
+
+      {/* − その他変動費 / 変動費 */}
+      <WfRow sign="−"
+        label={cardId === 'jcb' ? 'その他変動費' : '変動費'}
+        amount={cardId === 'jcb' ? otherVarActual : varTotal} />
+
+      {/* C 残高 */}
       <Divider sx={{ mt: 0.5, mb: 0.75 }} />
       <Box sx={{ bgcolor: balBg, borderRadius: 1.5, px: 1.5, py: 1 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
