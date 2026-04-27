@@ -1850,20 +1850,26 @@ function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onL
 
   if (limit === 0) return null
 
-  // 生活費（JCBのみ）
+  const isJcb = cardId === 'jcb'
+
   let livingAuto = 0
-  if (cardId === 'jcb') {
+  if (isJcb) {
     const [vy, vm] = ym.split('-').map(Number)
     const fridayCount = countFridaysUntil(new Date(vy, vm - 1, CARDS.jcb.cutoffDay), new Date(vy, vm, CARDS.jcb.cutoffDay))
     livingAuto = fridayCount * loadWeeklyBudget()
   }
-  const livingBudget   = cardId === 'jcb' ? (livingOverride ?? livingAuto) : 0
-  const livingActual   = cardId === 'jcb' ? sumLiving(varList ?? []) : 0
-  const otherVarActual = varTotal - livingActual
+  const livingBudget    = isJcb ? (livingOverride ?? livingAuto) : 0
+  const isOverridden    = livingOverride != null
+  const livingActual    = isJcb ? sumLiving(varList ?? []) : 0
+  const otherVarActual  = isJcb ? varTotal - livingActual : varTotal
 
-  const effectiveLimit = parseFloat(limitVal) || limit
-  const fixedAfter     = effectiveLimit - fixedTotal
-  const balance        = effectiveLimit - fixedTotal - varTotal
+  const effectiveLimit  = parseFloat(limitVal) || limit
+  const fixedAfter      = effectiveLimit - fixedTotal       // A
+  const planAfterLiving = fixedAfter - livingBudget         // B
+  const actAfterLiving  = fixedAfter - livingActual         // C
+  const planBalance     = planAfterLiving - otherVarActual  // 残高（予定）
+  const actBalance      = actAfterLiving  - otherVarActual  // 残高（実績）
+  const smbcBalance     = effectiveLimit - fixedTotal - varTotal
 
   const handleSave = () => {
     const parsed = parseFloat(limitVal)
@@ -1871,27 +1877,45 @@ function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onL
     setEditMode(false)
   }
 
-  const balColor = balance >= 0 ? '#1b5e20' : '#b71c1c'
-  const balBg    = balance >= 0 ? '#e8f5e9'  : '#ffebee'
+  const amtText = (v) => v >= 0 ? `¥${fmt(v)}` : `−¥${fmt(-v)}`
+  const balBg   = (v) => v >= 0 ? '#e8f5e9' : '#ffebee'
+  const balCol  = (v) => v >= 0 ? '#1b5e20' : '#b71c1c'
 
-  const WfRow = ({ sign, label, amount, sub }) => (
-    <Stack direction="row" alignItems="flex-start" justifyContent="space-between"
-      sx={{ py: 0.6, borderBottom: '1px solid #f5f5f5' }}>
-      <Stack direction="row" alignItems="flex-start" gap={0.5}>
-        {sign && <Typography sx={{ fontSize: 13, color: 'text.disabled', minWidth: 14, pt: 0.1 }}>{sign}</Typography>}
-        <Box>
-          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{label}</Typography>
-          {sub && <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>{sub}</Typography>}
-        </Box>
-      </Stack>
-      <Typography sx={{ fontSize: 13, fontWeight: 500 }}>¥{fmt(amount)}</Typography>
+  const HDR = { fontSize: 10, fontWeight: 700, color: 'text.disabled', letterSpacing: .5, textAlign: 'right' }
+  const VAL = { fontSize: 13, fontWeight: 500, textAlign: 'right' }
+
+  // 通常行（sign | label | 予定 | 実績）
+  const Row = ({ sign, label, plan, actual, subtotal, subLabel }) => (
+    <Stack direction="row" alignItems="center"
+      sx={{
+        py: 0.65, px: subtotal ? 1 : 0,
+        bgcolor: subtotal ? '#f5f5f5' : 'transparent',
+        borderRadius: subtotal ? 1 : 0,
+        borderBottom: subtotal ? 'none' : '1px solid #f5f5f5',
+        my: subtotal ? 0.25 : 0,
+      }}>
+      <Box sx={{ flex: 1.6, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        {sign && <Typography sx={{ fontSize: 13, color: 'text.disabled', minWidth: 14 }}>{sign}</Typography>}
+        {subLabel && <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'primary.main', minWidth: 20 }}>{subLabel}</Typography>}
+        <Typography sx={{ fontSize: 13, fontWeight: subtotal ? 600 : 400, color: subtotal ? 'text.primary' : 'text.secondary' }}>
+          {label}
+        </Typography>
+      </Box>
+      <Typography sx={{ flex: 1, ...VAL, fontWeight: subtotal ? 700 : 500, color: subtotal ? 'primary.main' : 'inherit' }}>
+        {amtText(plan)}
+      </Typography>
+      {isJcb && (
+        <Typography sx={{ flex: 1, ...VAL, fontWeight: subtotal ? 700 : 500, color: subtotal ? 'primary.main' : 'inherit' }}>
+          {amtText(actual)}
+        </Typography>
+      )}
     </Stack>
   )
 
   return (
     <Card sx={{ mb: 1.5, px: 2, pt: 1, pb: 1.5 }}>
       {/* ヘッダー */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.75 }}>
         <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: 11, fontWeight: 600, letterSpacing: .5 }}>予算内訳</Typography>
         {editMode ? (
           <Stack direction="row" alignItems="center" gap={0.75}>
@@ -1909,82 +1933,77 @@ function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onL
         )}
       </Stack>
 
-      {/* 予算総額 */}
-      <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ py: 0.6, borderBottom: '1px solid #f5f5f5' }}>
-        <Typography sx={{ fontSize: 13, fontWeight: 700 }}>予算総額</Typography>
-        <Typography sx={{ fontSize: 13, fontWeight: 700 }}>¥{fmt(effectiveLimit)}</Typography>
+      {/* 列ヘッダー */}
+      <Stack direction="row" sx={{ pb: 0.4, borderBottom: '2px solid #e0e0e0', mb: 0.25 }}>
+        <Box sx={{ flex: 1.6 }} />
+        <Typography sx={{ flex: 1, ...HDR }}>予定</Typography>
+        {isJcb && <Typography sx={{ flex: 1, ...HDR }}>実績</Typography>}
       </Stack>
 
+      {/* 上限額 */}
+      <Row label="上限額" plan={effectiveLimit} actual={effectiveLimit} />
       {/* − 固定費 */}
-      <WfRow sign="−" label="固定費" amount={fixedTotal} />
-
+      <Row sign="−" label="固定費" plan={fixedTotal} actual={fixedTotal} />
       {/* A: 固定費後 */}
-      <Stack direction="row" alignItems="baseline" justifyContent="space-between"
-        sx={{ py: 0.6, bgcolor: '#f5f5f5', borderRadius: 1, px: 1, my: 0.25 }}>
-        <Stack direction="row" alignItems="baseline" gap={0.5}>
-          <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'primary.main', minWidth: 14 }}>A</Typography>
-          <Box>
-            <Typography sx={{ fontSize: 13, fontWeight: 600 }}>固定費後</Typography>
-            <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>変動費に使える枠</Typography>
-          </Box>
-        </Stack>
-        <Typography sx={{ fontSize: 14, fontWeight: 700, color: 'primary.main' }}>¥{fmt(fixedAfter)}</Typography>
-      </Stack>
+      <Row label="固定費後" plan={fixedAfter} actual={fixedAfter} subtotal subLabel="A" />
 
-      {/* − 生活費（JCBのみ） */}
-      {cardId === 'jcb' && (
+      {/* 生活費（JCBのみ） */}
+      {isJcb && (
         editMode ? (
-          <Stack direction="row" alignItems="center" justifyContent="space-between"
-            sx={{ py: 0.6, borderBottom: '1px solid #f5f5f5' }}>
-            <Stack direction="row" alignItems="flex-start" gap={0.5}>
+          <Stack direction="row" alignItems="center" sx={{ py: 0.65, borderBottom: '1px solid #f5f5f5' }}>
+            <Box sx={{ flex: 1.6, display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Typography sx={{ fontSize: 13, color: 'text.disabled', minWidth: 14 }}>−</Typography>
-              <Box>
-                <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>生活費</Typography>
-                <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>実績 ¥{fmt(livingActual)}</Typography>
-              </Box>
-            </Stack>
-            <Stack direction="row" alignItems="center" gap={0.5}>
+              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>生活費</Typography>
+              {isOverridden && <Chip label="手動" size="small" sx={{ height: 14, fontSize: 8, bgcolor: '#e3f2fd', color: '#1565c0' }} />}
+            </Box>
+            <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5 }}>
               <TextField size="small" type="number" value={livingEditVal}
                 onChange={(e) => {
                   setLivingEditVal(e.target.value)
                   const n = parseInt(e.target.value, 10)
                   if (!isNaN(n) && n >= 0) { setLivingOverride(n); saveLivingOverride(cardId, ym, n) }
                 }}
-                inputProps={{ min: 0, style: { textAlign: 'right', width: 80, fontSize: 12 } }}
+                inputProps={{ min: 0, style: { textAlign: 'right', width: 68, fontSize: 12 } }}
                 sx={{ '& .MuiInputBase-root': { height: 26 } }} />
-              {livingOverride != null && (
+              {isOverridden && (
                 <Button size="small" onClick={() => {
                   setLivingOverride(null); saveLivingOverride(cardId, ym, null)
                   setLivingEditVal(String(livingAuto))
                 }} sx={{ fontSize: 9, minWidth: 0, px: 0.5, py: 0, color: 'text.disabled' }}>自動</Button>
               )}
-            </Stack>
+            </Box>
+            <Typography sx={{ flex: 1, ...VAL }}>¥{fmt(livingActual)}</Typography>
           </Stack>
         ) : (
-          <WfRow sign="−" label="生活費"
-            amount={livingActual}
-            sub={`予算 ¥${fmt(livingBudget)}　実績 ¥${fmt(livingActual)}`} />
+          <Row sign="−" label="生活費" plan={livingBudget} actual={livingActual} />
         )
       )}
 
-      {/* − その他変動費 / 変動費 */}
-      <WfRow sign="−"
-        label={cardId === 'jcb' ? 'その他変動費' : '変動費'}
-        amount={cardId === 'jcb' ? otherVarActual : varTotal} />
+      {/* B/C: 生活費後（JCBのみ） */}
+      {isJcb && <Row label="生活費後" plan={planAfterLiving} actual={actAfterLiving} subtotal subLabel="B/C" />}
 
-      {/* C 残高 */}
+      {/* − その他変動費 / 変動費 */}
+      <Row sign="−" label={isJcb ? 'その他変動費' : '変動費'} plan={otherVarActual} actual={otherVarActual} />
+
+      {/* 残高 */}
       <Divider sx={{ mt: 0.5, mb: 0.75 }} />
-      <Box sx={{ bgcolor: balBg, borderRadius: 1.5, px: 1.5, py: 1 }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Stack direction="row" alignItems="baseline" gap={0.5}>
-            <Typography sx={{ fontSize: 11, fontWeight: 700, color: balColor, minWidth: 14 }}>C</Typography>
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: balColor }}>残高</Typography>
-          </Stack>
-          <Typography sx={{ fontSize: 18, fontWeight: 700, color: balColor }}>
-            {balance >= 0 ? `¥${fmt(balance)}` : `−¥${fmt(-balance)}`}
-          </Typography>
+      {isJcb ? (
+        <Stack direction="row" gap={1}>
+          {[{ label: '残高（予定）', val: planBalance }, { label: '残高（実績）', val: actBalance }].map(({ label, val }) => (
+            <Box key={label} sx={{ flex: 1, bgcolor: balBg(val), borderRadius: 1.5, px: 1, py: 0.75 }}>
+              <Typography sx={{ fontSize: 10, color: balCol(val), fontWeight: 600, mb: 0.25 }}>{label}</Typography>
+              <Typography sx={{ fontSize: 15, fontWeight: 700, color: balCol(val) }}>{amtText(val)}</Typography>
+            </Box>
+          ))}
         </Stack>
-      </Box>
+      ) : (
+        <Box sx={{ bgcolor: balBg(smbcBalance), borderRadius: 1.5, px: 1.5, py: 1 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: balCol(smbcBalance) }}>残高</Typography>
+            <Typography sx={{ fontSize: 18, fontWeight: 700, color: balCol(smbcBalance) }}>{amtText(smbcBalance)}</Typography>
+          </Stack>
+        </Box>
+      )}
     </Card>
   )
 }
