@@ -189,7 +189,39 @@ export function getSalaryTakeHome() {
   }
 }
 
-// ─── カテゴリストレージ ─────────────────────────────────────
+// ─── 給与手取り取得（シミュレーション表示値・オーバーライド反映）──
+// 給与タブの「今月の手取りシミュレーション」に表示される値と同じ計算
+
+export function getSimulatedTakeHome() {
+  try {
+    const s = localStorage.getItem('salary_simulation')
+    if (!s) return 0
+    const saved = JSON.parse(s)
+    const f = { ...DEFAULT_FIXED, ...saved.fixed }
+    const overtime = saved.overtime ?? 20.0
+    const customUnit = saved.customUnit ? (parseInt(saved.customUnit, 10) || null) : null
+
+    // カスタム単価があれば rowC、なければ rowF（切り捨て単価）
+    const up    = customUnit != null ? customUnit : overtimeUnitPriceFloor(f)
+    const otPay = Math.floor(up * overtime)
+
+    const baseOtR  = Math.floor(overtimeUnitPrice(f) * 20)
+    const totalPay = calcTotalPay(f, 20) - baseOtR + otPay
+
+    const koyouCalc  = calcKoyouhoken(totalPay)
+    const koyou      = f.koyouOverride  != null ? f.koyouOverride  : koyouCalc
+    const taxable    = totalPay - f.tsuukinteate
+    const social     = f.kenkouhoken + f.kouseinenkin + koyou
+    const shotokuCalc = calcShotokuzei(taxable, social)
+    const shotoku    = f.shotokuOverride != null ? f.shotokuOverride : shotokuCalc
+    const totalDed   = f.kenkouhoken + f.kouseinenkin + koyou + shotoku + f.jyuuminzei + f.kumiaifi + f.shokuhi
+    return totalPay - totalDed
+  } catch {
+    return 0
+  }
+}
+
+
 
 export const DEFAULT_CATEGORIES = [
   '水道光熱費', '通信費', '遊興費', '美容', '交通費',

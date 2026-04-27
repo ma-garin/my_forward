@@ -20,7 +20,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import {
   getCCTotal, loadCategories, saveCategories,
-  getSalaryTakeHome, DEFAULT_JCB_FIXED,
+  getSalaryTakeHome, getSimulatedTakeHome, DEFAULT_JCB_FIXED,
   fmt, ymStr, newId,
 } from '../utils/finance'
 import SwipeableDrawer from '@mui/material/SwipeableDrawer'
@@ -1634,7 +1634,7 @@ export function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   const [dlgLabel, setDlgLabel] = useState('')
   const [dlgAmount, setDlgAmount] = useState('')
 
-  const simSalary    = getSalaryTakeHome()
+  const simSalary    = getSimulatedTakeHome()
   const isOverridden = salaryInput !== ''
   const salary       = parseFloat(salaryInput) || simSalary
   const hasSalary    = salary > 0
@@ -1734,7 +1734,7 @@ export function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
             {[
               { label: '給与',   plan: salary,         actual: salary },
               { label: '固定費', plan: fixedTotal,      actual: fixedTotal,      sign: '−' },
-              { label: 'CC使用', plan: combinedLimit,   actual: combined,         sign: '−', planNote: '上限', actualNote: '実績' },
+              { label: 'カード使用', plan: combinedLimit,   actual: combined,         sign: '−', planNote: '上限', actualNote: '実績' },
             ].map(({ label, plan, actual, sign, planNote, actualNote }) => (
               <Stack key={label} direction="row" alignItems="baseline"
                 sx={{ py: 0.55, borderBottom: '1px solid rgba(255,255,255,.08)' }}>
