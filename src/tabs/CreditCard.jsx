@@ -1643,8 +1643,8 @@ export function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   const livingCost = fridays * livingUnit
   const fixedItemsTotal = fixedItems.reduce((s, i) => s + i.amount, 0)
   const fixedTotal = fixedItemsTotal + livingCost
-  const diff = salary - fixedTotal - combined
-  const simBalance = salary - fixedTotal - combinedLimit
+  const planBalance   = salary - fixedTotal - combinedLimit  // 予定残高
+  const actualBalance = salary - fixedTotal - combined       // 実績残高
 
   function openAdd() { setDlgLabel(''); setDlgAmount(''); setDlg({ mode: 'add' }) }
   function openEdit(item) { setDlgLabel(item.label); setDlgAmount(String(item.amount)); setDlg({ mode: 'edit', id: item.id }) }
@@ -1697,8 +1697,8 @@ export function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
         <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 1.5 }} />
 
         {/* 給与入力 */}
-        <Stack direction="row" alignItems="flex-start" gap={1.5}>
-          <Typography variant="caption" sx={{ opacity: .7, minWidth: 36, pt: 0.5 }}>給与</Typography>
+        <Stack direction="row" alignItems="center" gap={1.5}>
+          <Typography variant="caption" sx={{ opacity: .7, minWidth: 36 }}>給与</Typography>
           <Box sx={{ flex: 1 }}>
             <AmountField
               dark
@@ -1708,43 +1708,51 @@ export function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
               inputSx={{ '& .MuiInputBase-root': { height: 32 } }}
             />
           </Box>
-          {hasSalary && (
-            <Stack sx={{ pt: 0.5, alignItems: 'flex-end' }}>
-              <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>差引残り</Typography>
-              <Typography variant="subtitle1" fontWeight={700}
-                sx={{ color: diff >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
-                {diff >= 0 ? '' : '−'}¥{fmt(Math.abs(diff))}
-              </Typography>
-            </Stack>
-          )}
         </Stack>
 
-        {/* 給与 - 固定費 - 生活費 - 変動費(上限) = 残高 */}
-        {hasSalary && combinedLimit > 0 && (
-          <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,.06)', borderRadius: 1 }}>
-            <Typography variant="caption" sx={{ opacity: .5, fontSize: 9, display: 'block', mb: 0.5 }}>
-              給与 - 固定費 - 生活費 - CC上限 = 残高
-            </Typography>
-            <Stack direction="row" alignItems="center" gap={0.5} flexWrap="wrap">
-              <Typography variant="caption" sx={{ opacity: .75, fontSize: 10 }}>¥{fmt(salary)}</Typography>
-              <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>−</Typography>
-              <Stack alignItems="center">
-                <Typography variant="caption" sx={{ opacity: .75, fontSize: 10 }}>¥{fmt(fixedItemsTotal)}</Typography>
-                <Typography variant="caption" sx={{ opacity: .35, fontSize: 8 }}>固定費</Typography>
+        {/* 予実テーブル */}
+        {hasSalary && (
+          <Box sx={{ mt: 1, px: 1.25, pt: 1, pb: 0.75, bgcolor: 'rgba(255,255,255,.06)', borderRadius: 1 }}>
+            {/* 列ヘッダー */}
+            <Stack direction="row" sx={{ pb: 0.4, borderBottom: '1px solid rgba(255,255,255,.15)', mb: 0.25 }}>
+              <Box sx={{ flex: 1.6 }} />
+              <Typography sx={{ flex: 1, fontSize: 10, fontWeight: 700, opacity: .5, textAlign: 'right' }}>予定</Typography>
+              <Typography sx={{ flex: 1, fontSize: 10, fontWeight: 700, opacity: .5, textAlign: 'right' }}>実績</Typography>
+            </Stack>
+
+            {[
+              { label: '給与',   plan: salary,         actual: salary },
+              { label: '固定費', plan: fixedTotal,      actual: fixedTotal,      sign: '−' },
+              { label: 'CC使用', plan: combinedLimit,   actual: combined,         sign: '−', planNote: '上限', actualNote: '実績' },
+            ].map(({ label, plan, actual, sign, planNote, actualNote }) => (
+              <Stack key={label} direction="row" alignItems="baseline"
+                sx={{ py: 0.55, borderBottom: '1px solid rgba(255,255,255,.08)' }}>
+                <Box sx={{ flex: 1.6, display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                  {sign && <Typography sx={{ fontSize: 12, opacity: .4, minWidth: 12 }}>{sign}</Typography>}
+                  <Typography sx={{ fontSize: 12, opacity: .75 }}>{label}</Typography>
+                </Box>
+                <Box sx={{ flex: 1, textAlign: 'right' }}>
+                  <Typography sx={{ fontSize: 12, opacity: .8 }}>¥{fmt(plan)}</Typography>
+                  {planNote && <Typography sx={{ fontSize: 9, opacity: .4 }}>{planNote}</Typography>}
+                </Box>
+                <Box sx={{ flex: 1, textAlign: 'right' }}>
+                  <Typography sx={{ fontSize: 12, opacity: .8 }}>¥{fmt(actual)}</Typography>
+                  {actualNote && <Typography sx={{ fontSize: 9, opacity: .4 }}>{actualNote}</Typography>}
+                </Box>
               </Stack>
-              <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>−</Typography>
-              <Stack alignItems="center">
-                <Typography variant="caption" sx={{ opacity: .75, fontSize: 10 }}>¥{fmt(livingCost)}</Typography>
-                <Typography variant="caption" sx={{ opacity: .35, fontSize: 8 }}>生活費</Typography>
-              </Stack>
-              <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>−</Typography>
-              <Stack alignItems="center">
-                <Typography variant="caption" sx={{ opacity: .75, fontSize: 10 }}>¥{fmt(combinedLimit)}</Typography>
-                <Typography variant="caption" sx={{ opacity: .35, fontSize: 8 }}>CC上限</Typography>
-              </Stack>
-              <Typography variant="caption" sx={{ opacity: .4, fontSize: 10 }}>=</Typography>
-              <Typography variant="caption" fontWeight={700} sx={{ fontSize: 13, color: simBalance >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
-                {simBalance < 0 ? '−' : ''}¥{fmt(Math.abs(simBalance))}
+            ))}
+
+            {/* 残高 */}
+            <Divider sx={{ borderColor: 'rgba(255,255,255,.15)', my: 0.5 }} />
+            <Stack direction="row" alignItems="center">
+              <Typography sx={{ flex: 1.6, fontSize: 12, fontWeight: 600, opacity: .9 }}>残高</Typography>
+              <Typography sx={{ flex: 1, fontSize: 14, fontWeight: 700, textAlign: 'right',
+                color: planBalance >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
+                {planBalance < 0 ? '−' : ''}¥{fmt(Math.abs(planBalance))}
+              </Typography>
+              <Typography sx={{ flex: 1, fontSize: 14, fontWeight: 700, textAlign: 'right',
+                color: actualBalance >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
+                {actualBalance < 0 ? '−' : ''}¥{fmt(Math.abs(actualBalance))}
               </Typography>
             </Stack>
           </Box>
