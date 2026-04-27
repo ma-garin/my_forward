@@ -1896,7 +1896,6 @@ function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onL
       }}>
       <Box sx={{ flex: 1.6, display: 'flex', alignItems: 'center', gap: 0.5 }}>
         {sign && <Typography sx={{ fontSize: 13, color: 'text.disabled', minWidth: 14 }}>{sign}</Typography>}
-        {subLabel && <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'primary.main', minWidth: 20 }}>{subLabel}</Typography>}
         <Typography sx={{ fontSize: 13, fontWeight: subtotal ? 600 : 400, color: subtotal ? 'text.primary' : 'text.secondary' }}>
           {label}
         </Typography>
@@ -1944,8 +1943,8 @@ function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onL
       <Row label="上限額" plan={effectiveLimit} actual={effectiveLimit} />
       {/* − 固定費 */}
       <Row sign="−" label="固定費" plan={fixedTotal} actual={fixedTotal} />
-      {/* A: 固定費後 */}
-      <Row label="固定費後" plan={fixedAfter} actual={fixedAfter} subtotal subLabel="A" />
+      {/* 固定費後 */}
+      <Row label="固定費後" plan={fixedAfter} actual={fixedAfter} subtotal />
 
       {/* 生活費（JCBのみ） */}
       {isJcb && (
@@ -1979,8 +1978,8 @@ function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onL
         )
       )}
 
-      {/* B/C: 生活費後（JCBのみ） */}
-      {isJcb && <Row label="生活費後" plan={planAfterLiving} actual={actAfterLiving} subtotal subLabel="B/C" />}
+      {/* 生活費後（JCBのみ） */}
+      {isJcb && <Row label="生活費後" plan={planAfterLiving} actual={actAfterLiving} subtotal />}
 
       {/* − その他変動費 / 変動費 */}
       <Row sign="−" label={isJcb ? 'その他変動費' : '変動費'} plan={otherVarActual} actual={otherVarActual} />
