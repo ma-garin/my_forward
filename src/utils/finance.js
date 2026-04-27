@@ -18,7 +18,8 @@ export const UNIT_PRICE_RAW = 0
 // ─── 給与計算ロジック（SalarySimulationと共有）──────────────
 
 export function calcKoyouhoken(grossSalary) {
-  return Math.floor(grossSalary * 0.0055 + 0.5)
+  // 令和8年度（2026年4月〜）一般の事業 被保険者負担率 5/1000
+  return Math.floor(grossSalary * 0.005)
 }
 
 export function salaryIncomeDeduction(a) {
