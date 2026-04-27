@@ -1634,8 +1634,10 @@ export function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   const [dlgLabel, setDlgLabel] = useState('')
   const [dlgAmount, setDlgAmount] = useState('')
 
-  const salary = parseFloat(salaryInput) || 0
-  const hasSalary = salary > 0
+  const simSalary    = getSalaryTakeHome()
+  const isOverridden = salaryInput !== ''
+  const salary       = parseFloat(salaryInput) || simSalary
+  const hasSalary    = salary > 0
 
   const today = new Date()
   const payDay = nextPayDay(today)
@@ -1704,10 +1706,19 @@ export function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
               dark
               value={salaryInput}
               onChange={(raw) => { setSalaryInput(raw); saveSalaryOverride(raw) }}
-              placeholder="手取り額"
+              placeholder={simSalary > 0 ? String(simSalary) : '手取り額'}
               inputSx={{ '& .MuiInputBase-root': { height: 32 } }}
             />
           </Box>
+          {isOverridden ? (
+            <Button size="small" onClick={() => { setSalaryInput(''); saveSalaryOverride('') }}
+              sx={{ fontSize: 9, minWidth: 0, px: 0.75, py: 0.25, color: 'rgba(255,255,255,.4)',
+                    border: '1px solid rgba(255,255,255,.2)', borderRadius: 1, whiteSpace: 'nowrap' }}>
+              リセット
+            </Button>
+          ) : simSalary > 0 && (
+            <Typography sx={{ fontSize: 9, opacity: .45, whiteSpace: 'nowrap' }}>給与タブより</Typography>
+          )}
         </Stack>
 
         {/* 予実テーブル */}
