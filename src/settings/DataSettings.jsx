@@ -2,24 +2,12 @@ import { Box, Typography, Button, Stack, Divider } from '@mui/material'
 import DownloadIcon from '@mui/icons-material/Download'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 
-// ─── キー定義 ────────────────────────────────────────────────
-const KEY_GROUPS = {
-  salary: {
-    label: '給与',
-    keys: (keys) => keys.filter(k => k.startsWith('salary_')),
-  },
-  card: {
-    label: 'カード',
-    keys: (keys) => keys.filter(k => k.startsWith('cc_')),
-  },
-  account: {
-    label: '口座',
-    keys: (keys) => keys.filter(k => k.startsWith('bank_')),
-  },
-  salaryHistory: {
-    label: '給与履歴',
-    keys: (keys) => keys.filter(k => k.startsWith('salary_base_') || k.startsWith('salary_extra_')),
-  },
+// 現3タブ（カード・家計・給与）で使用しているキーのみエクスポート対象
+function isActiveKey(k) {
+  return k === 'salary_simulation'
+      || k.startsWith('salary_base_')
+      || k.startsWith('salary_extra_')
+      || k.startsWith('cc_')
 }
 
 function getAllKeys() {
@@ -92,7 +80,7 @@ function DataRow({ label, exportFilename, exportKeys: getExportKeys }) {
 
 // ─── メイン ─────────────────────────────────────────────────
 export default function DataSettings() {
-  const allKeys = getAllKeys()
+  const activeKeys = getAllKeys().filter(isActiveKey)
 
   return (
     <Box sx={{ p: 2 }}>
@@ -104,7 +92,7 @@ export default function DataSettings() {
         <Stack direction="row" gap={1}>
           <Button variant="contained" startIcon={<DownloadIcon />} fullWidth
             sx={{ bgcolor: '#43a047', '&:hover': { bgcolor: '#388e3c' } }}
-            onClick={() => exportKeys(allKeys, 'myforward_backup')}>
+            onClick={() => exportKeys(activeKeys, 'myforward_backup')}>
             一括エクスポート
           </Button>
           <Button variant="contained" startIcon={<UploadFileIcon />} fullWidth component="label">
@@ -125,9 +113,6 @@ export default function DataSettings() {
         <Divider />
         <DataRow label="カード" exportFilename="myforward_card"
           exportKeys={(keys) => keys.filter(k => k.startsWith('cc_'))} />
-        <Divider />
-        <DataRow label="口座" exportFilename="myforward_account"
-          exportKeys={(keys) => keys.filter(k => k.startsWith('bank_'))} />
         <Divider />
         <DataRow label="給与履歴" exportFilename="myforward_salary_history"
           exportKeys={(keys) => keys.filter(k => k.startsWith('salary_base_') || k.startsWith('salary_extra_'))} />

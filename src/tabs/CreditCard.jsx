@@ -112,12 +112,24 @@ export function getRecentWeeks(n = 4) {
 function fixedKey(cardId) { return `cc_fixed_${cardId}` }
 function varKey(cardId, ym) { return `cc_var_${cardId}_${ym}` }
 
-const INIT_FLAG = 'cc_init_v3'
+const INIT_FLAG = 'cc_init_v4'
+
+// 旧タブ（口座管理・資産計画）由来のゴミキーを一掃
+function cleanupLegacyKeys() {
+  const toRemove = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
+    if (!k) continue
+    if (k.startsWith('bank_') || k.startsWith('asset_')) toRemove.push(k)
+  }
+  toRemove.forEach((k) => localStorage.removeItem(k))
+}
 
 export function loadFixed(cardId) {
   try {
     // リセットフラグがない場合は強制初期化
     if (!localStorage.getItem(INIT_FLAG)) {
+      cleanupLegacyKeys()
       localStorage.removeItem('cc_fixed_jcb')
       localStorage.removeItem('cc_fixed_smbc')
       localStorage.setItem(INIT_FLAG, '1')
@@ -1633,6 +1645,7 @@ export function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   const [dlg, setDlg]         = useState(null)
   const [dlgLabel, setDlgLabel] = useState('')
   const [dlgAmount, setDlgAmount] = useState('')
+  const [deleteDlg, setDeleteDlg] = useState(null) // { id, label }
 
   const simSalary = getSimulatedTakeHome()
   const salary    = parseFloat(salaryInput) || 0
@@ -1651,9 +1664,14 @@ export function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   function openEdit(item) { setDlgLabel(item.label); setDlgAmount(String(item.amount)); setDlg({ mode: 'edit', id: item.id }) }
   function openLiving() { setDlgAmount(String(livingUnit)); setDlg({ mode: 'living' }) }
 
-  function handleDelete(id) {
-    const next = fixedItems.filter(x => x.id !== id)
+  function askDelete(item) {
+    setDeleteDlg({ id: item.id, label: item.label })
+  }
+
+  function confirmDelete() {
+    const next = fixedItems.filter(x => x.id !== deleteDlg.id)
     setFixedItems(next); saveSummaryFixed(next)
+    setDeleteDlg(null)
   }
 
   function handleSave() {
@@ -1785,7 +1803,7 @@ export function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
                     <IconButton size="small" sx={iconSx} onClick={() => openEdit(item)}>
                       <EditIcon sx={{ fontSize: 11 }} />
                     </IconButton>
-                    <IconButton size="small" sx={iconSx} onClick={() => handleDelete(item.id)}>
+                    <IconButton size="small" sx={iconSx} onClick={() => askDelete(item)}>
                       <DeleteIcon sx={{ fontSize: 11 }} />
                     </IconButton>
                   </Stack>
@@ -1836,6 +1854,20 @@ export function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
             disabled={(!dlgLabel.trim() && dlg?.mode !== 'living') || parseInt(dlgAmount, 10) <= 0}>
             保存
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 削除確認ダイアログ */}
+      <Dialog open={!!deleteDlg} onClose={() => setDeleteDlg(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontSize: 15, pb: 1 }}>削除の確認</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            「{deleteDlg?.label}」を削除しますか？この操作は元に戻せません。
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDlg(null)} color="inherit" size="small">キャンセル</Button>
+          <Button onClick={confirmDelete} color="error" variant="contained" size="small">削除</Button>
         </DialogActions>
       </Dialog>
     </Card>
