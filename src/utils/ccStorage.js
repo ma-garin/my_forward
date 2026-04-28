@@ -122,8 +122,6 @@ export function loadFixed(cardId) {
   try {
     if (!localStorage.getItem(INIT_FLAG)) {
       cleanupLegacyKeys()
-      localStorage.removeItem('cc_fixed_jcb')
-      localStorage.removeItem('cc_fixed_smbc')
       localStorage.setItem(INIT_FLAG, '1')
     }
     const raw = localStorage.getItem(fixedKey(cardId))
