@@ -22,10 +22,11 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   const [fixedItems,  setFixedItems]  = useState(loadSummaryFixed)
   const [livingUnit,  setLivingUnit]  = useState(loadLivingUnit)
 
-  const [dlg,       setDlg]       = useState(null)
-  const [dlgLabel,  setDlgLabel]  = useState('')
-  const [dlgAmount, setDlgAmount] = useState('')
-  const [deleteDlg, setDeleteDlg] = useState(null)
+  const [dlg,         setDlg]         = useState(null)
+  const [dlgLabel,    setDlgLabel]    = useState('')
+  const [dlgAmount,   setDlgAmount]   = useState('')
+  const [deleteDlg,   setDeleteDlg]   = useState(null)
+  const [livingEdit,  setLivingEdit]  = useState(null)
 
   const simSalary = getSimulatedTakeHome()
   const salary    = parseFloat(salaryInput) || 0
@@ -42,8 +43,13 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
 
   function openAdd()        { setDlgLabel(''); setDlgAmount(''); setDlg({ mode: 'add' }) }
   function openEdit(item)   { setDlgLabel(item.label); setDlgAmount(String(item.amount)); setDlg({ mode: 'edit', id: item.id }) }
-  function openLiving()     { setDlgAmount(String(livingUnit)); setDlg({ mode: 'living' }) }
   function askDelete(item)  { setDeleteDlg({ id: item.id, label: item.label }) }
+
+  function commitLivingEdit() {
+    const n = parseInt(livingEdit, 10)
+    if (!isNaN(n) && n > 0) { setLivingUnit(n); saveLivingUnit(n) }
+    setLivingEdit(null)
+  }
 
   function confirmDelete() {
     const next = fixedItems.filter(x => x.id !== deleteDlg.id)
@@ -53,11 +59,9 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
 
   function handleSave() {
     const amt = parseInt(dlgAmount, 10)
-    if (!dlgLabel.trim() && dlg.mode !== 'living') return
+    if (!dlgLabel.trim()) return
     if (isNaN(amt) || amt <= 0) return
-    if (dlg.mode === 'living') {
-      setLivingUnit(amt); saveLivingUnit(amt)
-    } else if (dlg.mode === 'add') {
+    if (dlg.mode === 'add') {
       const next = [...fixedItems, { id: newId(), label: dlgLabel.trim(), amount: amt }]
       setFixedItems(next); saveSummaryFixed(next)
     } else {
@@ -67,7 +71,7 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
     setDlg(null)
   }
 
-  const iconSx = { p: 0.3, color: 'rgba(255,255,255,.4)', '&:hover': { color: 'rgba(255,255,255,.8)' } }
+  const iconSx = { p: 0.75, color: 'rgba(255,255,255,.4)', '&:hover': { color: 'rgba(255,255,255,.8)' } }
 
   return (
     <Card sx={{ mb: 2, bgcolor: '#263238', color: '#fff' }}>
@@ -163,7 +167,7 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
           <Box sx={{ mt: 1.5, pl: 0.5 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
               <Typography variant="caption" sx={{ opacity: .45, letterSpacing: .5 }}>固定費内訳</Typography>
-              <IconButton size="small" sx={{ ...iconSx, p: 0.2 }} onClick={openAdd}>
+              <IconButton size="small" aria-label="固定費を追加" sx={iconSx} onClick={openAdd}>
                 <AddIcon sx={{ fontSize: 14 }} />
               </IconButton>
             </Stack>
@@ -173,26 +177,45 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
                   <Typography variant="caption" sx={{ opacity: .6, flex: 1 }}>{item.label}</Typography>
                   <Stack direction="row" alignItems="center" gap={0.25}>
                     <Typography variant="caption" sx={{ opacity: .6 }}>¥{fmt(item.amount)}</Typography>
-                    <IconButton size="small" sx={iconSx} onClick={() => openEdit(item)}>
+                    <IconButton size="small" aria-label="編集" sx={iconSx} onClick={() => openEdit(item)}>
                       <EditIcon sx={{ fontSize: 11 }} />
                     </IconButton>
-                    <IconButton size="small" sx={iconSx} onClick={() => askDelete(item)}>
+                    <IconButton size="small" aria-label="削除" sx={iconSx} onClick={() => askDelete(item)}>
                       <DeleteIcon sx={{ fontSize: 11 }} />
                     </IconButton>
                   </Stack>
                 </Stack>
               ))}
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="caption" sx={{ opacity: .6, flex: 1 }}>
-                  生活費（{fridays}週 × {fmt(livingUnit)}）
-                </Typography>
-                <Stack direction="row" alignItems="center" gap={0.25}>
-                  <Typography variant="caption" sx={{ opacity: .6 }}>¥{fmt(livingCost)}</Typography>
-                  <IconButton size="small" sx={iconSx} onClick={openLiving}>
-                    <EditIcon sx={{ fontSize: 11 }} />
-                  </IconButton>
+              {livingEdit !== null ? (
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="caption" sx={{ opacity: .6, flex: 1 }}>生活費（週あたり）</Typography>
+                  <TextField
+                    size="small" type="number" autoFocus
+                    value={livingEdit}
+                    onChange={e => setLivingEdit(e.target.value)}
+                    onBlur={commitLivingEdit}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') e.currentTarget.blur()
+                      if (e.key === 'Escape') setLivingEdit(null)
+                    }}
+                    inputProps={{ min: 0, style: { textAlign: 'right', width: 72, fontSize: 11, color: '#fff' } }}
+                    sx={{ '& .MuiInputBase-root': { height: 22, color: '#fff', bgcolor: 'rgba(255,255,255,.1)' },
+                          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,.3)' } }}
+                  />
                 </Stack>
-              </Stack>
+              ) : (
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="caption" sx={{ opacity: .6, flex: 1 }}>
+                    生活費（{fridays}週 × {fmt(livingUnit)}）
+                  </Typography>
+                  <Stack direction="row" alignItems="center" gap={0.25}>
+                    <Typography variant="caption" sx={{ opacity: .6 }}>¥{fmt(livingCost)}</Typography>
+                    <IconButton size="small" aria-label="生活費を編集" sx={iconSx} onClick={() => setLivingEdit(String(livingUnit))}>
+                      <EditIcon sx={{ fontSize: 11 }} />
+                    </IconButton>
+                  </Stack>
+                </Stack>
+              )}
               <Divider sx={{ borderColor: 'rgba(255,255,255,.1)', my: 0.5 }} />
               <Stack direction="row" justifyContent="space-between">
                 <Typography variant="caption" sx={{ opacity: .8 }}>固定費合計</Typography>
@@ -205,20 +228,18 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
 
       <Dialog open={dlg !== null} onClose={() => setDlg(null)} fullWidth maxWidth="xs">
         <DialogTitle sx={{ pb: 1, fontSize: 15 }}>
-          {dlg?.mode === 'add' ? '固定費を追加' : dlg?.mode === 'living' ? '生活費（週あたり）を編集' : '固定費を編集'}
+          {dlg?.mode === 'add' ? '固定費を追加' : '固定費を編集'}
         </DialogTitle>
         <DialogContent sx={{ pt: '8px !important' }}>
           <Stack gap={2}>
-            {dlg?.mode !== 'living' && (
-              <TextField label="項目名" value={dlgLabel} onChange={e => setDlgLabel(e.target.value)} size="small" fullWidth autoFocus />
-            )}
+            <TextField label="項目名" value={dlgLabel} onChange={e => setDlgLabel(e.target.value)} size="small" fullWidth autoFocus />
             <AmountField value={dlgAmount} onChange={setDlgAmount} label="金額" />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDlg(null)} size="small">キャンセル</Button>
           <Button onClick={handleSave} variant="contained" size="small"
-            disabled={(!dlgLabel.trim() && dlg?.mode !== 'living') || parseInt(dlgAmount, 10) <= 0}>
+            disabled={!dlgLabel.trim() || parseInt(dlgAmount, 10) <= 0}>
             保存
           </Button>
         </DialogActions>

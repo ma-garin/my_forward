@@ -106,10 +106,10 @@ export default function CardSettings() {
                 </Typography>
               </Box>
               <Stack direction="row">
-                <IconButton size="small" onClick={() => setDlg({ mode: 'edit', initial: card })}>
+                <IconButton size="small" aria-label="カードを編集" onClick={() => setDlg({ mode: 'edit', initial: card })}>
                   <EditIcon fontSize="small" />
                 </IconButton>
-                <IconButton size="small" onClick={() => handleDelete(card.id)}>
+                <IconButton size="small" aria-label="カードを削除" onClick={() => handleDelete(card.id)}>
                   <DeleteIcon fontSize="small" />
                 </IconButton>
               </Stack>

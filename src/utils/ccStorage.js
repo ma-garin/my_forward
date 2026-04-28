@@ -7,6 +7,10 @@ export const CARDS = {
   smbc: { id: 'smbc', name: '三井住友VISAナンバーレスゴールド', shortName: 'VISA', cutoffDay:  0, paymentDay: 26, color: '#1b5e20' },
 }
 
+// ─── 共有スタイル定数 ────────────────────────────────────────
+
+export const BORDER_LIGHT = '1px solid #f5f5f5'
+
 // ─── 表示用定数 ──────────────────────────────────────────────
 
 export const CATEGORY_COLORS = {

@@ -6,6 +6,7 @@ import {
   CARDS, LIVING_CATEGORIES, loadWeeklyBudget,
   sumLiving, countFridaysUntil,
   loadLivingOverride, saveLivingOverride,
+  BORDER_LIGHT,
 } from '../utils/ccStorage'
 
 export default function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onLimitChange }) {
@@ -65,7 +66,7 @@ export default function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTota
         py: 0.65, px: subtotal ? 1 : 0,
         bgcolor: subtotal ? '#f5f5f5' : 'transparent',
         borderRadius: subtotal ? 1 : 0,
-        borderBottom: subtotal ? 'none' : '1px solid #f5f5f5',
+        borderBottom: subtotal ? 'none' : BORDER_LIGHT,
         my: subtotal ? 0.25 : 0,
       }}>
       <Box sx={{ flex: 1.6, display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -100,7 +101,7 @@ export default function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTota
               sx={{ fontSize: 11, py: 0.25, minWidth: 0, px: 1.5 }}>保存</Button>
           </Stack>
         ) : (
-          <IconButton size="small" onClick={() => { setEditMode(true); setLivingEditVal(String(livingBudget)) }} sx={{ p: 0.25 }}>
+          <IconButton size="small" aria-label="上限を編集" onClick={() => { setEditMode(true); setLivingEditVal(String(livingBudget)) }} sx={{ p: 0.75 }}>
             <EditIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
           </IconButton>
         )}
@@ -120,7 +121,7 @@ export default function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTota
       {/* 生活費（JCBのみ） */}
       {isJcb && (
         editMode ? (
-          <Stack direction="row" alignItems="center" sx={{ py: 0.65, borderBottom: '1px solid #f5f5f5' }}>
+          <Stack direction="row" alignItems="center" sx={{ py: 0.65, borderBottom: BORDER_LIGHT }}>
             <Box sx={{ flex: 1.6, display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Typography sx={{ fontSize: 13, color: 'text.disabled', minWidth: 14 }}>−</Typography>
               <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>生活費</Typography>

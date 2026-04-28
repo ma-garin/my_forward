@@ -65,15 +65,15 @@ function CategoryDialog({ open, onClose, categories, onChange }) {
             <Stack key={cat} direction="row" alignItems="center" gap={0.5}
               sx={{ py: 0.5, borderBottom: '1px solid #f0f0f0' }}>
               <Typography sx={{ flex: 1, fontSize: 14 }}>{cat}</Typography>
-              <IconButton size="small" onClick={() => handleMove(i, -1)} disabled={i === 0}
-                sx={{ p: 0.25, color: i === 0 ? 'transparent' : 'text.disabled' }}>
+              <IconButton size="small" aria-label="上に移動" onClick={() => handleMove(i, -1)} disabled={i === 0}
+                sx={{ p: 0.75, color: i === 0 ? 'transparent' : 'text.disabled' }}>
                 <KeyboardArrowUpIcon sx={{ fontSize: 18 }} />
               </IconButton>
-              <IconButton size="small" onClick={() => handleMove(i, 1)} disabled={i === categories.length - 1}
-                sx={{ p: 0.25, color: i === categories.length - 1 ? 'transparent' : 'text.disabled' }}>
+              <IconButton size="small" aria-label="下に移動" onClick={() => handleMove(i, 1)} disabled={i === categories.length - 1}
+                sx={{ p: 0.75, color: i === categories.length - 1 ? 'transparent' : 'text.disabled' }}>
                 <KeyboardArrowDownIcon sx={{ fontSize: 18 }} />
               </IconButton>
-              <IconButton size="small" onClick={() => handleDelete(i)} sx={{ p: 0.25, color: 'error.light' }}>
+              <IconButton size="small" aria-label="削除" onClick={() => handleDelete(i)} sx={{ p: 0.75, color: 'error.light' }}>
                 <DeleteIcon sx={{ fontSize: 16 }} />
               </IconButton>
             </Stack>
@@ -287,7 +287,7 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
                 <Box sx={{ ...ROW, cursor: 'pointer' }} onClick={() => setCatOpen(v => !v)}>
                   <Typography sx={LABEL}>分類</Typography>
                   <Typography sx={{ flex: 1, fontSize: 15 }}>{category}</Typography>
-                  <IconButton size="small" onClick={e => { e.stopPropagation(); onEditCategories() }} sx={{ p: 0.25 }}>
+                  <IconButton size="small" aria-label="カテゴリ設定" onClick={e => { e.stopPropagation(); onEditCategories() }} sx={{ p: 0.75 }}>
                     <SettingsIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
                   </IconButton>
                 </Box>
@@ -460,10 +460,10 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onTogg
                 <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', color: 'text.secondary' }}>¥{fmt(item.subtotal)}</TableCell>
                 <TableCell sx={{ py: 0.5, px: 0.5 }}>
                   <Stack direction="row">
-                    <IconButton size="small" onClick={() => onEdit(item)} sx={{ p: 0.25 }}>
+                    <IconButton size="small" aria-label="編集" onClick={() => onEdit(item)} sx={{ p: 0.75 }}>
                       <EditIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
                     </IconButton>
-                    <IconButton size="small" onClick={() => onDelete(item.id)} sx={{ p: 0.25 }}>
+                    <IconButton size="small" aria-label="削除" onClick={() => onDelete(item.id)} sx={{ p: 0.75 }}>
                       <DeleteIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
                     </IconButton>
                   </Stack>
@@ -635,7 +635,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
           >
             {categories.map(cat => <MenuItem key={cat} value={cat}>{cat}</MenuItem>)}
           </Select>
-          <IconButton size="small" onClick={onEditCategories} sx={{ p: 0.25 }}>
+          <IconButton size="small" aria-label="カテゴリ設定" onClick={onEditCategories} sx={{ p: 0.75 }}>
             <SettingsIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
           </IconButton>
         </Box>
@@ -828,11 +828,11 @@ export default function CreditCard() {
 
       {/* 月ナビゲーション */}
       <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
-        <IconButton size="small" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
+        <IconButton size="small" aria-label="前の月" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
         <Typography variant="subtitle2" fontWeight={600} sx={{ minWidth: 80, textAlign: 'center' }}>
           {year}年{month}月
         </Typography>
-        <IconButton size="small" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
+        <IconButton size="small" aria-label="次の月" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
       </Stack>
 
       {/* カード選択 */}
@@ -850,7 +850,7 @@ export default function CreditCard() {
             />
           ))}
         </Stack>
-        <IconButton size="small" onClick={() => setCatDlgOpen(true)}>
+        <IconButton size="small" aria-label="カテゴリ設定" onClick={() => setCatDlgOpen(true)}>
           <SettingsIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
         </IconButton>
       </Stack>
@@ -964,7 +964,7 @@ export default function CreditCard() {
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.8)', fontWeight: 600 }}>¥{fmt(fixedTotal)}</Typography>
-            <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'fixed' }) }} sx={{ p: 0.25, color: '#fff' }}>
+            <IconButton size="small" aria-label="固定費を追加" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'fixed' }) }} sx={{ p: 0.75, color: '#fff' }}>
               <AddIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Stack>
@@ -1009,7 +1009,7 @@ export default function CreditCard() {
                 </Typography>
               )}
             </Stack>
-            <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'var' }) }} sx={{ p: 0.25, color: '#fff' }}>
+            <IconButton size="small" aria-label="変動費を追加" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'var' }) }} sx={{ p: 0.75, color: '#fff' }}>
               <AddIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Stack>

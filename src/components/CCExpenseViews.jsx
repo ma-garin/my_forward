@@ -3,7 +3,7 @@ import { Box, Typography, Stack, Chip, IconButton, Menu, MenuItem } from '@mui/m
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { fmt } from '../utils/finance'
-import { CATEGORY_COLORS } from '../utils/ccStorage'
+import { CATEGORY_COLORS, BORDER_LIGHT } from '../utils/ccStorage'
 
 export function VarExpenseTable({ varList, onEdit, onDelete }) {
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, item }
@@ -50,7 +50,7 @@ export function VarExpenseTable({ varList, onEdit, onDelete }) {
             {items.map(item => (
               <Box key={item.id}
                 onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, item }) }}
-                sx={{ px: 2, py: 0.75, borderBottom: '1px solid #f5f5f5', '&:hover': { bgcolor: '#f9fbe7' } }}>
+                sx={{ px: 2, py: 0.75, borderBottom: BORDER_LIGHT, '&:hover': { bgcolor: '#f9fbe7' } }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
                   <Stack direction="row" alignItems="center" gap={0.75} sx={{ flex: 1, minWidth: 0 }}>
                     <Chip label={item.category} size="small"
@@ -72,10 +72,10 @@ export function VarExpenseTable({ varList, onEdit, onDelete }) {
                       <Typography variant="caption" sx={{ fontSize: 9, color: 'text.disabled' }}>累計 ¥{fmt(item.subtotal)}</Typography>
                     </Stack>
                     <Stack>
-                      <IconButton size="small" onClick={() => onEdit(item)} sx={{ p: 0.25 }}>
+                      <IconButton size="small" aria-label="編集" onClick={() => onEdit(item)} sx={{ p: 0.75 }}>
                         <EditIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
                       </IconButton>
-                      <IconButton size="small" onClick={() => onDelete(item.id)} sx={{ p: 0.25 }}>
+                      <IconButton size="small" aria-label="削除" onClick={() => onDelete(item.id)} sx={{ p: 0.75 }}>
                         <DeleteIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
                       </IconButton>
                     </Stack>

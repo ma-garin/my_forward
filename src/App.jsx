@@ -50,7 +50,7 @@ export default function App() {
             <Typography variant="subtitle1" sx={{ fontWeight: 600, letterSpacing: 1, flex: 1 }}>
               資産管理
             </Typography>
-            <IconButton color="inherit" onClick={openSettings}>
+            <IconButton color="inherit" aria-label="設定を開く" onClick={openSettings}>
               <SettingsIcon />
             </IconButton>
           </Toolbar>
@@ -79,7 +79,7 @@ export default function App() {
           {/* 設定ヘッダー */}
           <AppBar position="static" color="primary" elevation={0}>
             <Toolbar variant="dense" sx={{ minHeight: 52 }}>
-              <IconButton color="inherit" edge="start" onClick={settingsPage ? goBack : closeSettings} sx={{ mr: 1 }}>
+              <IconButton color="inherit" edge="start" aria-label="戻る" onClick={settingsPage ? goBack : closeSettings} sx={{ mr: 1 }}>
                 <ArrowBackIcon />
               </IconButton>
               <Typography variant="subtitle1" fontWeight={600}>

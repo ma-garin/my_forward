@@ -39,11 +39,11 @@ export default function Kakeibo() {
 
       {/* 月ナビゲーション */}
       <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
-        <IconButton size="small" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
+        <IconButton size="small" aria-label="前の月" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
         <Typography variant="subtitle2" fontWeight={600} sx={{ minWidth: 80, textAlign: 'center' }}>
           {year}年{month}月
         </Typography>
-        <IconButton size="small" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
+        <IconButton size="small" aria-label="次の月" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
       </Stack>
 
       {/* 2枚合計サマリー */}
