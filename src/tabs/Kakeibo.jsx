@@ -2,15 +2,10 @@ import { useState } from 'react'
 import { Box, Typography, Stack, IconButton } from '@mui/material'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
-import {
-  CombinedSummary,
-  LivingExpenseCard,
-  CategoryChart,
-  CategoryBreakdown,
-  loadFixed,
-  loadVar,
-  CARDS,
-} from './CreditCard'
+import CombinedSummary from '../components/CombinedSummary'
+import LivingExpenseCard from '../components/LivingExpenseCard'
+import { CategoryChart, CategoryBreakdown } from '../components/CategoryViews'
+import { loadFixed, loadVar } from '../utils/ccStorage'
 
 function ymStr(y, m) {
   return `${y}-${String(m).padStart(2, '0')}`
