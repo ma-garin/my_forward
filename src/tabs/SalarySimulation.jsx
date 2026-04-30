@@ -9,6 +9,7 @@ import {
   DEFAULT_FIXED, UNIT_PRICE_RAW,
   calcKoyouhoken, calcShotokuzei,
   overtimeUnitPrice, overtimeUnitPriceFloor, calcTotalPay,
+  deriveRowSim,
 } from '../utils/finance'
 
 const STORAGE_KEY = 'salary_simulation'
@@ -48,19 +49,7 @@ function calcAllOvertime(f, overtime, customUnit) {
   }
 }
 
-function deriveRowLocal(f, otPay) {
-  const baseOtR  = Math.floor(overtimeUnitPrice(f) * 20)
-  const basePay  = calcTotalPay(f, 20)
-  const totalPay = basePay - baseOtR + otPay
-  const koyouCalc  = calcKoyouhoken(totalPay)
-  const koyou      = f.koyouOverride != null ? f.koyouOverride : koyouCalc
-  const taxable  = totalPay - f.tsuukinteate
-  const social   = f.kenkouhoken + f.kouseinenkin + koyou
-  const shotokuCalc = calcShotokuzei(taxable, social)
-  const shotoku     = f.shotokuOverride != null ? f.shotokuOverride : shotokuCalc
-  const totalDed = f.kenkouhoken + f.kouseinenkin + koyou + shotoku + f.jyuuminzei + f.kumiaifi + f.shokuhi
-  return { totalPay, koyouCalc, koyou, shotokuCalc, shotoku, totalDed, takeHome: totalPay - totalDed }
-}
+const deriveRowLocal = deriveRowSim
 
 // ─── 時間変換ユーティリティ ──────────────────────────────────
 

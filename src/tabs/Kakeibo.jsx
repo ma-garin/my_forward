@@ -2,15 +2,10 @@ import { useState } from 'react'
 import { Box, Typography, Stack, IconButton } from '@mui/material'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
-import {
-  CombinedSummary,
-  LivingExpenseCard,
-  CategoryChart,
-  CategoryBreakdown,
-  loadFixed,
-  loadVar,
-  CARDS,
-} from './CreditCard'
+import CombinedSummary from '../components/CombinedSummary'
+import LivingExpenseCard from '../components/LivingExpenseCard'
+import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/CategoryViews'
+import { loadFixed, loadVar } from '../utils/ccStorage'
 
 function ymStr(y, m) {
   return `${y}-${String(m).padStart(2, '0')}`
@@ -44,11 +39,11 @@ export default function Kakeibo() {
 
       {/* 月ナビゲーション */}
       <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
-        <IconButton size="small" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
+        <IconButton size="small" aria-label="前の月" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
         <Typography variant="subtitle2" fontWeight={600} sx={{ minWidth: 80, textAlign: 'center' }}>
           {year}年{month}月
         </Typography>
-        <IconButton size="small" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
+        <IconButton size="small" aria-label="次の月" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
       </Stack>
 
       {/* 2枚合計サマリー */}
@@ -56,6 +51,9 @@ export default function Kakeibo() {
 
       {/* 生活費カード */}
       <LivingExpenseCard ym={ym} />
+
+      {/* 消費分類（JCB） */}
+      <SpendTypeChart fixedList={jcbFixed} varList={jcbVar} />
 
       {/* カテゴリ別グラフ（JCB） */}
       <CategoryChart fixedList={jcbFixed} varList={jcbVar} />

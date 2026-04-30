@@ -80,6 +80,20 @@ export function deriveRow(f, otPay) {
   return { totalPay, koyou, shotoku, totalDed, takeHome: totalPay - totalDed }
 }
 
+// deriveRow のオーバーライド対応版（給与シミュレーション表示用）
+// koyouOverride / shotokuOverride が f に含まれる場合はそちらを優先する
+export function deriveRowSim(f, otPay) {
+  const totalPay    = calcTotalPay(f, 20) - Math.floor(overtimeUnitPrice(f) * 20) + otPay
+  const koyouCalc   = calcKoyouhoken(totalPay)
+  const koyou       = f.koyouOverride   != null ? f.koyouOverride   : koyouCalc
+  const taxable     = totalPay - f.tsuukinteate
+  const social      = f.kenkouhoken + f.kouseinenkin + koyou
+  const shotokuCalc = calcShotokuzei(taxable, social)
+  const shotoku     = f.shotokuOverride != null ? f.shotokuOverride : shotokuCalc
+  const totalDed    = f.kenkouhoken + f.kouseinenkin + koyou + shotoku + f.jyuuminzei + f.kumiaifi + f.shokuhi
+  return { totalPay, koyouCalc, koyou, shotokuCalc, shotoku, totalDed, takeHome: totalPay - totalDed }
+}
+
 // ─── クレジットカードストレージ ─────────────────────────────
 
 // カード別締め日（0 = 月末締め）

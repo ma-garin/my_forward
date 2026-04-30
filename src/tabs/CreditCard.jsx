@@ -2,9 +2,9 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Box, Card, CardContent, Typography, Stack, Chip, Divider,
   IconButton, Button, TextField, Dialog, DialogTitle, DialogContent,
-  DialogActions, Select, MenuItem, FormControl, InputLabel, InputAdornment,
+  DialogActions, Select, MenuItem, FormControl, InputLabel,
   Table, TableHead, TableBody, TableRow, TableCell, Fab,
-  Snackbar, Alert, Collapse, InputBase, Checkbox, Menu,
+  Snackbar, Alert, Collapse, InputBase, Checkbox,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -13,320 +13,23 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import SettingsIcon from '@mui/icons-material/Settings'
-import SwapVertIcon from '@mui/icons-material/SwapVert'
-import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined'
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import {
-  getCCTotal, loadCategories, saveCategories,
-  getSalaryTakeHome, getSimulatedTakeHome, DEFAULT_JCB_FIXED,
-  fmt, ymStr, newId,
-} from '../utils/finance'
 import SwipeableDrawer from '@mui/material/SwipeableDrawer'
-
-// ─── カード定義 ────────────────────────────────────────────
-
-export const CARDS = {
-  jcb: {
-    id: 'jcb', name: 'JCBゴールド', shortName: 'JCB',
-    cutoffDay: 15, paymentDay: 10, color: '#37474f',
-  },
-  smbc: {
-    id: 'smbc', name: '三井住友VISAナンバーレスゴールド', shortName: 'VISA',
-    cutoffDay: 0, paymentDay: 26, color: '#1b5e20',
-  },
-}
-
-function cutoffLabel(card) { return card.cutoffDay === 0 ? '月末締め' : `${card.cutoffDay}日締め` }
-function paymentLabel(card) { return `翌月${card.paymentDay}日払い` }
-
-const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
-
-function prevBusinessDay(date) {
-  const d = new Date(date)
-  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1)
-  return d
-}
-
-// ym='YYYY-MM' に対応する締め日・支払日（土日は前営業日）
-function cycleDates(card, ym) {
-  const [y, m] = ym.split('-').map(Number)
-  const lastDay = new Date(y, m, 0).getDate()
-  const cutoffDay = card.cutoffDay === 0 ? lastDay : card.cutoffDay
-  const cutoffDate = new Date(y, m - 1, cutoffDay)
-  const payRaw = new Date(y, m, card.paymentDay)
-  const payDate = prevBusinessDay(payRaw)
-  return { cutoffDate, payDate }
-}
-
-function fmtCycleDate(date) {
-  return `${date.getMonth() + 1}/${date.getDate()}(${WEEKDAYS[date.getDay()]})`
-}
-
-// 給与日（毎月25日、土日は前営業日）
-function nextPayDay(from = new Date()) {
-  let candidate = new Date(from.getFullYear(), from.getMonth(), 25)
-  if (candidate <= from) candidate = new Date(from.getFullYear(), from.getMonth() + 1, 25)
-  return prevBusinessDay(candidate)
-}
-
-// from（含まない）から to（含む）までの金曜日数
-export function countFridaysUntil(from, to) {
-  let count = 0
-  const d = new Date(from)
-  d.setDate(d.getDate() + 1)
-  while (d <= to) {
-    if (d.getDay() === 5) count++
-    d.setDate(d.getDate() + 1)
-  }
-  return count
-}
-
-// ─── 入力履歴 ─────────────────────────────────────────────
-function loadHistory(key) { try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] } }
-function addToHistory(key, val) {
-  if (!val?.trim()) return
-  const next = [val.trim(), ...loadHistory(key).filter(x => x !== val.trim())].slice(0, 30)
-  localStorage.setItem(key, JSON.stringify(next))
-}
-
-// 直近 n 週（日〜土）を新しい順で返す
-export function getRecentWeeks(n = 4) {
-  const { mondayStr } = getThisWeekRange() // 今週の日曜
-  const weeks = []
-  let d = new Date(mondayStr)
-  for (let i = 0; i < n; i++) {
-    const sun = new Date(d)
-    const sat = new Date(d)
-    sat.setDate(sat.getDate() + 6)
-    const toStr = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
-    weeks.push({ from: toStr(sun), to: toStr(sat), label: `${sun.getMonth() + 1}/${sun.getDate()}〜${sat.getMonth() + 1}/${sat.getDate()}` })
-    d.setDate(d.getDate() - 7)
-  }
-  return weeks // 新しい順
-}
-
-// ─── ストレージ ────────────────────────────────────────────
-
-function fixedKey(cardId) { return `cc_fixed_${cardId}` }
-function varKey(cardId, ym) { return `cc_var_${cardId}_${ym}` }
-
-const INIT_FLAG = 'cc_init_v4'
-
-// 旧タブ（口座管理・資産計画）由来のゴミキーを一掃
-function cleanupLegacyKeys() {
-  const toRemove = []
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i)
-    if (!k) continue
-    if (k.startsWith('bank_') || k.startsWith('asset_')) toRemove.push(k)
-  }
-  toRemove.forEach((k) => localStorage.removeItem(k))
-}
-
-export function loadFixed(cardId) {
-  try {
-    // リセットフラグがない場合は強制初期化
-    if (!localStorage.getItem(INIT_FLAG)) {
-      cleanupLegacyKeys()
-      localStorage.removeItem('cc_fixed_jcb')
-      localStorage.removeItem('cc_fixed_smbc')
-      localStorage.setItem(INIT_FLAG, '1')
-    }
-    const raw = localStorage.getItem(fixedKey(cardId))
-    if (raw) return JSON.parse(raw)
-    if (cardId === 'jcb') {
-      saveFixed('jcb', DEFAULT_JCB_FIXED)
-      return [...DEFAULT_JCB_FIXED]
-    }
-    return []
-  } catch { return [] }
-}
-function saveFixed(cardId, list) { localStorage.setItem(fixedKey(cardId), JSON.stringify(list)) }
-
-export function loadVar(cardId, ym) {
-  try { return JSON.parse(localStorage.getItem(varKey(cardId, ym)) || '[]') } catch { return [] }
-}
-function saveVar(cardId, ym, list) { localStorage.setItem(varKey(cardId, ym), JSON.stringify(list)) }
-
-function loadLimit(cardId) {
-  const v = parseFloat(localStorage.getItem(`cc_limit_${cardId}`) || '')
-  return isNaN(v) ? '' : String(v)
-}
-function saveLimit(cardId, v) { localStorage.setItem(`cc_limit_${cardId}`, v) }
-
-function loadBilled(cardId, ym) {
-  try { return JSON.parse(localStorage.getItem(`cc_billed_${cardId}_${ym}`) || '[]') } catch { return [] }
-}
-function saveBilled(cardId, ym, ids) { localStorage.setItem(`cc_billed_${cardId}_${ym}`, JSON.stringify(ids)) }
-
-export function loadWeeklyBudget() {
-  const v = parseInt(localStorage.getItem('life_weekly_budget') || '', 10)
-  return isNaN(v) ? 10000 : v
-}
-function saveWeeklyBudget(v) { localStorage.setItem('life_weekly_budget', String(v)) }
-
-// 今週の月曜〜日曜を YYYY-MM-DD 文字列で返す
-export function getThisWeekRange() {
-  const today = new Date()
-  const day = today.getDay()
-  const sunday = new Date(today)
-  sunday.setDate(today.getDate() - day)
-  const saturday = new Date(sunday)
-  saturday.setDate(sunday.getDate() + 6)
-  const toStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  return { mondayStr: toStr(sunday), sundayStr: toStr(saturday), label: `${sunday.getMonth() + 1}/${sunday.getDate()} 〜 ${saturday.getMonth() + 1}/${saturday.getDate()}` }
-}
-
-// 生活費として集計するカテゴリ
-export const LIVING_CATEGORIES = ['生活費', '食費', '日用品']
-
-// 生活費カテゴリの合計（date でフィルタする場合は from/to に YYYY-MM-DD を渡す）
-export function sumLiving(list, fromStr, toStr) {
-  return list
-    .filter(x => LIVING_CATEGORIES.includes(x.category) && x.sign !== 1 && x.date)
-    .filter(x => (!fromStr || x.date >= fromStr) && (!toStr || x.date <= toStr))
-    .reduce((s, x) => s + x.amount, 0)
-}
-
-export function loadSalaryOverride() {
-  const v = parseFloat(localStorage.getItem('cc_salary_override') || '')
-  return isNaN(v) ? '' : String(v)
-}
-export function saveSalaryOverride(v) { localStorage.setItem('cc_salary_override', v) }
-
-const DEFAULT_SUMMARY_FIXED = [
-  { id: 's1', label: '家賃',     amount: 82330 },
-  { id: 's2', label: '奨学金',   amount: 13262 },
-  { id: 's3', label: '都民共済', amount: 3000 },
-]
-export function loadSummaryFixed() {
-  try {
-    const s = localStorage.getItem('cc_summary_fixed')
-    return s ? JSON.parse(s) : DEFAULT_SUMMARY_FIXED.map(x => ({ ...x }))
-  } catch { return DEFAULT_SUMMARY_FIXED.map(x => ({ ...x })) }
-}
-export function saveSummaryFixed(list) { localStorage.setItem('cc_summary_fixed', JSON.stringify(list)) }
-
-export function loadLivingUnit() {
-  const v = parseInt(localStorage.getItem('cc_living_unit') || '', 10)
-  return isNaN(v) ? 10000 : v
-}
-export function saveLivingUnit(v) { localStorage.setItem('cc_living_unit', String(v)) }
-
-// ─── 金額入力ユーティリティ ──────────────────────────────
-
-/** 生文字列（カンマなし）→ カンマ付き表示文字列 */
-function fmtInput(raw) {
-  const n = parseInt(String(raw ?? '').replace(/,/g, ''), 10)
-  return isNaN(n) ? '' : n.toLocaleString('ja-JP')
-}
-/** カンマ付き文字列 or 数値 → 整数 */
-function parseAmount(raw) {
-  const n = parseInt(String(raw ?? '').replace(/,/g, ''), 10)
-  return isNaN(n) ? 0 : n
-}
-
-const AMOUNT_STEPS = [
-  { label: '+100',    step: 100 },
-  { label: '+1,000',  step: 1000 },
-  { label: '+10,000', step: 10000 },
-]
-
-/**
- * AmountField — カンマ表示 + クイック加算ボタン付き金額入力
- * props:
- *   value      : raw string (カンマなし数字文字列)
- *   onChange   : (rawString) => void
- *   large      : boolean — QuickAddDrawer 用大きいスタイル
- *   dark       : boolean — 暗い背景カード用スタイル
- *   label      : string  — TextField ラベル
- *   placeholder: string
- *   autoFocus  : boolean
- *   inputSx    : TextField sx 追記
- */
-function AmountField({ value, onChange, large = false, dark = false, label, placeholder = '0', autoFocus = false, inputSx = {} }) {
-  const [open, setOpen] = useState(false)
-  const [draft, setDraft] = useState('')
-
-  const handleOpen = () => {
-    setDraft(String(parseAmount(value) || ''))
-    setOpen(true)
-  }
-  const handleConfirm = () => {
-    onChange(draft.replace(/[^0-9]/g, ''))
-    setOpen(false)
-  }
-
-  const darkSx = dark ? {
-    '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,.1)', ...(large ? { height: 64 } : { height: 26 }) },
-    '& fieldset': { borderColor: 'rgba(255,255,255,.25)' },
-    '& .MuiInputBase-root:hover fieldset': { borderColor: 'rgba(255,255,255,.45)' },
-    '& .MuiInputBase-input': { color: '#fff' },
-  } : {}
-
-  return (
-    <Box>
-      <TextField
-        fullWidth
-        label={label}
-        size={large ? undefined : 'small'}
-        placeholder={placeholder}
-        value={fmtInput(value)}
-        onClick={handleOpen}
-        inputProps={{
-          readOnly: true,
-          style: large
-            ? { fontSize: 32, fontWeight: 700, textAlign: 'center', color: dark ? '#fff' : undefined }
-            : { fontSize: 14, color: dark ? '#fff' : undefined, textAlign: 'right', cursor: 'pointer' },
-        }}
-        InputProps={{
-          startAdornment: large
-            ? <Typography variant="h6" color={dark ? 'rgba(255,255,255,.6)' : 'text.secondary'} sx={{ mr: 0.5 }}>¥</Typography>
-            : <InputAdornment position="start">
-                <Typography variant="caption" sx={{ color: dark ? 'rgba(255,255,255,.5)' : undefined }}>¥</Typography>
-              </InputAdornment>,
-        }}
-        sx={{ ...(large ? { '& .MuiInputBase-root': { height: 64 } } : {}), ...darkSx, ...inputSx }}
-      />
-
-      <SwipeableDrawer
-        anchor="bottom"
-        open={open}
-        onClose={() => setOpen(false)}
-        onOpen={() => {}}
-        disableSwipeToOpen
-        disableScrollLock
-        sx={{ zIndex: 1500 }}
-        PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
-      >
-        <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
-        {label && <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>{label}</Typography>}
-        <Box sx={{
-          bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5,
-          display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end',
-        }}>
-          <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
-          <Typography sx={{
-            color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
-            minHeight: 44,
-          }}>
-            {parseAmount(draft) > 0 ? fmt(parseAmount(draft)) : '0'}
-          </Typography>
-        </Box>
-        <CalcPad
-          value={draft}
-          onChange={setDraft}
-          onConfirm={handleConfirm}
-          disabled={parseAmount(draft) <= 0}
-        />
-      </SwipeableDrawer>
-    </Box>
-  )
-}
-
-/* legacy step buttons removed — CalcPad replaces them */
+import { loadCategories, saveCategories, fmt, ymStr, newId } from '../utils/finance'
+import {
+  CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
+  prevBusinessDay, sumLiving,
+  loadFixed, saveFixed, loadVar, saveVar,
+  loadLimit, saveLimit, loadBilled, saveBilled,
+} from '../utils/ccStorage'
+import AmountField, { CalcPad, parseAmount } from '../components/AmountField'
+import { VarExpenseTable, DailyBarChart } from '../components/CCExpenseViews'
+import { CategoryChart, CategoryBreakdown } from '../components/CategoryViews'
+import LivingExpenseCard from '../components/LivingExpenseCard'
+import CombinedSummary from '../components/CombinedSummary'
+import BudgetBreakdown from '../components/BudgetBreakdown'
 
 // ─── カテゴリ管理ダイアログ ────────────────────────────────
 
@@ -362,15 +65,15 @@ function CategoryDialog({ open, onClose, categories, onChange }) {
             <Stack key={cat} direction="row" alignItems="center" gap={0.5}
               sx={{ py: 0.5, borderBottom: '1px solid #f0f0f0' }}>
               <Typography sx={{ flex: 1, fontSize: 14 }}>{cat}</Typography>
-              <IconButton size="small" onClick={() => handleMove(i, -1)} disabled={i === 0}
-                sx={{ p: 0.25, color: i === 0 ? 'transparent' : 'text.disabled' }}>
+              <IconButton size="small" aria-label="上に移動" onClick={() => handleMove(i, -1)} disabled={i === 0}
+                sx={{ p: 0.75, color: i === 0 ? 'transparent' : 'text.disabled' }}>
                 <KeyboardArrowUpIcon sx={{ fontSize: 18 }} />
               </IconButton>
-              <IconButton size="small" onClick={() => handleMove(i, 1)} disabled={i === categories.length - 1}
-                sx={{ p: 0.25, color: i === categories.length - 1 ? 'transparent' : 'text.disabled' }}>
+              <IconButton size="small" aria-label="下に移動" onClick={() => handleMove(i, 1)} disabled={i === categories.length - 1}
+                sx={{ p: 0.75, color: i === categories.length - 1 ? 'transparent' : 'text.disabled' }}>
                 <KeyboardArrowDownIcon sx={{ fontSize: 18 }} />
               </IconButton>
-              <IconButton size="small" onClick={() => handleDelete(i)} sx={{ p: 0.25, color: 'error.light' }}>
+              <IconButton size="small" aria-label="削除" onClick={() => handleDelete(i)} sx={{ p: 0.75, color: 'error.light' }}>
                 <DeleteIcon sx={{ fontSize: 16 }} />
               </IconButton>
             </Stack>
@@ -398,13 +101,14 @@ function CategoryDialog({ open, onClose, categories, onChange }) {
 // ─── 費用入力ダイアログ ───────────────────────────────────
 
 function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
-  const [name,     setName]     = useState(initial?.name     ?? '')
-  const [payee,    setPayee]    = useState(initial?.payee    ?? '')
-  const [amount,   setAmount]   = useState(initial?.amount   ?? '')
-  const [category, setCategory] = useState(initial?.category ?? categories[0] ?? 'その他')
-  const [date,     setDate]     = useState(initial?.date     ?? '')
-  const [day,      setDay]      = useState(initial?.day      ?? '')
-  const [startYm,  setStartYm]  = useState(initial?.startYm  ?? '')
+  const [name,      setName]      = useState(initial?.name      ?? '')
+  const [payee,     setPayee]     = useState(initial?.payee     ?? '')
+  const [amount,    setAmount]    = useState(initial?.amount    ?? '')
+  const [category,  setCategory]  = useState(initial?.category  ?? categories[0] ?? 'その他')
+  const [date,      setDate]      = useState(initial?.date      ?? '')
+  const [day,       setDay]       = useState(initial?.day       ?? '')
+  const [startYm,   setStartYm]   = useState(initial?.startYm   ?? '')
+  const [spendType, setSpendType] = useState(initial?.spendType ?? '消費')
 
   const isFixed = title?.includes('固定')
 
@@ -413,7 +117,7 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
     if (!name.trim() || a <= 0) return
     const d = parseInt(day, 10)
     onSave({
-      name: name.trim(), payee: payee.trim(), amount: a, category,
+      name: name.trim(), payee: payee.trim(), amount: a, category, spendType,
       ...(isFixed ? { day: (!isNaN(d) && d >= 1 && d <= 31) ? d : undefined, startYm: startYm || undefined } : { date }),
     })
     onClose()
@@ -464,6 +168,19 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
           <TextField label="項目名" size="small" fullWidth placeholder="例: YouTube Premium"
             value={name} onChange={(e) => setName(e.target.value)} />
           <AmountField label="金額" value={String(amount)} onChange={setAmount} />
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12, minWidth: 52 }}>消費分類</Typography>
+            <Stack direction="row" gap={0.75}>
+              {SPEND_TYPES.map(t => (
+                <Box key={t} onClick={() => setSpendType(t)} sx={{
+                  px: 1.5, py: 0.5, borderRadius: 2, cursor: 'pointer', fontSize: 12, userSelect: 'none',
+                  bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
+                  color: spendType === t ? '#fff' : 'text.secondary',
+                  fontWeight: spendType === t ? 700 : 400,
+                }}>{t}</Box>
+              ))}
+            </Stack>
+          </Stack>
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -479,127 +196,6 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
 
 // ─── 変動費クイック入力（ボトムシート）──────────────────
 
-export const CATEGORY_COLORS = {
-  '水道光熱費': '#e3f2fd',
-  '通信費':     '#f3e5f5',
-  '遊興費':     '#fce4ec',
-  '美容':       '#fdf5e6',
-  '交通費':     '#e8f5e9',
-  '食費':       '#fff8e1',
-  '日用品':     '#e0f2f1',
-  '医療':       '#fbe9e7',
-  '衣類':       '#f9fbe7',
-  'その他':     '#eceff1',
-}
-
-// ─── 電卓パッド ─────────────────────────────────────────
-
-// ─── 電卓パッド（参考アプリ準拠レイアウト）──────────────────
-// Row1: + − × ÷
-// Row2: 7 8 9 =
-// Row3: 4 5 6 00
-// Row4: 1 2 3 ⌫
-// Row5: 0(×3)  確認
-
-function CalcPad({ value, onChange, onConfirm, disabled }) {
-  const [stored, setStored] = useState(null)
-  const [op, setOp]         = useState(null)
-  const [fresh, setFresh]   = useState(false)
-
-  const calc = (a, b, operator) => {
-    switch (operator) {
-      case '+': return a + b
-      case '−': return a - b
-      case '×': return a * b
-      case '÷': return b !== 0 ? Math.floor(a / b) : a
-      default:  return b
-    }
-  }
-
-  const pressDigit = (d) => {
-    if (fresh) { onChange(d === '00' ? '0' : d); setFresh(false) }
-    else { onChange((value === '0' ? '' : (value ?? '')) + d) }
-  }
-
-  const pressOp = (next) => {
-    const cur = parseAmount(value)
-    if (stored !== null && op && !fresh) {
-      const r = calc(stored, cur, op); setStored(r); onChange(String(r))
-    } else { setStored(cur) }
-    setOp(next); setFresh(true)
-  }
-
-  const pressBackspace = () => {
-    const s = String(value ?? '')
-    onChange(s.length <= 1 ? '' : s.slice(0, -1))
-  }
-
-  const pressClear = () => { onChange(''); setStored(null); setOp(null); setFresh(false) }
-
-  const pressEquals = () => {
-    if (stored !== null && op) {
-      const r = calc(stored, parseAmount(value), op)
-      onChange(String(r)); setStored(null); setOp(null); setFresh(false)
-    }
-  }
-
-  const pressConfirm = () => { pressEquals(); onConfirm() }
-
-  // スタイル
-  const BASE = {
-    minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0,
-    py: 1.6, color: '#fff', border: 'none',
-  }
-  // アプリのダークカード（#263238系）に合わせた青グレーパレット
-  const bg  = (c) => ({ bgcolor: c, '&:hover': { bgcolor: c, filter: 'brightness(1.1)' }, '&:active': { filter: 'brightness(0.85)' } })
-
-  const numBtn  = (label, handler) => (
-    <Button key={label} onClick={handler ?? (() => pressDigit(label))}
-      sx={{ ...BASE, ...bg('#546e7a') }}>{label}</Button>
-  )
-  const opBtn = (label) => (
-    <Button key={label} onClick={() => pressOp(label)}
-      sx={{ ...BASE, ...bg(op === label && fresh ? '#0288d1' : '#37474f'), fontSize: 22 }}>{label}</Button>
-  )
-
-  return (
-    <Box sx={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(4, 1fr)',
-      gap: '1px',
-      bgcolor: '#263238',
-      overflow: 'hidden',
-    }}>
-      {/* Row 1: + − × ÷ */}
-      {opBtn('+')} {opBtn('−')} {opBtn('×')} {opBtn('÷')}
-
-      {/* Row 2: 7 8 9 = */}
-      {numBtn('7')} {numBtn('8')} {numBtn('9')}
-      <Button onClick={pressEquals}
-        sx={{ ...BASE, ...bg('#0288d1'), fontSize: 24, fontWeight: 700 }}>=</Button>
-
-      {/* Row 3: 4 5 6 C */}
-      {numBtn('4')} {numBtn('5')} {numBtn('6')}
-      <Button onClick={pressClear} sx={{ ...BASE, ...bg('#78909c'), fontWeight: 700 }}>C</Button>
-
-      {/* Row 4: 1 2 3 ⌫ */}
-      {numBtn('1')} {numBtn('2')} {numBtn('3')}
-      <Button onClick={pressBackspace} sx={{ ...BASE, ...bg('#37474f') }}>
-        <BackspaceOutlinedIcon sx={{ fontSize: 22 }} />
-      </Button>
-
-      {/* Row 5: 0(×2) 00 確認 */}
-      <Button onClick={() => pressDigit('0')}
-        sx={{ ...BASE, ...bg('#546e7a'), gridColumn: 'span 2' }}>0</Button>
-      {numBtn('00')}
-      <Button onClick={pressConfirm} disabled={disabled}
-        sx={{ ...BASE, ...bg(disabled ? '#455a64' : '#c62828'), fontWeight: 700, fontSize: 18 }}>
-        確認
-      </Button>
-    </Box>
-  )
-}
-
 // ─── 変動費クイック入力（ボトムシート）──────────────────
 
 const TYPE_DEFS = [
@@ -609,16 +205,17 @@ const TYPE_DEFS = [
 ]
 
 function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEditCategories, currentCardId }) {
-  const [type,     setType]     = useState('expense')
-  const [amount,   setAmount]   = useState('')
-  const [category, setCategory] = useState(categories[0] ?? 'その他')
-  const [name,     setName]     = useState('')
-  const [payee,    setPayee]    = useState('')
-  const [memo,     setMemo]     = useState('')
-  const [date,     setDate]     = useState(defaultDate)
-  const [card,     setCard]     = useState(currentCardId)
-  const [fromCard, setFromCard] = useState(currentCardId)
-  const [toCard,   setToCard]   = useState(currentCardId === 'jcb' ? 'smbc' : 'jcb')
+  const [type,      setType]      = useState('expense')
+  const [amount,    setAmount]    = useState('')
+  const [category,  setCategory]  = useState(categories[0] ?? 'その他')
+  const [name,      setName]      = useState('')
+  const [payee,     setPayee]     = useState('')
+  const [memo,      setMemo]      = useState('')
+  const [date,      setDate]      = useState(defaultDate)
+  const [card,      setCard]      = useState(currentCardId)
+  const [fromCard,  setFromCard]  = useState(currentCardId)
+  const [toCard,    setToCard]    = useState(currentCardId === 'jcb' ? 'smbc' : 'jcb')
+  const [spendType, setSpendType] = useState('消費')
   const [catOpen,     setCatOpen]     = useState(false)
   const [textFocused, setTextFocused] = useState(false)
   const dateInputRef = useRef(null)
@@ -641,6 +238,7 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
     setCategory(categories[0] ?? 'その他'); setCatOpen(false)
     setCard(currentCardId); setFromCard(currentCardId)
     setToCard(currentCardId === 'jcb' ? 'smbc' : 'jcb')
+    setSpendType('消費')
   }
 
   const doSave = () => {
@@ -654,7 +252,7 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
         item: {
           name: name.trim() || (type === 'income' ? '収入' : category),
           payee: payee.trim(), amount: a, category, date,
-          ...(type === 'income' ? { sign: 1 } : {}),
+          ...(type === 'income' ? { sign: 1 } : { spendType }),
         },
       })
     }
@@ -705,7 +303,7 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
                 <Box sx={{ ...ROW, cursor: 'pointer' }} onClick={() => setCatOpen(v => !v)}>
                   <Typography sx={LABEL}>分類</Typography>
                   <Typography sx={{ flex: 1, fontSize: 15 }}>{category}</Typography>
-                  <IconButton size="small" onClick={e => { e.stopPropagation(); onEditCategories() }} sx={{ p: 0.25 }}>
+                  <IconButton size="small" aria-label="カテゴリ設定" onClick={e => { e.stopPropagation(); onEditCategories() }} sx={{ p: 0.75 }}>
                     <SettingsIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
                   </IconButton>
                 </Box>
@@ -724,6 +322,22 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
                   </Box>
                 )}
               </>
+            )}
+
+            {type === 'expense' && (
+              <Box sx={{ ...ROW, gap: 1 }}>
+                <Typography sx={LABEL}>消費分類</Typography>
+                <Stack direction="row" gap={0.75}>
+                  {SPEND_TYPES.map(t => (
+                    <Box key={t} onClick={() => setSpendType(t)} sx={{
+                      px: 1.25, py: 0.4, borderRadius: 2, cursor: 'pointer', fontSize: 13, userSelect: 'none',
+                      bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
+                      color: spendType === t ? '#fff' : '#757575',
+                      fontWeight: spendType === t ? 700 : 400,
+                    }}>{t}</Box>
+                  ))}
+                </Stack>
+              </Box>
             )}
 
             <Box sx={ROW}>
@@ -807,61 +421,6 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
 }
 
 
-// ─── 費用行 ──────────────────────────────────────────────
-
-function ExpenseRow({ item, onDelete, onEdit, showDate }) {
-  return (
-    <Stack direction="row" alignItems="center" sx={{ py: 0.75 }}>
-      <Stack sx={{ flex: 1, minWidth: 0 }}>
-        <Stack direction="row" alignItems="center" gap={0.75}>
-          <Typography variant="body2" noWrap>{item.name}</Typography>
-          <Chip label={item.category} size="small"
-            sx={{ height: 16, fontSize: 9, bgcolor: '#eceff1', color: '#546e7a' }} />
-        </Stack>
-        {showDate && item.date && (
-          <Typography variant="caption" color="text.disabled">{item.date}</Typography>
-        )}
-      </Stack>
-      <Typography variant="body2" fontWeight={600} sx={{ mx: 1 }}>¥{fmt(item.amount)}</Typography>
-      <IconButton size="small" onClick={() => onEdit(item)} sx={{ p: 0.5 }}>
-        <EditIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
-      </IconButton>
-      <IconButton size="small" onClick={() => onDelete(item.id)} sx={{ p: 0.5 }}>
-        <DeleteIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
-      </IconButton>
-    </Stack>
-  )
-}
-
-// ─── セクションカード ─────────────────────────────────────
-
-function SectionCard({ title, badge, total, children, onAdd }) {
-  return (
-    <Card sx={{ mb: 1.5 }}>
-      <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Stack direction="row" alignItems="center" gap={1}>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-            {title}
-          </Typography>
-          {badge && <Chip label={badge} size="small"
-            sx={{ height: 16, fontSize: 9, bgcolor: 'rgba(255,255,255,.2)', color: '#fff' }} />}
-        </Stack>
-        <Stack direction="row" alignItems="center" gap={1}>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.8)', fontWeight: 600 }}>
-            ¥{fmt(total)}
-          </Typography>
-          <IconButton size="small" onClick={onAdd} sx={{ p: 0.25, color: '#fff' }}>
-            <AddIcon sx={{ fontSize: 18 }} />
-          </IconButton>
-        </Stack>
-      </Box>
-      <CardContent sx={{ px: 2, py: 1, '&:last-child': { pb: 1.5 } }}>
-        {children}
-      </CardContent>
-    </Card>
-  )
-}
-
 // ─── 固定費テーブル ───────────────────────────────────────
 
 function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onToggleBilled }) {
@@ -933,10 +492,10 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onTogg
                 <TableCell sx={{ fontSize: 12, py: 0.75, textAlign: 'right', color: 'text.secondary' }}>¥{fmt(item.subtotal)}</TableCell>
                 <TableCell sx={{ py: 0.5, px: 0.5 }}>
                   <Stack direction="row">
-                    <IconButton size="small" onClick={() => onEdit(item)} sx={{ p: 0.25 }}>
+                    <IconButton size="small" aria-label="編集" onClick={() => onEdit(item)} sx={{ p: 0.75 }}>
                       <EditIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
                     </IconButton>
-                    <IconButton size="small" onClick={() => onDelete(item.id)} sx={{ p: 0.25 }}>
+                    <IconButton size="small" aria-label="削除" onClick={() => onDelete(item.id)} sx={{ p: 0.75 }}>
                       <DeleteIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
                     </IconButton>
                   </Stack>
@@ -947,324 +506,6 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onTogg
         </TableBody>
       </Table>
     </Box>
-  )
-}
-
-// ─── 変動費テーブル ───────────────────────────────────────
-
-function VarExpenseTable({ varList, onEdit, onDelete }) {
-  const [ctxMenu, setCtxMenu] = useState(null) // { x, y, item }
-
-  if (varList.length === 0) return (
-    <Typography variant="caption" color="text.disabled" sx={{ py: 1, display: 'block' }}>
-      この月の変動費を追加してください
-    </Typography>
-  )
-
-  // 日付でグループ化
-  let running = 0
-  const rows = varList.map((item) => {
-    running += item.amount
-    return { ...item, subtotal: running }
-  })
-
-  const grouped = []
-  rows.forEach(item => {
-    const d = item.date ?? '—'
-    const last = grouped[grouped.length - 1]
-    if (last && last.date === d) last.items.push(item)
-    else grouped.push({ date: d, items: [item] })
-  })
-
-  const shortDate = (d) => {
-    if (!d || d === '—') return '—'
-    const [, m, day] = d.split('-')
-    return `${parseInt(m)}/${parseInt(day)}`
-  }
-
-  return (
-    <>
-    <Box sx={{ mx: -2 }}>
-      {grouped.map(({ date, items }) => (
-        <Box key={date}>
-          {/* 日付ヘッダー */}
-          <Box sx={{ px: 2, py: 0.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #eeeeee' }}>
-            <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: 'text.secondary' }}>
-              {shortDate(date)}
-              <Typography component="span" variant="caption" sx={{ fontSize: 10, color: 'text.disabled', ml: 1 }}>
-                ¥{fmt(items.reduce((s, x) => s + x.amount, 0))}
-              </Typography>
-            </Typography>
-          </Box>
-          {/* 明細行 */}
-          {items.map(item => (
-            <Box key={item.id}
-              onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, item }) }}
-              sx={{ px: 2, py: 0.75, borderBottom: '1px solid #f5f5f5', '&:hover': { bgcolor: '#f9fbe7' } }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-                {/* 左：カテゴリ＋名称＋支払先 */}
-                <Stack direction="row" alignItems="center" gap={0.75} sx={{ flex: 1, minWidth: 0 }}>
-                  <Chip label={item.category} size="small"
-                    sx={{ height: 18, fontSize: 9, flexShrink: 0,
-                      bgcolor: CATEGORY_COLORS[item.category] ?? '#eceff1', color: '#37474f' }} />
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontSize: 12, fontWeight: 500, lineHeight: 1.3,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.name}
-                    </Typography>
-                    {item.payee && (
-                      <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled', lineHeight: 1.2,
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
-                        {item.payee}
-                      </Typography>
-                    )}
-                  </Box>
-                </Stack>
-                {/* 右：金額＋小計＋操作 */}
-                <Stack alignItems="flex-end" direction="row" gap={0.5} sx={{ flexShrink: 0 }}>
-                  <Stack alignItems="flex-end">
-                    <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 700 }}>
-                      ¥{fmt(item.amount)}
-                    </Typography>
-                    <Typography variant="caption" sx={{ fontSize: 9, color: 'text.disabled' }}>
-                      累計 ¥{fmt(item.subtotal)}
-                    </Typography>
-                  </Stack>
-                  <Stack>
-                    <IconButton size="small" onClick={() => onEdit(item)} sx={{ p: 0.25 }}>
-                      <EditIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                    </IconButton>
-                    <IconButton size="small" onClick={() => onDelete(item.id)} sx={{ p: 0.25 }}>
-                      <DeleteIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                    </IconButton>
-                  </Stack>
-                </Stack>
-              </Stack>
-            </Box>
-          ))}
-        </Box>
-      ))}
-    </Box>
-    <Menu open={!!ctxMenu} onClose={() => setCtxMenu(null)}
-      anchorReference="anchorPosition"
-      anchorPosition={ctxMenu ? { top: ctxMenu.y, left: ctxMenu.x } : undefined}>
-      <MenuItem onClick={() => { onEdit(ctxMenu.item); setCtxMenu(null) }}>
-        <EditIcon sx={{ mr: 1, fontSize: 16 }} />編集
-      </MenuItem>
-      <MenuItem onClick={() => { onDelete(ctxMenu.item.id); setCtxMenu(null) }} sx={{ color: 'error.main' }}>
-        <DeleteIcon sx={{ mr: 1, fontSize: 16 }} />削除
-      </MenuItem>
-    </Menu>
-    </>
-  )
-}
-
-// ─── 日別棒グラフ ─────────────────────────────────────────
-
-function DailyBarChart({ varList }) {
-  if (varList.length === 0) return null
-  const byDate = {}
-  varList.forEach(x => {
-    if (!x.date || x.sign === 1) return
-    byDate[x.date] = (byDate[x.date] ?? 0) + x.amount
-  })
-  const dates = Object.keys(byDate).sort()
-  if (dates.length === 0) return null
-  const maxAmt = Math.max(...Object.values(byDate))
-  const CHART_H = 80
-  const BAR_W = 28
-  const todayStr = new Date().toISOString().slice(0, 10)
-
-  const fmtAmt = (v) => v >= 10000 ? `${Math.round(v / 1000)}k` : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`
-
-  return (
-    <Box sx={{ px: 1.5, pt: 1.5, pb: 1, borderBottom: '1px solid #f0f0f0' }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
-        <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary', fontWeight: 600 }}>日別支出</Typography>
-        <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>最大 ¥{fmt(maxAmt)}</Typography>
-      </Stack>
-      <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: CHART_H + 30, overflowX: 'auto', pb: 0.5 }}>
-        {dates.map(d => {
-          const amt = byDate[d]
-          const barH = Math.max(4, Math.round((amt / maxAmt) * CHART_H))
-          const day = parseInt(d.slice(8))
-          const isToday = d === todayStr
-          const isMax = amt === maxAmt
-          return (
-            <Box key={d} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: BAR_W }}>
-              <Typography variant="caption" sx={{
-                fontSize: 8, color: isMax ? '#e53935' : 'text.disabled',
-                fontWeight: isMax ? 700 : 400, mb: 0.25, lineHeight: 1.2,
-              }}>
-                ¥{fmtAmt(amt)}
-              </Typography>
-              <Box sx={{
-                width: BAR_W - 4, height: barH,
-                bgcolor: isToday ? '#1976d2' : isMax ? '#e53935' : '#90a4ae',
-                borderRadius: '3px 3px 0 0',
-                opacity: 0.85,
-              }} />
-              <Box sx={{ width: '100%', borderTop: '1px solid #e0e0e0', pt: 0.25 }}>
-                <Typography variant="caption" sx={{
-                  fontSize: 9, color: isToday ? '#1976d2' : 'text.secondary',
-                  fontWeight: isToday ? 700 : 400, display: 'block', textAlign: 'center',
-                }}>
-                  {day}
-                </Typography>
-              </Box>
-            </Box>
-          )
-        })}
-      </Box>
-    </Box>
-  )
-}
-
-// ─── カテゴリ別グラフ（SVGドーナツ）────────────────────────
-
-export const CHART_COLORS = [
-  '#e53935', // 赤
-  '#f4511e', // 深オレンジ
-  '#fb8c00', // オレンジ
-  '#fdd835', // 黄
-  '#43a047', // 緑
-  '#00897b', // ティール
-  '#1e88e5', // 青
-  '#8e24aa', // 紫
-  '#d81b60', // ピンク
-  '#6d4c41', // ブラウン
-  '#757575', // グレー
-]
-
-function DonutChart({ data, size = 160 }) {
-  const total = data.reduce((s, d) => s + d.value, 0)
-  if (total === 0) return null
-
-  const cx = size / 2, cy = size / 2
-  const R = size * 0.46  // 外径
-  const ri = size * 0.26  // 内径（リング幅を広く）
-  const GAP = 0.025       // スライス間の隙間（ラジアン）
-  let angle = -Math.PI / 2
-
-  const slices = data.map((d, i) => {
-    const full = (d.value / total) * 2 * Math.PI
-    const theta = Math.max(full - GAP, 0.001)
-    const a1 = angle + GAP / 2
-    const a2 = a1 + theta
-    angle += full
-
-    const large = theta > Math.PI ? 1 : 0
-    const p = (a) => [cx + R * Math.cos(a), cy + R * Math.sin(a)]
-    const q = (a) => [cx + ri * Math.cos(a), cy + ri * Math.sin(a)]
-    const [ox1, oy1] = p(a1), [ox2, oy2] = p(a2)
-    const [ix1, iy1] = q(a1), [ix2, iy2] = q(a2)
-    const path = `M${ox1} ${oy1} A${R} ${R} 0 ${large} 1 ${ox2} ${oy2} L${ix2} ${iy2} A${ri} ${ri} 0 ${large} 0 ${ix1} ${iy1} Z`
-
-    return { path, color: CHART_COLORS[i % CHART_COLORS.length] }
-  })
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {slices.map((s, i) => (
-        <path key={i} d={s.path} fill={s.color} />
-      ))}
-      <text x={cx} y={cy - 7} textAnchor="middle" fontSize={9} fill="#90a4ae">合計</text>
-      <text x={cx} y={cy + 9} textAnchor="middle" fontSize={13} fontWeight="bold" fill="#37474f">
-        ¥{fmt(total)}
-      </text>
-    </svg>
-  )
-}
-
-export function CategoryChart({ fixedList, varList }) {
-  const all = [...fixedList, ...varList]
-  if (all.length === 0) return null
-
-  const map = {}
-  all.forEach((x) => { map[x.category] = (map[x.category] ?? 0) + x.amount })
-  const total = Object.values(map).reduce((s, v) => s + v, 0)
-  const entries = Object.entries(map).sort((a, b) => b[1] - a[1])
-
-  const data = entries.map(([label, value]) => ({ label, value }))
-
-  return (
-    <Card sx={{ mb: 1.5 }}>
-      <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-          カテゴリ別グラフ
-        </Typography>
-      </Box>
-      <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 2 } }}>
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <DonutChart data={data} size={140} />
-          <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
-            {entries.map(([cat, val], i) => {
-              const pct = Math.round(val / total * 100)
-              return (
-                <Stack key={cat} spacing={0.4}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Stack direction="row" alignItems="center" gap={0.75}>
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
-                      <Typography variant="caption" sx={{ fontSize: 10 }} noWrap>{cat}</Typography>
-                    </Stack>
-                    <Stack direction="row" alignItems="baseline" gap={0.5}>
-                      <Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary' }}>{pct}%</Typography>
-                      <Typography variant="caption" fontWeight={700} sx={{ fontSize: 10 }}>¥{fmt(val)}</Typography>
-                    </Stack>
-                  </Stack>
-                  <Box sx={{ height: 6, bgcolor: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
-                    <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: CHART_COLORS[i % CHART_COLORS.length], borderRadius: 2 }} />
-                  </Box>
-                </Stack>
-              )
-            })}
-          </Stack>
-        </Stack>
-      </CardContent>
-    </Card>
-  )
-}
-
-// ─── カテゴリ別集計 ───────────────────────────────────────
-
-export function CategoryBreakdown({ fixedList, varList }) {
-  const all = [...fixedList, ...varList]
-  if (all.length === 0) return null
-
-  const map = {}
-  all.forEach((x) => { map[x.category] = (map[x.category] ?? 0) + x.amount })
-  const grandTotal = Object.values(map).reduce((s, v) => s + v, 0)
-  const entries = Object.entries(map).sort((a, b) => b[1] - a[1])
-
-  return (
-    <Card sx={{ mb: 1.5 }}>
-      <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-          カテゴリ別集計
-        </Typography>
-      </Box>
-      <CardContent sx={{ px: 2, py: 1, '&:last-child': { pb: 1.5 } }}>
-        {entries.map(([cat, total], i) => {
-          const pct = grandTotal > 0 ? Math.round(total / grandTotal * 100) : 0
-          const color = CHART_COLORS[i % CHART_COLORS.length]
-          return (
-            <Box key={cat}>
-              {i > 0 && <Divider />}
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 0.75 }}>
-                <Stack direction="row" alignItems="center" gap={0.75}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
-                  <Typography variant="caption" sx={{ fontSize: 12, color: '#546e7a' }}>{cat}</Typography>
-                </Stack>
-                <Stack direction="row" alignItems="baseline" gap={1}>
-                  <Typography variant="caption" sx={{ fontSize: 11, color: 'text.secondary' }}>{pct}%</Typography>
-                  <Typography variant="body2" fontWeight={600}>¥{fmt(total)}</Typography>
-                </Stack>
-              </Stack>
-            </Box>
-          )
-        })}
-      </CardContent>
-    </Card>
   )
 }
 
@@ -1354,7 +595,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
       window.addEventListener('popstate', handlePop)
       return () => window.removeEventListener('popstate', handlePop)
     }
-  }, [open, defaultDate, currentCardId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, defaultDate, currentCardId, categories, onClose])
 
   const doClose = () => {
     if (window.history.state?.addExpenseOpen) window.history.back()
@@ -1426,7 +667,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
           >
             {categories.map(cat => <MenuItem key={cat} value={cat}>{cat}</MenuItem>)}
           </Select>
-          <IconButton size="small" onClick={onEditCategories} sx={{ p: 0.25 }}>
+          <IconButton size="small" aria-label="カテゴリ設定" onClick={onEditCategories} sx={{ p: 0.75 }}>
             <SettingsIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
           </IconButton>
         </Box>
@@ -1482,579 +723,9 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
   )
 }
 
-// ─── 生活費カード ────────────────────────────────────────────
+// ─── [以下、分割済み] ─
 
-export function LivingExpenseCard({ ym }) {
-  const [weeklyBudget, setWeeklyBudget] = useState(loadWeeklyBudget)
-  const [editOpen, setEditOpen] = useState(false)
-  const [editVal, setEditVal] = useState('')
-
-  const { mondayStr, sundayStr, label } = getThisWeekRange()
-
-  // 週またぎ対応: 月曜と日曜が別月なら両月ロード
-  const mondayYm = mondayStr.slice(0, 7)
-  const sundayYm = sundayStr.slice(0, 7)
-  const weekMonths = [...new Set([mondayYm, sundayYm])]
-  const weekList = weekMonths.flatMap(m => [
-    ...loadVar('jcb', m),
-    ...loadVar('smbc', m),
-  ])
-  const weekUsed = sumLiving(weekList, mondayStr, sundayStr)
-  const weekRemain = weeklyBudget - weekUsed
-  const weekPct = weeklyBudget > 0 ? Math.min(weekUsed / weeklyBudget * 100, 100) : 0
-
-  // 今月（選択月）— JCB締め日基準: 当月16日〜翌月15日
-  const monthList = [...loadVar('jcb', ym), ...loadVar('smbc', ym)]
-  const monthUsed = sumLiving(monthList)
-  const [vy, vm] = ym.split('-').map(Number)
-  const cutoff = CARDS.jcb.cutoffDay  // 15
-  const fridays = countFridaysUntil(new Date(vy, vm - 1, cutoff), new Date(vy, vm, cutoff))
-  const monthlyBudget = fridays * weeklyBudget
-  const monthRemain = monthlyBudget - monthUsed
-  const monthPct = monthlyBudget > 0 ? Math.min(monthUsed / monthlyBudget * 100, 100) : 0
-
-  const barColor = (pct) => pct >= 100 ? '#ef9a9a' : pct >= 80 ? '#ffe082' : 'rgba(255,255,255,.6)'
-
-  const handleSave = () => {
-    const v = parseInt(editVal.replace(/,/g, ''), 10)
-    if (!isNaN(v) && v > 0) { setWeeklyBudget(v); saveWeeklyBudget(v) }
-    setEditOpen(false)
-  }
-
-  return (
-    <Card sx={{ mb: 2, bgcolor: '#1b5e20', color: '#fff' }}>
-      <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
-        <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>生活費</Typography>
-
-        {/* 今週 */}
-        <Box sx={{ mt: 1 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-            <Typography variant="caption" sx={{ opacity: .8, fontSize: 11, fontWeight: 600 }}>今週</Typography>
-            <Typography variant="caption" sx={{ opacity: .45, fontSize: 10 }}>{label}</Typography>
-          </Stack>
-          <Box sx={{ mt: 0.75, height: 5, bgcolor: 'rgba(255,255,255,.2)', borderRadius: 3, overflow: 'hidden' }}>
-            <Box sx={{ height: '100%', width: `${weekPct}%`, bgcolor: barColor(weekPct), borderRadius: 3, transition: 'width .4s' }} />
-          </Box>
-          <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
-            <Typography variant="caption" sx={{ opacity: .65, fontSize: 10 }}>¥{fmt(weekUsed)} 使用 ／ ¥{fmt(weeklyBudget)}</Typography>
-            <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, color: weekRemain >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
-              {weekRemain >= 0 ? `残り ¥${fmt(weekRemain)}` : `¥${fmt(-weekRemain)} オーバー`}
-            </Typography>
-          </Stack>
-        </Box>
-
-        <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 1.25 }} />
-
-        {/* 今月 */}
-        <Box>
-          <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-            <Typography variant="caption" sx={{ opacity: .8, fontSize: 11, fontWeight: 600 }}>今月（{vm}/{cutoff + 1}〜{vm === 12 ? 1 : vm + 1}/{cutoff}）</Typography>
-            <Typography variant="caption" sx={{ opacity: .45, fontSize: 10 }}>¥{fmt(weeklyBudget)} × {fridays}週</Typography>
-          </Stack>
-          <Box sx={{ mt: 0.75, height: 5, bgcolor: 'rgba(255,255,255,.2)', borderRadius: 3, overflow: 'hidden' }}>
-            <Box sx={{ height: '100%', width: `${monthPct}%`, bgcolor: barColor(monthPct), borderRadius: 3, transition: 'width .4s' }} />
-          </Box>
-          <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.5 }}>
-            <Typography variant="caption" sx={{ opacity: .65, fontSize: 10 }}>¥{fmt(monthUsed)} 使用 ／ ¥{fmt(monthlyBudget)}</Typography>
-            <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, color: monthRemain >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
-              {monthRemain >= 0 ? `残り ¥${fmt(monthRemain)}` : `¥${fmt(-monthRemain)} オーバー`}
-            </Typography>
-          </Stack>
-        </Box>
-
-        <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 1.25 }} />
-
-        {/* 直近4週履歴 */}
-        {(() => {
-          const weeks = getRecentWeeks(4)
-          return (
-            <Box>
-              <Typography variant="caption" sx={{ opacity: .5, fontSize: 9, display: 'block', mb: 0.5 }}>直近4週</Typography>
-              {weeks.map((w, i) => {
-                const wMonths = [...new Set([w.from.slice(0, 7), w.to.slice(0, 7)])]
-                const wList = wMonths.flatMap(m => [...loadVar('jcb', m), ...loadVar('smbc', m)])
-                const used = sumLiving(wList, w.from, w.to)
-                const pct = weeklyBudget > 0 ? Math.min(used / weeklyBudget * 100, 100) : 0
-                const isThis = i === 0
-                return (
-                  <Stack key={w.from} direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-                    <Typography variant="caption" sx={{ fontSize: 9, opacity: isThis ? 1 : .5, width: 64, flexShrink: 0 }}>{w.label}</Typography>
-                    <Box sx={{ flex: 1, height: 4, bgcolor: 'rgba(255,255,255,.15)', borderRadius: 2, overflow: 'hidden' }}>
-                      <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: barColor(pct), borderRadius: 2 }} />
-                    </Box>
-                    <Typography variant="caption" sx={{ fontSize: 9, opacity: isThis ? 1 : .6, width: 44, textAlign: 'right', flexShrink: 0 }}>¥{fmt(used)}</Typography>
-                  </Stack>
-                )
-              })}
-            </Box>
-          )
-        })()}
-
-        <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 1.25 }} />
-
-        {/* 週予算編集 */}
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>週予算 ¥{fmt(weeklyBudget)}</Typography>
-          <Button size="small" onClick={() => { setEditVal(String(weeklyBudget)); setEditOpen(true) }}
-            sx={{ color: 'rgba(255,255,255,.6)', fontSize: 10, minWidth: 0, px: 1, py: 0.25, textTransform: 'none' }}>
-            編集
-          </Button>
-        </Stack>
-      </CardContent>
-
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle sx={{ pb: 1, fontSize: 15 }}>週予算を編集</DialogTitle>
-        <DialogContent sx={{ pt: '8px !important', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <AmountField value={editVal} onChange={setEditVal} label="週予算（円）" autoFocus />
-          <Divider><Typography variant="caption" color="text.secondary">または月予算から逆算</Typography></Divider>
-          <Box>
-            <TextField
-              label={`月予算（÷ ${fridays}週 で割算）`}
-              size="small" fullWidth type="number" inputProps={{ min: 0 }}
-              onChange={(e) => {
-                const monthly = parseInt(e.target.value, 10)
-                if (!isNaN(monthly) && monthly > 0 && fridays > 0) setEditVal(String(Math.round(monthly / fridays)))
-              }}
-              helperText="入力すると週予算欄に自動反映されます"
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditOpen(false)} size="small">キャンセル</Button>
-          <Button onClick={handleSave} variant="contained" size="small">保存</Button>
-        </DialogActions>
-      </Dialog>
-    </Card>
-  )
-}
-
-// ─── 2枚合計 ─────────────────────────────────────────────────
-
-export function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
-  const jcb  = getCCTotal('jcb',  ym)
-  const smbc = getCCTotal('smbc', ym)
-  const combined = jcb.total + smbc.total
-  const combinedLimit = jcbLimit + smbcLimit
-  const fixedOnlyTotal = jcb.fixed + smbc.fixed
-
-  const [salaryInput, setSalaryInput] = useState(loadSalaryOverride)
-  const [fixedItems, setFixedItems]   = useState(loadSummaryFixed)
-  const [livingUnit, setLivingUnit]   = useState(loadLivingUnit)
-
-  // ダイアログ: { mode:'add'|'edit'|'living', id? }
-  const [dlg, setDlg]         = useState(null)
-  const [dlgLabel, setDlgLabel] = useState('')
-  const [dlgAmount, setDlgAmount] = useState('')
-  const [deleteDlg, setDeleteDlg] = useState(null) // { id, label }
-
-  const simSalary = getSimulatedTakeHome()
-  const salary    = parseFloat(salaryInput) || 0
-  const hasSalary = salary > 0
-
-  const today = new Date()
-  const payDay = nextPayDay(today)
-  const fridays = countFridaysUntil(today, payDay)
-  const livingCost = fridays * livingUnit
-  const fixedItemsTotal = fixedItems.reduce((s, i) => s + i.amount, 0)
-  const fixedTotal = fixedItemsTotal + livingCost
-  const planBalance   = salary - fixedTotal - combinedLimit  // 予定残高
-  const actualBalance = salary - fixedTotal - combined       // 実績残高
-
-  function openAdd() { setDlgLabel(''); setDlgAmount(''); setDlg({ mode: 'add' }) }
-  function openEdit(item) { setDlgLabel(item.label); setDlgAmount(String(item.amount)); setDlg({ mode: 'edit', id: item.id }) }
-  function openLiving() { setDlgAmount(String(livingUnit)); setDlg({ mode: 'living' }) }
-
-  function askDelete(item) {
-    setDeleteDlg({ id: item.id, label: item.label })
-  }
-
-  function confirmDelete() {
-    const next = fixedItems.filter(x => x.id !== deleteDlg.id)
-    setFixedItems(next); saveSummaryFixed(next)
-    setDeleteDlg(null)
-  }
-
-  function handleSave() {
-    const amt = parseInt(dlgAmount, 10)
-    if (!dlgLabel.trim() && dlg.mode !== 'living') return
-    if (isNaN(amt) || amt <= 0) return
-    if (dlg.mode === 'living') {
-      setLivingUnit(amt); saveLivingUnit(amt)
-    } else if (dlg.mode === 'add') {
-      const next = [...fixedItems, { id: newId(), label: dlgLabel.trim(), amount: amt }]
-      setFixedItems(next); saveSummaryFixed(next)
-    } else {
-      const next = fixedItems.map(x => x.id === dlg.id ? { ...x, label: dlgLabel.trim(), amount: amt } : x)
-      setFixedItems(next); saveSummaryFixed(next)
-    }
-    setDlg(null)
-  }
-
-  const iconSx = { p: 0.3, color: 'rgba(255,255,255,.4)', '&:hover': { color: 'rgba(255,255,255,.8)' } }
-
-  return (
-    <Card sx={{ mb: 2, bgcolor: '#263238', color: '#fff' }}>
-      <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
-        <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>2枚合計（{ym}）</Typography>
-
-        {/* カード別 */}
-        <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
-          <Stack>
-            <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>JCB</Typography>
-            <Typography variant="subtitle1" fontWeight={700}>¥{fmt(jcb.total)}</Typography>
-          </Stack>
-          <Stack>
-            <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>VISA</Typography>
-            <Typography variant="subtitle1" fontWeight={700}>¥{fmt(smbc.total)}</Typography>
-          </Stack>
-          <Stack>
-            <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>合計</Typography>
-            <Typography variant="h5" fontWeight={700} sx={{ letterSpacing: -.5 }}>¥{fmt(combined)}</Typography>
-          </Stack>
-        </Stack>
-
-        <Divider sx={{ borderColor: 'rgba(255,255,255,.12)', my: 1.5 }} />
-
-        {/* 給与入力 */}
-        <Stack direction="row" alignItems="center" gap={1.5}>
-          <Typography variant="caption" sx={{ opacity: .7, minWidth: 36 }}>給与</Typography>
-          <Box sx={{ flex: 1 }}>
-            <AmountField
-              dark
-              value={salaryInput}
-              onChange={(raw) => { setSalaryInput(raw); saveSalaryOverride(raw) }}
-              placeholder="手取り額"
-              inputSx={{ '& .MuiInputBase-root': { height: 32 } }}
-            />
-          </Box>
-          {simSalary > 0 && (
-            <Button size="small"
-              onClick={() => { const v = String(simSalary); setSalaryInput(v); saveSalaryOverride(v) }}
-              sx={{ fontSize: 10, minWidth: 0, px: 1, py: 0.25, color: 'rgba(255,255,255,.7)',
-                    border: '1px solid rgba(255,255,255,.3)', borderRadius: 1, whiteSpace: 'nowrap' }}>
-              反映
-            </Button>
-          )}
-        </Stack>
-
-        {/* 予実テーブル */}
-        {hasSalary && (
-          <Box sx={{ mt: 1, px: 1.25, pt: 1, pb: 0.75, bgcolor: 'rgba(255,255,255,.06)', borderRadius: 1 }}>
-            {/* 列ヘッダー */}
-            <Stack direction="row" sx={{ pb: 0.4, borderBottom: '1px solid rgba(255,255,255,.15)', mb: 0.25 }}>
-              <Box sx={{ flex: 1.6 }} />
-              <Typography sx={{ flex: 1, fontSize: 10, fontWeight: 700, opacity: .5, textAlign: 'right' }}>予定</Typography>
-              <Typography sx={{ flex: 1, fontSize: 10, fontWeight: 700, opacity: .5, textAlign: 'right' }}>実績</Typography>
-            </Stack>
-
-            {[
-              { label: '給与',   plan: salary,         actual: salary },
-              { label: '固定費', plan: fixedTotal,      actual: fixedTotal,      sign: '−' },
-              { label: 'カード使用', plan: combinedLimit,   actual: combined,         sign: '−', planNote: '上限', actualNote: '実績' },
-            ].map(({ label, plan, actual, sign, planNote, actualNote }) => (
-              <Stack key={label} direction="row" alignItems="baseline"
-                sx={{ py: 0.55, borderBottom: '1px solid rgba(255,255,255,.08)' }}>
-                <Box sx={{ flex: 1.6, display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                  {sign && <Typography sx={{ fontSize: 12, opacity: .4, minWidth: 12 }}>{sign}</Typography>}
-                  <Typography sx={{ fontSize: 12, opacity: .75 }}>{label}</Typography>
-                </Box>
-                <Box sx={{ flex: 1, textAlign: 'right' }}>
-                  <Typography sx={{ fontSize: 12, opacity: .8 }}>¥{fmt(plan)}</Typography>
-                  {planNote && <Typography sx={{ fontSize: 9, opacity: .4 }}>{planNote}</Typography>}
-                </Box>
-                <Box sx={{ flex: 1, textAlign: 'right' }}>
-                  <Typography sx={{ fontSize: 12, opacity: .8 }}>¥{fmt(actual)}</Typography>
-                  {actualNote && <Typography sx={{ fontSize: 9, opacity: .4 }}>{actualNote}</Typography>}
-                </Box>
-              </Stack>
-            ))}
-
-            {/* 残高 */}
-            <Divider sx={{ borderColor: 'rgba(255,255,255,.15)', my: 0.5 }} />
-            <Stack direction="row" alignItems="center">
-              <Typography sx={{ flex: 1.6, fontSize: 12, fontWeight: 600, opacity: .9 }}>残高</Typography>
-              <Typography sx={{ flex: 1, fontSize: 14, fontWeight: 700, textAlign: 'right',
-                color: planBalance >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
-                {planBalance < 0 ? '−' : ''}¥{fmt(Math.abs(planBalance))}
-              </Typography>
-              <Typography sx={{ flex: 1, fontSize: 14, fontWeight: 700, textAlign: 'right',
-                color: actualBalance >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
-                {actualBalance < 0 ? '−' : ''}¥{fmt(Math.abs(actualBalance))}
-              </Typography>
-            </Stack>
-          </Box>
-        )}
-
-        {/* 固定費内訳 */}
-        {hasSalary && (
-          <Box sx={{ mt: 1.5, pl: 0.5 }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
-              <Typography variant="caption" sx={{ opacity: .45, letterSpacing: .5 }}>固定費内訳</Typography>
-              <IconButton size="small" sx={{ ...iconSx, p: 0.2 }} onClick={openAdd}>
-                <AddIcon sx={{ fontSize: 14 }} />
-              </IconButton>
-            </Stack>
-            <Stack spacing={0.25}>
-              {fixedItems.map(item => (
-                <Stack key={item.id} direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="caption" sx={{ opacity: .6, flex: 1 }}>{item.label}</Typography>
-                  <Stack direction="row" alignItems="center" gap={0.25}>
-                    <Typography variant="caption" sx={{ opacity: .6 }}>¥{fmt(item.amount)}</Typography>
-                    <IconButton size="small" sx={iconSx} onClick={() => openEdit(item)}>
-                      <EditIcon sx={{ fontSize: 11 }} />
-                    </IconButton>
-                    <IconButton size="small" sx={iconSx} onClick={() => askDelete(item)}>
-                      <DeleteIcon sx={{ fontSize: 11 }} />
-                    </IconButton>
-                  </Stack>
-                </Stack>
-              ))}
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="caption" sx={{ opacity: .6, flex: 1 }}>
-                  生活費（{fridays}週 × {fmt(livingUnit)}）
-                </Typography>
-                <Stack direction="row" alignItems="center" gap={0.25}>
-                  <Typography variant="caption" sx={{ opacity: .6 }}>¥{fmt(livingCost)}</Typography>
-                  <IconButton size="small" sx={iconSx} onClick={openLiving}>
-                    <EditIcon sx={{ fontSize: 11 }} />
-                  </IconButton>
-                </Stack>
-              </Stack>
-              <Divider sx={{ borderColor: 'rgba(255,255,255,.1)', my: 0.5 }} />
-              <Stack direction="row" justifyContent="space-between">
-                <Typography variant="caption" sx={{ opacity: .8 }}>固定費合計</Typography>
-                <Typography variant="caption" sx={{ opacity: .8 }}>¥{fmt(fixedTotal)}</Typography>
-              </Stack>
-            </Stack>
-          </Box>
-        )}
-      </CardContent>
-
-      {/* 編集ダイアログ */}
-      <Dialog open={dlg !== null} onClose={() => setDlg(null)} fullWidth maxWidth="xs">
-        <DialogTitle sx={{ pb: 1, fontSize: 15 }}>
-          {dlg?.mode === 'add' ? '固定費を追加' : dlg?.mode === 'living' ? '生活費（週あたり）を編集' : '固定費を編集'}
-        </DialogTitle>
-        <DialogContent sx={{ pt: '8px !important' }}>
-          <Stack gap={2}>
-            {dlg?.mode !== 'living' && (
-              <TextField label="項目名" value={dlgLabel} onChange={e => setDlgLabel(e.target.value)}
-                size="small" fullWidth autoFocus />
-            )}
-            <AmountField
-              value={dlgAmount}
-              onChange={setDlgAmount}
-              label="金額"
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDlg(null)} size="small">キャンセル</Button>
-          <Button onClick={handleSave} variant="contained" size="small"
-            disabled={(!dlgLabel.trim() && dlg?.mode !== 'living') || parseInt(dlgAmount, 10) <= 0}>
-            保存
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* 削除確認ダイアログ */}
-      <Dialog open={!!deleteDlg} onClose={() => setDeleteDlg(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: 15, pb: 1 }}>削除の確認</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">
-            「{deleteDlg?.label}」を削除しますか？この操作は元に戻せません。
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDlg(null)} color="inherit" size="small">キャンセル</Button>
-          <Button onClick={confirmDelete} color="error" variant="contained" size="small">削除</Button>
-        </DialogActions>
-      </Dialog>
-    </Card>
-  )
-}
-
-// ─── メインコンポーネント ────────────────────────────────
-
-function loadLivingOverride(cardId, ym) {
-  const v = parseInt(localStorage.getItem(`cc_living_override_${cardId}_${ym}`) || '', 10)
-  return isNaN(v) ? null : v
-}
-function saveLivingOverride(cardId, ym, v) {
-  if (v == null) localStorage.removeItem(`cc_living_override_${cardId}_${ym}`)
-  else localStorage.setItem(`cc_living_override_${cardId}_${ym}`, String(v))
-}
-
-function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTotal, varList, onLimitChange }) {
-  const [editMode, setEditMode] = useState(false)
-  const [limitVal, setLimitVal] = useState(String(limit))
-  const [livingOverride, setLivingOverride] = useState(() => loadLivingOverride(cardId, ym))
-  const [livingEditVal, setLivingEditVal] = useState('')
-
-  useEffect(() => { setLimitVal(String(limit)) }, [limit])
-  useEffect(() => {
-    setLivingOverride(loadLivingOverride(cardId, ym))
-    setLivingEditVal('')
-  }, [cardId, ym])
-
-  if (limit === 0) return null
-
-  const isJcb = cardId === 'jcb'
-
-  let livingAuto = 0
-  if (isJcb) {
-    const [vy, vm] = ym.split('-').map(Number)
-    const fridayCount = countFridaysUntil(new Date(vy, vm - 1, CARDS.jcb.cutoffDay), new Date(vy, vm, CARDS.jcb.cutoffDay))
-    livingAuto = fridayCount * loadWeeklyBudget()
-  }
-  const livingBudget    = isJcb ? (livingOverride ?? livingAuto) : 0
-  const isOverridden    = livingOverride != null
-  const livingActual    = isJcb ? sumLiving(varList ?? []) : 0
-  const otherVarActual  = isJcb ? varTotal - livingActual : varTotal
-
-  const effectiveLimit  = parseFloat(limitVal) || limit
-  const fixedAfter      = effectiveLimit - fixedTotal       // A
-  const planAfterLiving = fixedAfter - livingBudget         // B
-  const actAfterLiving  = fixedAfter - livingActual         // C
-  const planBalance     = planAfterLiving - otherVarActual  // 残高（予定）
-  const actBalance      = actAfterLiving  - otherVarActual  // 残高（実績）
-  const smbcBalance     = effectiveLimit - fixedTotal - varTotal
-
-  const handleSave = () => {
-    const parsed = parseFloat(limitVal)
-    if (!isNaN(parsed) && parsed > 0) onLimitChange(String(parsed))
-    setEditMode(false)
-  }
-
-  const amtText = (v) => v >= 0 ? `¥${fmt(v)}` : `−¥${fmt(-v)}`
-  const balBg   = (v) => v >= 0 ? '#e8f5e9' : '#ffebee'
-  const balCol  = (v) => v >= 0 ? '#1b5e20' : '#b71c1c'
-
-  const HDR = { fontSize: 10, fontWeight: 700, color: 'text.disabled', letterSpacing: .5, textAlign: 'right' }
-  const VAL = { fontSize: 13, fontWeight: 500, textAlign: 'right' }
-
-  // 通常行（sign | label | 予定 | 実績）
-  const Row = ({ sign, label, plan, actual, subtotal, subLabel }) => (
-    <Stack direction="row" alignItems="center"
-      sx={{
-        py: 0.65, px: subtotal ? 1 : 0,
-        bgcolor: subtotal ? '#f5f5f5' : 'transparent',
-        borderRadius: subtotal ? 1 : 0,
-        borderBottom: subtotal ? 'none' : '1px solid #f5f5f5',
-        my: subtotal ? 0.25 : 0,
-      }}>
-      <Box sx={{ flex: 1.6, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        {sign && <Typography sx={{ fontSize: 13, color: 'text.disabled', minWidth: 14 }}>{sign}</Typography>}
-        <Typography sx={{ fontSize: 13, fontWeight: subtotal ? 600 : 400, color: subtotal ? 'text.primary' : 'text.secondary' }}>
-          {label}
-        </Typography>
-      </Box>
-      <Typography sx={{ flex: 1, ...VAL, fontWeight: subtotal ? 700 : 500, color: subtotal ? 'primary.main' : 'inherit' }}>
-        {amtText(plan)}
-      </Typography>
-      {isJcb && (
-        <Typography sx={{ flex: 1, ...VAL, fontWeight: subtotal ? 700 : 500, color: subtotal ? 'primary.main' : 'inherit' }}>
-          {amtText(actual)}
-        </Typography>
-      )}
-    </Stack>
-  )
-
-  return (
-    <Card sx={{ mb: 1.5, px: 2, pt: 1, pb: 1.5 }}>
-      {/* ヘッダー */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.75 }}>
-        <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: 11, fontWeight: 600, letterSpacing: .5 }}>予算内訳</Typography>
-        {editMode ? (
-          <Stack direction="row" alignItems="center" gap={0.75}>
-            <TextField size="small" type="number" value={limitVal}
-              onChange={(e) => setLimitVal(e.target.value)}
-              inputProps={{ min: 0, style: { textAlign: 'right', width: 90, fontSize: 12 } }}
-              sx={{ '& .MuiInputBase-root': { height: 26 } }} />
-            <Button size="small" onClick={handleSave} variant="contained"
-              sx={{ fontSize: 11, py: 0.25, minWidth: 0, px: 1.5 }}>保存</Button>
-          </Stack>
-        ) : (
-          <IconButton size="small" onClick={() => { setEditMode(true); setLivingEditVal(String(livingBudget)) }} sx={{ p: 0.25 }}>
-            <EditIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-          </IconButton>
-        )}
-      </Stack>
-
-      {/* 列ヘッダー */}
-      <Stack direction="row" sx={{ pb: 0.4, borderBottom: '2px solid #e0e0e0', mb: 0.25 }}>
-        <Box sx={{ flex: 1.6 }} />
-        <Typography sx={{ flex: 1, ...HDR }}>予定</Typography>
-        {isJcb && <Typography sx={{ flex: 1, ...HDR }}>実績</Typography>}
-      </Stack>
-
-      {/* 上限額 */}
-      <Row label="上限額" plan={effectiveLimit} actual={effectiveLimit} />
-      {/* − 固定費 */}
-      <Row sign="−" label="固定費" plan={fixedTotal} actual={fixedTotal} />
-      {/* 固定費後 */}
-      <Row label="固定費後" plan={fixedAfter} actual={fixedAfter} subtotal />
-
-      {/* 生活費（JCBのみ） */}
-      {isJcb && (
-        editMode ? (
-          <Stack direction="row" alignItems="center" sx={{ py: 0.65, borderBottom: '1px solid #f5f5f5' }}>
-            <Box sx={{ flex: 1.6, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Typography sx={{ fontSize: 13, color: 'text.disabled', minWidth: 14 }}>−</Typography>
-              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>生活費</Typography>
-              {isOverridden && <Chip label="手動" size="small" sx={{ height: 14, fontSize: 8, bgcolor: '#e3f2fd', color: '#1565c0' }} />}
-            </Box>
-            <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5 }}>
-              <TextField size="small" type="number" value={livingEditVal}
-                onChange={(e) => {
-                  setLivingEditVal(e.target.value)
-                  const n = parseInt(e.target.value, 10)
-                  if (!isNaN(n) && n >= 0) { setLivingOverride(n); saveLivingOverride(cardId, ym, n) }
-                }}
-                inputProps={{ min: 0, style: { textAlign: 'right', width: 68, fontSize: 12 } }}
-                sx={{ '& .MuiInputBase-root': { height: 26 } }} />
-              {isOverridden && (
-                <Button size="small" onClick={() => {
-                  setLivingOverride(null); saveLivingOverride(cardId, ym, null)
-                  setLivingEditVal(String(livingAuto))
-                }} sx={{ fontSize: 9, minWidth: 0, px: 0.5, py: 0, color: 'text.disabled' }}>自動</Button>
-              )}
-            </Box>
-            <Typography sx={{ flex: 1, ...VAL }}>¥{fmt(livingActual)}</Typography>
-          </Stack>
-        ) : (
-          <Row sign="−" label="生活費" plan={livingBudget} actual={livingActual} />
-        )
-      )}
-
-      {/* 生活費後（JCBのみ） */}
-      {isJcb && <Row label="生活費後" plan={planAfterLiving} actual={actAfterLiving} subtotal />}
-
-      {/* − その他変動費 / 変動費 */}
-      <Row sign="−" label={isJcb ? 'その他変動費' : '変動費'} plan={otherVarActual} actual={otherVarActual} />
-
-      {/* 残高 */}
-      <Divider sx={{ mt: 0.5, mb: 0.75 }} />
-      {isJcb ? (
-        <Stack direction="row" gap={1}>
-          {[{ label: '残高（予定）', val: planBalance }, { label: '残高（実績）', val: actBalance }].map(({ label, val }) => (
-            <Box key={label} sx={{ flex: 1, bgcolor: balBg(val), borderRadius: 1.5, px: 1, py: 0.75 }}>
-              <Typography sx={{ fontSize: 10, color: balCol(val), fontWeight: 600, mb: 0.25 }}>{label}</Typography>
-              <Typography sx={{ fontSize: 15, fontWeight: 700, color: balCol(val) }}>{amtText(val)}</Typography>
-            </Box>
-          ))}
-        </Stack>
-      ) : (
-        <Box sx={{ bgcolor: balBg(smbcBalance), borderRadius: 1.5, px: 1.5, py: 1 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography sx={{ fontSize: 13, fontWeight: 600, color: balCol(smbcBalance) }}>残高</Typography>
-            <Typography sx={{ fontSize: 18, fontWeight: 700, color: balCol(smbcBalance) }}>{amtText(smbcBalance)}</Typography>
-          </Stack>
-        </Box>
-      )}
-    </Card>
-  )
-}
+// ─── メインコンポーネント ─────────────────────────
 
 export default function CreditCard() {
   const today = new Date()
@@ -2189,11 +860,11 @@ export default function CreditCard() {
 
       {/* 月ナビゲーション */}
       <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
-        <IconButton size="small" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
+        <IconButton size="small" aria-label="前の月" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
         <Typography variant="subtitle2" fontWeight={600} sx={{ minWidth: 80, textAlign: 'center' }}>
           {year}年{month}月
         </Typography>
-        <IconButton size="small" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
+        <IconButton size="small" aria-label="次の月" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
       </Stack>
 
       {/* カード選択 */}
@@ -2211,7 +882,7 @@ export default function CreditCard() {
             />
           ))}
         </Stack>
-        <IconButton size="small" onClick={() => setCatDlgOpen(true)}>
+        <IconButton size="small" aria-label="カテゴリ設定" onClick={() => setCatDlgOpen(true)}>
           <SettingsIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
         </IconButton>
       </Stack>
@@ -2290,7 +961,7 @@ export default function CreditCard() {
               </Stack>
               {/* 上限入力 */}
               <Box sx={{ mt: 1.5 }}>
-                <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>月の利用上限</Typography>
+                <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>月間上限</Typography>
                 <AmountField
                   dark
                   value={limitInput}
@@ -2325,7 +996,7 @@ export default function CreditCard() {
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.8)', fontWeight: 600 }}>¥{fmt(fixedTotal)}</Typography>
-            <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'fixed' }) }} sx={{ p: 0.25, color: '#fff' }}>
+            <IconButton size="small" aria-label="固定費を追加" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'fixed' }) }} sx={{ p: 0.75, color: '#fff' }}>
               <AddIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Stack>
@@ -2370,7 +1041,7 @@ export default function CreditCard() {
                 </Typography>
               )}
             </Stack>
-            <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'var' }) }} sx={{ p: 0.25, color: '#fff' }}>
+            <IconButton size="small" aria-label="変動費を追加" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'var' }) }} sx={{ p: 0.75, color: '#fff' }}>
               <AddIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Stack>
