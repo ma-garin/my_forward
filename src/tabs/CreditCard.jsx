@@ -613,6 +613,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
   const [payee,    setPayee]    = useState('')
   const [name,     setName]     = useState('')
   const [cardId,   setCardId]   = useState(currentCardId)
+  const [spendType, setSpendType] = useState('消費')
   const [payeeHistory] = useState(() => loadHistory('cc_payee_history'))
   const [nameHistory]  = useState(() => loadHistory('cc_name_history'))
   const [showPayeeSugg, setShowPayeeSugg] = useState(false)
@@ -630,6 +631,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
     if (open) {
       setAmount(''); setPayee(''); setName('')
       setCategory(categories[0] ?? '食費')
+      setSpendType('消費')
       setDate(defaultDate); setCardId(currentCardId)
       window.history.pushState({ addExpenseOpen: true }, '')
       const handlePop = () => onClose()
@@ -648,7 +650,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
     if (a <= 0) return
     if (payee.trim()) addToHistory('cc_payee_history', payee.trim())
     if (name.trim())  addToHistory('cc_name_history',  name.trim())
-    onSave({ cardId, item: { name: name.trim() || category, payee: payee.trim(), amount: a, category, date } })
+    onSave({ cardId, item: { name: name.trim() || category, payee: payee.trim(), amount: a, category, date, spendType } })
     doClose()
   }
 
@@ -711,6 +713,21 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
           <IconButton size="small" aria-label="カテゴリ設定" onClick={onEditCategories} sx={{ p: 0.75 }}>
             <SettingsIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
           </IconButton>
+        </Box>
+
+        {/* 消費分類 */}
+        <Box sx={{ ...IROW, gap: 1 }}>
+          <Typography sx={ILABEL}>消費分類</Typography>
+          <Stack direction="row" gap={0.75}>
+            {SPEND_TYPES.map(t => (
+              <Box key={t} onClick={() => setSpendType(t)} sx={{
+                px: 1.25, py: 0.4, borderRadius: 2, cursor: 'pointer', fontSize: 13, userSelect: 'none',
+                bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
+                color: spendType === t ? '#fff' : '#757575',
+                fontWeight: spendType === t ? 700 : 400,
+              }}>{t}</Box>
+            ))}
+          </Stack>
         </Box>
 
         {/* 支払先 */}
