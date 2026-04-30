@@ -1,6 +1,6 @@
 import { Box, Card, CardContent, Typography, Stack, Divider } from '@mui/material'
 import { fmt } from '../utils/finance'
-import { CHART_COLORS } from '../utils/ccStorage'
+import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS } from '../utils/ccStorage'
 
 function DonutChart({ data, size = 160 }) {
   const total = data.reduce((s, d) => s + d.value, 0)
@@ -122,6 +122,66 @@ export function CategoryBreakdown({ fixedList, varList }) {
             </Box>
           )
         })}
+      </CardContent>
+    </Card>
+  )
+}
+
+export function SpendTypeChart({ fixedList, varList }) {
+  const all = [...fixedList, ...varList].filter(x => x.sign !== 1)
+  if (all.length === 0) return null
+
+  const totals = {}
+  SPEND_TYPES.forEach(t => { totals[t] = 0 })
+  all.forEach(x => {
+    const t = x.spendType ?? '消費'
+    totals[t] = (totals[t] ?? 0) + x.amount
+  })
+
+  const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0)
+  if (grandTotal === 0) return null
+
+  return (
+    <Card sx={{ mb: 1.5 }}>
+      <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
+          消費分類
+        </Typography>
+      </Box>
+      <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 2 } }}>
+        {/* 積み上げバー */}
+        <Box sx={{ height: 12, borderRadius: 2, overflow: 'hidden', display: 'flex', mb: 1.5 }}>
+          {SPEND_TYPES.map(t => {
+            const pct = grandTotal > 0 ? (totals[t] / grandTotal) * 100 : 0
+            return pct > 0 ? (
+              <Box key={t} sx={{ width: `${pct}%`, bgcolor: SPEND_TYPE_COLORS[t], height: '100%' }} />
+            ) : null
+          })}
+        </Box>
+        {/* 凡例 */}
+        <Stack spacing={0.75}>
+          {SPEND_TYPES.map(t => {
+            const val = totals[t]
+            const pct = grandTotal > 0 ? Math.round(val / grandTotal * 100) : 0
+            return (
+              <Stack key={t} spacing={0.3}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Stack direction="row" alignItems="center" gap={0.75}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: SPEND_TYPE_COLORS[t], flexShrink: 0 }} />
+                    <Typography variant="caption" sx={{ fontSize: 12 }}>{t}</Typography>
+                  </Stack>
+                  <Stack direction="row" alignItems="baseline" gap={0.5}>
+                    <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary' }}>{pct}%</Typography>
+                    <Typography variant="caption" fontWeight={700} sx={{ fontSize: 12 }}>¥{fmt(val)}</Typography>
+                  </Stack>
+                </Stack>
+                <Box sx={{ height: 5, bgcolor: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
+                  <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: SPEND_TYPE_COLORS[t], borderRadius: 2 }} />
+                </Box>
+              </Stack>
+            )
+          })}
+        </Stack>
       </CardContent>
     </Card>
   )

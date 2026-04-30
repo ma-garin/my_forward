@@ -19,7 +19,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import SwipeableDrawer from '@mui/material/SwipeableDrawer'
 import { loadCategories, saveCategories, fmt, ymStr, newId } from '../utils/finance'
 import {
-  CARDS, CATEGORY_COLORS,
+  CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
   prevBusinessDay, sumLiving,
   loadFixed, saveFixed, loadVar, saveVar,
   loadLimit, saveLimit, loadBilled, saveBilled,
@@ -101,13 +101,14 @@ function CategoryDialog({ open, onClose, categories, onChange }) {
 // ─── 費用入力ダイアログ ───────────────────────────────────
 
 function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
-  const [name,     setName]     = useState(initial?.name     ?? '')
-  const [payee,    setPayee]    = useState(initial?.payee    ?? '')
-  const [amount,   setAmount]   = useState(initial?.amount   ?? '')
-  const [category, setCategory] = useState(initial?.category ?? categories[0] ?? 'その他')
-  const [date,     setDate]     = useState(initial?.date     ?? '')
-  const [day,      setDay]      = useState(initial?.day      ?? '')
-  const [startYm,  setStartYm]  = useState(initial?.startYm  ?? '')
+  const [name,      setName]      = useState(initial?.name      ?? '')
+  const [payee,     setPayee]     = useState(initial?.payee     ?? '')
+  const [amount,    setAmount]    = useState(initial?.amount    ?? '')
+  const [category,  setCategory]  = useState(initial?.category  ?? categories[0] ?? 'その他')
+  const [date,      setDate]      = useState(initial?.date      ?? '')
+  const [day,       setDay]       = useState(initial?.day       ?? '')
+  const [startYm,   setStartYm]   = useState(initial?.startYm   ?? '')
+  const [spendType, setSpendType] = useState(initial?.spendType ?? '消費')
 
   const isFixed = title?.includes('固定')
 
@@ -116,7 +117,7 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
     if (!name.trim() || a <= 0) return
     const d = parseInt(day, 10)
     onSave({
-      name: name.trim(), payee: payee.trim(), amount: a, category,
+      name: name.trim(), payee: payee.trim(), amount: a, category, spendType,
       ...(isFixed ? { day: (!isNaN(d) && d >= 1 && d <= 31) ? d : undefined, startYm: startYm || undefined } : { date }),
     })
     onClose()
@@ -167,6 +168,19 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
           <TextField label="項目名" size="small" fullWidth placeholder="例: YouTube Premium"
             value={name} onChange={(e) => setName(e.target.value)} />
           <AmountField label="金額" value={String(amount)} onChange={setAmount} />
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12, minWidth: 52 }}>消費分類</Typography>
+            <Stack direction="row" gap={0.75}>
+              {SPEND_TYPES.map(t => (
+                <Box key={t} onClick={() => setSpendType(t)} sx={{
+                  px: 1.5, py: 0.5, borderRadius: 2, cursor: 'pointer', fontSize: 12, userSelect: 'none',
+                  bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
+                  color: spendType === t ? '#fff' : 'text.secondary',
+                  fontWeight: spendType === t ? 700 : 400,
+                }}>{t}</Box>
+              ))}
+            </Stack>
+          </Stack>
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -191,16 +205,17 @@ const TYPE_DEFS = [
 ]
 
 function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEditCategories, currentCardId }) {
-  const [type,     setType]     = useState('expense')
-  const [amount,   setAmount]   = useState('')
-  const [category, setCategory] = useState(categories[0] ?? 'その他')
-  const [name,     setName]     = useState('')
-  const [payee,    setPayee]    = useState('')
-  const [memo,     setMemo]     = useState('')
-  const [date,     setDate]     = useState(defaultDate)
-  const [card,     setCard]     = useState(currentCardId)
-  const [fromCard, setFromCard] = useState(currentCardId)
-  const [toCard,   setToCard]   = useState(currentCardId === 'jcb' ? 'smbc' : 'jcb')
+  const [type,      setType]      = useState('expense')
+  const [amount,    setAmount]    = useState('')
+  const [category,  setCategory]  = useState(categories[0] ?? 'その他')
+  const [name,      setName]      = useState('')
+  const [payee,     setPayee]     = useState('')
+  const [memo,      setMemo]      = useState('')
+  const [date,      setDate]      = useState(defaultDate)
+  const [card,      setCard]      = useState(currentCardId)
+  const [fromCard,  setFromCard]  = useState(currentCardId)
+  const [toCard,    setToCard]    = useState(currentCardId === 'jcb' ? 'smbc' : 'jcb')
+  const [spendType, setSpendType] = useState('消費')
   const [catOpen,     setCatOpen]     = useState(false)
   const [textFocused, setTextFocused] = useState(false)
   const dateInputRef = useRef(null)
@@ -223,6 +238,7 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
     setCategory(categories[0] ?? 'その他'); setCatOpen(false)
     setCard(currentCardId); setFromCard(currentCardId)
     setToCard(currentCardId === 'jcb' ? 'smbc' : 'jcb')
+    setSpendType('消費')
   }
 
   const doSave = () => {
@@ -236,7 +252,7 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
         item: {
           name: name.trim() || (type === 'income' ? '収入' : category),
           payee: payee.trim(), amount: a, category, date,
-          ...(type === 'income' ? { sign: 1 } : {}),
+          ...(type === 'income' ? { sign: 1 } : { spendType }),
         },
       })
     }
@@ -306,6 +322,22 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
                   </Box>
                 )}
               </>
+            )}
+
+            {type === 'expense' && (
+              <Box sx={{ ...ROW, gap: 1 }}>
+                <Typography sx={LABEL}>消費分類</Typography>
+                <Stack direction="row" gap={0.75}>
+                  {SPEND_TYPES.map(t => (
+                    <Box key={t} onClick={() => setSpendType(t)} sx={{
+                      px: 1.25, py: 0.4, borderRadius: 2, cursor: 'pointer', fontSize: 13, userSelect: 'none',
+                      bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
+                      color: spendType === t ? '#fff' : '#757575',
+                      fontWeight: spendType === t ? 700 : 400,
+                    }}>{t}</Box>
+                  ))}
+                </Stack>
+              </Box>
             )}
 
             <Box sx={ROW}>

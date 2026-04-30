@@ -31,6 +31,9 @@ export const CHART_COLORS = [
   '#00897b', '#1e88e5', '#8e24aa', '#d81b60', '#6d4c41', '#757575',
 ]
 
+export const SPEND_TYPES = ['消費', '投資', '浪費']
+export const SPEND_TYPE_COLORS = { 消費: '#546e7a', 投資: '#2e7d32', 浪費: '#c62828' }
+
 export const LIVING_CATEGORIES = ['生活費', '食費', '日用品']
 
 // ─── 日付ユーティリティ ──────────────────────────────────────

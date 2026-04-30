@@ -4,7 +4,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import CombinedSummary from '../components/CombinedSummary'
 import LivingExpenseCard from '../components/LivingExpenseCard'
-import { CategoryChart, CategoryBreakdown } from '../components/CategoryViews'
+import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/CategoryViews'
 import { loadFixed, loadVar } from '../utils/ccStorage'
 
 function ymStr(y, m) {
@@ -51,6 +51,9 @@ export default function Kakeibo() {
 
       {/* 生活費カード */}
       <LivingExpenseCard ym={ym} />
+
+      {/* 消費分類（JCB） */}
+      <SpendTypeChart fixedList={jcbFixed} varList={jcbVar} />
 
       {/* カテゴリ別グラフ（JCB） */}
       <CategoryChart fixedList={jcbFixed} varList={jcbVar} />

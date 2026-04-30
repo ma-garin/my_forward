@@ -3,7 +3,7 @@ import { Box, Typography, Stack, Chip, IconButton, Menu, MenuItem } from '@mui/m
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { fmt } from '../utils/finance'
-import { CATEGORY_COLORS, BORDER_LIGHT } from '../utils/ccStorage'
+import { CATEGORY_COLORS, BORDER_LIGHT, SPEND_TYPE_COLORS } from '../utils/ccStorage'
 
 export function VarExpenseTable({ varList, onEdit, onDelete }) {
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, item }
@@ -55,6 +55,12 @@ export function VarExpenseTable({ varList, onEdit, onDelete }) {
                   <Stack direction="row" alignItems="center" gap={0.75} sx={{ flex: 1, minWidth: 0 }}>
                     <Chip label={item.category} size="small"
                       sx={{ height: 18, fontSize: 9, flexShrink: 0, bgcolor: CATEGORY_COLORS[item.category] ?? '#eceff1', color: '#37474f' }} />
+                    {item.spendType && item.sign !== 1 && (
+                      <Chip label={item.spendType} size="small" sx={{
+                        height: 16, fontSize: 8, flexShrink: 0,
+                        bgcolor: SPEND_TYPE_COLORS[item.spendType] ?? '#eceff1', color: '#fff',
+                      }} />
+                    )}
                     <Box sx={{ minWidth: 0 }}>
                       <Typography variant="body2" sx={{ fontSize: 12, fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {item.name}
