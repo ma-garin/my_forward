@@ -31,6 +31,47 @@ import LivingExpenseCard from '../components/LivingExpenseCard'
 import CombinedSummary from '../components/CombinedSummary'
 import BudgetBreakdown from '../components/BudgetBreakdown'
 
+function cutoffLabel(card) {
+  return card.cutoffDay === 0 ? '月末締め' : `${card.cutoffDay}日締め`
+}
+
+function paymentLabel(card) {
+  return `翌月${card.paymentDay}日払い`
+}
+
+function cycleDates(card, ym) {
+  const [year, month] = ym.split('-').map(Number)
+  const cutoffDate = card.cutoffDay === 0
+    ? new Date(year, month, 0)
+    : new Date(year, month - 1, card.cutoffDay)
+  const payDate = prevBusinessDay(new Date(year, month, card.paymentDay))
+  return { cutoffDate, payDate }
+}
+
+function fmtCycleDate(date) {
+  return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+function loadHistory(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || '[]')
+    return Array.isArray(value) ? value : []
+  } catch {
+    return []
+  }
+}
+
+function addToHistory(key, value) {
+  const text = value.trim()
+  if (!text) return
+  try {
+    const next = [text, ...loadHistory(key).filter((x) => x !== text)].slice(0, 20)
+    localStorage.setItem(key, JSON.stringify(next))
+  } catch {
+    // 履歴候補は補助機能なので、保存失敗時も入力処理は続行する
+  }
+}
+
 // ─── カテゴリ管理ダイアログ ────────────────────────────────
 
 function CategoryDialog({ open, onClose, categories, onChange }) {
@@ -948,13 +989,13 @@ export default function CreditCard() {
               </Stack>
               <Stack sx={{ mt: 0.5 }}>
                 <Typography variant="caption" sx={{ opacity: .55 }}>
-                  {cutoffLabel(card)}　{paymentLabel(card)}
+                  {cutoffLabel(card)} {paymentLabel(card)}
                 </Typography>
                 {(() => {
                   const { cutoffDate, payDate } = cycleDates(card, ym)
                   return (
                     <Typography variant="caption" sx={{ opacity: .4 }}>
-                      {fmtCycleDate(cutoffDate)}締め　{fmtCycleDate(payDate)}払い
+                      {fmtCycleDate(cutoffDate)}締め {fmtCycleDate(payDate)}払い
                     </Typography>
                   )
                 })()}
