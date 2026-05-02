@@ -52,8 +52,12 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   }
 
   function confirmDelete() {
-    const next = fixedItems.filter(x => x.id !== deleteDlg.id)
-    setFixedItems(next); saveSummaryFixed(next)
+    if (deleteDlg.id === '__living__') {
+      setLivingUnit(0); saveLivingUnit(0)
+    } else {
+      const next = fixedItems.filter(x => x.id !== deleteDlg.id)
+      setFixedItems(next); saveSummaryFixed(next)
+    }
     setDeleteDlg(null)
   }
 
@@ -186,7 +190,7 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
                   </Stack>
                 </Stack>
               ))}
-              {livingEdit !== null ? (
+              {livingUnit > 0 && (livingEdit !== null ? (
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Typography variant="caption" sx={{ opacity: .6, flex: 1 }}>生活費（週あたり）</Typography>
                   <TextField
@@ -213,9 +217,12 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
                     <IconButton size="small" aria-label="生活費を編集" sx={iconSx} onClick={() => setLivingEdit(String(livingUnit))}>
                       <EditIcon sx={{ fontSize: 11 }} />
                     </IconButton>
+                    <IconButton size="small" aria-label="生活費を削除" sx={iconSx} onClick={() => setDeleteDlg({ id: '__living__', label: '生活費' })}>
+                      <DeleteIcon sx={{ fontSize: 11 }} />
+                    </IconButton>
                   </Stack>
                 </Stack>
-              )}
+              ))}
               <Divider sx={{ borderColor: 'rgba(255,255,255,.1)', my: 0.5 }} />
               <Stack direction="row" justifyContent="space-between">
                 <Typography variant="caption" sx={{ opacity: .8 }}>固定費合計</Typography>
