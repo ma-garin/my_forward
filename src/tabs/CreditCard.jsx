@@ -17,7 +17,7 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import SwipeableDrawer from '@mui/material/SwipeableDrawer'
-import { loadCategories, saveCategories, fmt, ymStr, newId } from '../utils/finance'
+import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm } from '../utils/finance'
 import {
   CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
   prevBusinessDay, sumLiving,
@@ -142,14 +142,18 @@ function CategoryDialog({ open, onClose, categories, onChange }) {
 // ─── 費用入力ダイアログ ───────────────────────────────────
 
 function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
-  const [name,      setName]      = useState(initial?.name      ?? '')
-  const [payee,     setPayee]     = useState(initial?.payee     ?? '')
-  const [amount,    setAmount]    = useState(initial?.amount    ?? '')
-  const [category,  setCategory]  = useState(initial?.category  ?? categories[0] ?? 'その他')
-  const [date,      setDate]      = useState(initial?.date      ?? '')
-  const [day,       setDay]       = useState(initial?.day       ?? '')
-  const [startYm,   setStartYm]   = useState(initial?.startYm   ?? '')
-  const [spendType, setSpendType] = useState(initial?.spendType ?? '消費')
+  const [name,           setName]           = useState(initial?.name           ?? '')
+  const [payee,          setPayee]          = useState(initial?.payee          ?? '')
+  const [amount,         setAmount]         = useState(initial?.amount         ?? '')
+  const [category,       setCategory]       = useState(initial?.category       ?? categories[0] ?? 'その他')
+  const [date,           setDate]           = useState(initial?.date           ?? '')
+  const [day,            setDay]            = useState(initial?.day            ?? '')
+  const [startYm,        setStartYm]        = useState(initial?.startYm        ?? '')
+  const [spendType,      setSpendType]      = useState(initial?.spendType      ?? '消費')
+  const [recurrence,     setRecurrence]     = useState(initial?.recurrence     ?? 'monthly')
+  const [intervalMonths, setIntervalMonths] = useState(initial?.intervalMonths ?? 2)
+  const [baseYm,         setBaseYm]         = useState(initial?.baseYm         ?? '')
+  const [targetYm,       setTargetYm]       = useState(initial?.targetYm       ?? '')
 
   const isFixed = title?.includes('固定')
 
@@ -157,9 +161,20 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
     const a = parseAmount(amount)
     if (!name.trim() || a <= 0) return
     const d = parseInt(day, 10)
+    const dayField = (!isNaN(d) && d >= 1 && d <= 31) ? d : undefined
+    let recurrenceFields = {}
+    if (isFixed) {
+      if (recurrence === 'once') {
+        recurrenceFields = { recurrence: 'once', targetYm: targetYm || undefined }
+      } else if (recurrence === 'interval') {
+        recurrenceFields = { recurrence: 'interval', intervalMonths: parseInt(intervalMonths, 10) || 2, baseYm: baseYm || undefined }
+      } else {
+        recurrenceFields = { recurrence: 'monthly', startYm: startYm || undefined }
+      }
+    }
     onSave({
       name: name.trim(), payee: payee.trim(), amount: a, category, spendType,
-      ...(isFixed ? { day: (!isNaN(d) && d >= 1 && d <= 31) ? d : undefined, startYm: startYm || undefined } : { date }),
+      ...(isFixed ? { day: dayField, ...recurrenceFields } : { date }),
     })
     onClose()
   }
@@ -176,6 +191,14 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
           )}
           {isFixed && (
             <>
+              <FormControl size="small" fullWidth>
+                <InputLabel>繰り返し</InputLabel>
+                <Select value={recurrence} label="繰り返し" onChange={(e) => setRecurrence(e.target.value)}>
+                  <MenuItem value="monthly">毎月</MenuItem>
+                  <MenuItem value="interval">各月（N ヶ月ごと）</MenuItem>
+                  <MenuItem value="once">特定月のみ</MenuItem>
+                </Select>
+              </FormControl>
               <TextField label="支払日" type="date" size="small" fullWidth
                 InputLabelProps={{ shrink: true }}
                 value={(() => {
@@ -188,11 +211,34 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
                   const d = e.target.value ? parseInt(e.target.value.slice(8), 10) : ''
                   setDay(isNaN(d) ? '' : String(d))
                 }} />
-              <TextField label="開始年月" type="month" size="small" fullWidth
-                InputLabelProps={{ shrink: true }}
-                value={startYm}
-                onChange={(e) => setStartYm(e.target.value)}
-                helperText="未設定の場合は全ての月に反映されます" />
+              {recurrence === 'monthly' && (
+                <TextField label="開始年月" type="month" size="small" fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  value={startYm}
+                  onChange={(e) => setStartYm(e.target.value)}
+                  helperText="未設定の場合は全ての月に反映されます" />
+              )}
+              {recurrence === 'interval' && (
+                <Stack direction="row" spacing={1.5}>
+                  <TextField label="間隔（ヶ月）" type="number" size="small" sx={{ flex: 1 }}
+                    inputProps={{ min: 2, max: 12 }}
+                    value={intervalMonths}
+                    onChange={(e) => setIntervalMonths(e.target.value)}
+                    helperText="例: 3 → 3ヶ月ごと" />
+                  <TextField label="基準月" type="month" size="small" sx={{ flex: 1 }}
+                    InputLabelProps={{ shrink: true }}
+                    value={baseYm}
+                    onChange={(e) => setBaseYm(e.target.value)}
+                    helperText="該当する月を1つ指定" />
+                </Stack>
+              )}
+              {recurrence === 'once' && (
+                <TextField label="対象月" type="month" size="small" fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  value={targetYm}
+                  onChange={(e) => setTargetYm(e.target.value)}
+                  helperText="この月だけに反映されます" />
+              )}
             </>
           )}
           <Stack direction="row" spacing={1.5}>
@@ -523,9 +569,19 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onTogg
                       毎月{item.day}日
                     </Typography>
                   )}
-                  {item.startYm && (
+                  {(item.recurrence ?? 'monthly') === 'monthly' && item.startYm && (
                     <Typography component="div" variant="caption" color="text.disabled" sx={{ fontSize: 10, lineHeight: 1.2 }}>
                       {item.startYm.replace('-', '/')}〜
+                    </Typography>
+                  )}
+                  {item.recurrence === 'interval' && (
+                    <Typography component="div" variant="caption" color="text.disabled" sx={{ fontSize: 10, lineHeight: 1.2 }}>
+                      {item.intervalMonths}ヶ月ごと{item.baseYm ? `（基準: ${item.baseYm.replace('-', '/')}）` : ''}
+                    </Typography>
+                  )}
+                  {item.recurrence === 'once' && item.targetYm && (
+                    <Typography component="div" variant="caption" color="text.disabled" sx={{ fontSize: 10, lineHeight: 1.2 }}>
+                      {item.targetYm.replace('-', '/')}のみ
                     </Typography>
                   )}
                 </TableCell>
@@ -557,7 +613,7 @@ function YearlySummary({ year, cardId }) {
   const data = Array.from({ length: 12 }, (_, i) => {
     const m = i + 1
     const ym = ymStr(year, m)
-    const fl = loadFixed(cardId).filter(x => !x.startYm || x.startYm <= ym)
+    const fl = loadFixed(cardId).filter(x => isActiveForYm(x, ym))
     const fixedTotal = fl.reduce((s, x) => s + x.amount, 0)
     const vl = loadVar(cardId, ym)
     const varTotal = vl.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
@@ -907,8 +963,7 @@ export default function CreditCard() {
   }
 
 
-  // 開始年月でフィルタリングされた固定費（選択中の月に有効なもののみ）
-  const filteredFixed = fixedList.filter((x) => !x.startYm || x.startYm <= ym)
+  const filteredFixed = fixedList.filter((x) => isActiveForYm(x, ym))
   const fixedTotal = filteredFixed.reduce((s, x) => s + x.amount, 0)
   const varTotal   = varList.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
   const grandTotal = fixedTotal + varTotal

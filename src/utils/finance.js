@@ -102,12 +102,26 @@ export const CARD_CUTOFF_DAYS = {
   smbc:  0,  // 月末締め翌26日払い
 }
 
+// 固定費アイテムが指定月に有効かどうか判定
+export function isActiveForYm(item, ym) {
+  const rec = item.recurrence ?? 'monthly'
+  if (rec === 'once') return item.targetYm === ym
+  if (rec === 'interval') {
+    if (!item.baseYm || !item.intervalMonths) return false
+    if (item.baseYm > ym) return false
+    const [by, bm] = item.baseYm.split('-').map(Number)
+    const [vy, vm] = ym.split('-').map(Number)
+    return ((vy - by) * 12 + (vm - bm)) % item.intervalMonths === 0
+  }
+  return !item.startYm || item.startYm <= ym
+}
+
 // カレンダー月の変動費合計（CCタブ表示用）
 export function getCCTotal(cardId, ym) {
   try {
     const fixed    = JSON.parse(localStorage.getItem(`cc_fixed_${cardId}`)   || '[]')
     const variable = JSON.parse(localStorage.getItem(`cc_var_${cardId}_${ym}`) || '[]')
-    const fixedSum = fixed.filter((x) => !x.startYm || x.startYm <= ym).reduce((s, x) => s + x.amount, 0)
+    const fixedSum = fixed.filter((x) => isActiveForYm(x, ym)).reduce((s, x) => s + x.amount, 0)
     const varSum   = variable.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
     return { fixed: fixedSum, variable: varSum, total: fixedSum + varSum }
   } catch {
