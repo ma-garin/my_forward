@@ -24,6 +24,7 @@ function currentYm() {
 
 export default function Kakeibo() {
   const [ym, setYm] = useState(currentYm)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const changeMonth = (n) => setYm(prev => addMonth(prev, n))
 
@@ -59,7 +60,13 @@ export default function Kakeibo() {
       <CategoryChart fixedList={jcbFixed} varList={jcbVar} />
 
       {/* カテゴリ別集計（JCB） */}
-      <CategoryBreakdown fixedList={jcbFixed} varList={jcbVar} />
+      <CategoryBreakdown
+        fixedList={jcbFixed}
+        varList={jcbVar}
+        cardId="jcb"
+        ym={ym}
+        onUpdate={() => setRefreshKey(k => k + 1)}
+      />
 
     </Box>
   )

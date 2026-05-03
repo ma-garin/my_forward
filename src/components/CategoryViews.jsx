@@ -1,6 +1,13 @@
-import { Box, Card, CardContent, Typography, Stack, Divider } from '@mui/material'
-import { fmt } from '../utils/finance'
-import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS } from '../utils/ccStorage'
+import { useState } from 'react'
+import {
+  Box, Card, CardContent, Typography, Stack, Divider,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Button, TextField, Select, MenuItem, FormControl, InputLabel,
+  Chip, IconButton,
+} from '@mui/material'
+import EditIcon from '@mui/icons-material/Edit'
+import { fmt, loadCategories } from '../utils/finance'
+import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS, saveFixed, saveVar } from '../utils/ccStorage'
 
 function DonutChart({ data, size = 160 }) {
   const total = data.reduce((s, d) => s + d.value, 0)
@@ -86,7 +93,12 @@ export function CategoryChart({ fixedList, varList }) {
   )
 }
 
-export function CategoryBreakdown({ fixedList, varList }) {
+export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate }) {
+  const [selectedCat, setSelectedCat] = useState(null)
+  const [detailView, setDetailView] = useState('list') // 'list' | 'edit'
+  const [editTarget, setEditTarget] = useState(null)
+  const [editForm, setEditForm] = useState({})
+
   const all = [...fixedList, ...varList]
   if (all.length === 0) return null
 
@@ -95,35 +107,202 @@ export function CategoryBreakdown({ fixedList, varList }) {
   const grandTotal = Object.values(map).reduce((s, v) => s + v, 0)
   const entries    = Object.entries(map).sort((a, b) => b[1] - a[1])
 
+  const catItems = selectedCat ? [
+    ...fixedList.filter(x => x.category === selectedCat).map(x => ({ ...x, _type: 'fixed' })),
+    ...varList.filter(x => x.category === selectedCat).map(x => ({ ...x, _type: 'var' })),
+  ].sort((a, b) => b.amount - a.amount) : []
+
+  function openDetail(cat) {
+    if (!cardId) return
+    setSelectedCat(cat)
+    setDetailView('list')
+    setEditTarget(null)
+  }
+
+  function closeDetail() {
+    setSelectedCat(null)
+    setDetailView('list')
+    setEditTarget(null)
+  }
+
+  function openEdit(item) {
+    setEditTarget(item)
+    setEditForm({
+      name: item.name,
+      amount: item.amount,
+      category: item.category,
+      spendType: item.spendType ?? '消費',
+      date: item.date ?? '',
+    })
+    setDetailView('edit')
+  }
+
+  function saveEdit() {
+    if (!editTarget) return
+    const patch = {
+      name: editForm.name,
+      amount: Number(editForm.amount),
+      category: editForm.category,
+      spendType: editForm.spendType,
+    }
+    if (editTarget._type === 'fixed') {
+      const updated = fixedList.map(x => x.id === editTarget.id ? { ...x, ...patch } : x)
+      saveFixed(cardId, updated)
+    } else {
+      const updated = varList.map(x => x.id === editTarget.id ? { ...x, ...patch, date: editForm.date } : x)
+      saveVar(cardId, ym, updated)
+    }
+    onUpdate?.()
+    // カテゴリ名が変わった場合はダイアログを閉じる
+    if (editForm.category !== selectedCat) {
+      closeDetail()
+    } else {
+      setDetailView('list')
+      setEditTarget(null)
+    }
+  }
+
+  const categories = loadCategories()
+  const interactive = !!cardId
+
   return (
-    <Card sx={{ mb: 1.5 }}>
-      <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-          カテゴリ別集計
-        </Typography>
-      </Box>
-      <CardContent sx={{ px: 2, py: 1, '&:last-child': { pb: 1.5 } }}>
-        {entries.map(([cat, total], i) => {
-          const pct   = grandTotal > 0 ? Math.round(total / grandTotal * 100) : 0
-          const color = CHART_COLORS[i % CHART_COLORS.length]
-          return (
-            <Box key={cat}>
-              {i > 0 && <Divider />}
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 0.75 }}>
-                <Stack direction="row" alignItems="center" gap={0.75}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
-                  <Typography variant="caption" sx={{ fontSize: 12, color: '#546e7a' }}>{cat}</Typography>
+    <>
+      <Card sx={{ mb: 1.5 }}>
+        <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
+            カテゴリ別集計
+          </Typography>
+        </Box>
+        <CardContent sx={{ px: 2, py: 1, '&:last-child': { pb: 1.5 } }}>
+          {entries.map(([cat, total], i) => {
+            const pct   = grandTotal > 0 ? Math.round(total / grandTotal * 100) : 0
+            const color = CHART_COLORS[i % CHART_COLORS.length]
+            return (
+              <Box
+                key={cat}
+                onClick={() => openDetail(cat)}
+                sx={{
+                  cursor: interactive ? 'pointer' : 'default',
+                  borderRadius: 1,
+                  mx: -1,
+                  px: 1,
+                  '&:hover': interactive ? { bgcolor: 'action.hover' } : {},
+                }}
+              >
+                {i > 0 && <Divider />}
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 0.75 }}>
+                  <Stack direction="row" alignItems="center" gap={0.75}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
+                    <Typography variant="caption" sx={{ fontSize: 12, color: '#546e7a' }}>{cat}</Typography>
+                  </Stack>
+                  <Stack direction="row" alignItems="baseline" gap={1}>
+                    <Typography variant="caption" sx={{ fontSize: 11, color: 'text.secondary' }}>{pct}%</Typography>
+                    <Typography variant="body2" fontWeight={600}>¥{fmt(total)}</Typography>
+                  </Stack>
                 </Stack>
-                <Stack direction="row" alignItems="baseline" gap={1}>
-                  <Typography variant="caption" sx={{ fontSize: 11, color: 'text.secondary' }}>{pct}%</Typography>
-                  <Typography variant="body2" fontWeight={600}>¥{fmt(total)}</Typography>
+              </Box>
+            )
+          })}
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!selectedCat} onClose={closeDetail} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ pb: 1, fontSize: 16 }}>
+          {detailView === 'list' ? `${selectedCat}の内訳` : '項目を編集'}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 0 }}>
+          {detailView === 'list' ? (
+            <Stack divider={<Divider />}>
+              {catItems.map(item => (
+                <Stack key={item.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1 }}>
+                  <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
+                    <Stack direction="row" alignItems="center" gap={0.75}>
+                      <Chip
+                        label={item._type === 'fixed' ? '固定' : '変動'}
+                        size="small"
+                        sx={{
+                          height: 18,
+                          fontSize: 10,
+                          bgcolor: item._type === 'fixed' ? '#eceff1' : '#e0f2f1',
+                          color: item._type === 'fixed' ? '#546e7a' : '#00695c',
+                        }}
+                      />
+                      <Typography variant="body2" noWrap>{item.name}</Typography>
+                    </Stack>
+                    {item._type === 'var' && item.date && (
+                      <Typography variant="caption" sx={{ color: 'text.secondary', pl: 3.5 }}>{item.date}</Typography>
+                    )}
+                  </Stack>
+                  <Stack direction="row" alignItems="center" gap={0.5} sx={{ flexShrink: 0, ml: 1 }}>
+                    <Typography variant="body2" fontWeight={600}>¥{fmt(item.amount)}</Typography>
+                    <IconButton size="small" onClick={() => openEdit(item)} sx={{ color: 'text.secondary' }}>
+                      <EditIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Stack>
                 </Stack>
-              </Stack>
-            </Box>
-          )
-        })}
-      </CardContent>
-    </Card>
+              ))}
+            </Stack>
+          ) : (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                label="名称"
+                value={editForm.name}
+                onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                fullWidth size="small"
+              />
+              <TextField
+                label="金額"
+                type="number"
+                value={editForm.amount}
+                onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))}
+                fullWidth size="small"
+                inputProps={{ min: 0 }}
+              />
+              <FormControl fullWidth size="small">
+                <InputLabel>カテゴリ</InputLabel>
+                <Select
+                  value={editForm.category}
+                  label="カテゴリ"
+                  onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
+                >
+                  {categories.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <FormControl fullWidth size="small">
+                <InputLabel>消費分類</InputLabel>
+                <Select
+                  value={editForm.spendType}
+                  label="消費分類"
+                  onChange={e => setEditForm(f => ({ ...f, spendType: e.target.value }))}
+                >
+                  {SPEND_TYPES.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                </Select>
+              </FormControl>
+              {editTarget?._type === 'var' && (
+                <TextField
+                  label="日付"
+                  type="date"
+                  value={editForm.date}
+                  onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
+                  fullWidth size="small"
+                  InputLabelProps={{ shrink: true }}
+                />
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {detailView === 'list' ? (
+            <Button onClick={closeDetail}>閉じる</Button>
+          ) : (
+            <>
+              <Button onClick={() => setDetailView('list')}>戻る</Button>
+              <Button onClick={saveEdit} variant="contained" disabled={!editForm.name || !editForm.amount}>保存</Button>
+            </>
+          )}
+        </DialogActions>
+      </Dialog>
+    </>
   )
 }
 
