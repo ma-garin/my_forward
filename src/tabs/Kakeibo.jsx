@@ -6,6 +6,7 @@ import CombinedSummary from '../components/CombinedSummary'
 import LivingExpenseCard from '../components/LivingExpenseCard'
 import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/CategoryViews'
 import { loadFixed, loadVar } from '../utils/ccStorage'
+import { isActiveForYm } from '../utils/finance'
 
 function ymStr(y, m) {
   return `${y}-${String(m).padStart(2, '0')}`
@@ -30,7 +31,7 @@ export default function Kakeibo() {
 
   const [year, month] = ym.split('-').map(Number)
 
-  const jcbFixed = loadFixed('jcb')
+  const jcbFixed = loadFixed('jcb').filter(x => isActiveForYm(x, ym))
   const jcbVar   = loadVar('jcb', ym)
   const jcbLimit = parseFloat(localStorage.getItem('cc_limit_jcb') || '') || 0
   const smbcLimit = parseFloat(localStorage.getItem('cc_limit_smbc') || '') || 0
