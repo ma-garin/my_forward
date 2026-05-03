@@ -34,6 +34,27 @@
 
   "// 2": "--- パーミッション：denyは最優先。Always allowでも上書き不可 ---",
   "permissions": {
+    "// allow": "安全な定型コマンドを事前許可（プロンプト削減）",
+    "allow": [
+      "Bash(npx vite build)",
+      "Bash(npm install)",
+      "Bash(npm run *)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add *)",
+      "Bash(git commit*)",
+      "Bash(git push)",
+      "Bash(git push -u origin *)",
+      "Bash(git fetch*)",
+      "Bash(git branch*)",
+      "Bash(git checkout *)",
+      "Bash(grep *)",
+      "Bash(find . *)",
+      "Bash(ls *)",
+      "Bash(mkdir *)",
+      "Bash(wc *)"
+    ],
     "deny": [
       "Bash(git push --force*)",
       "Bash(git push * --force*)",
@@ -62,7 +83,13 @@
     ]
   },
 
-  "// 3": "--- フック：危険パターンを実行前に検出 ---",
+  "// 3": "--- ステータスライン：ブランチ名とコンテキスト残量を表示 ---",
+  "statusLine": {
+    "type": "command",
+    "command": "echo \"$(git branch --show-current 2>/dev/null) | ctx ${CLAUDE_CONTEXT_USAGE_PERCENT:-?}%\""
+  },
+
+  "// 4": "--- フック：危険パターンを実行前に検出 ---",
   "hooks": {
     "PreToolUse": [
       {
