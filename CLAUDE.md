@@ -52,31 +52,32 @@ Kiro-style Spec Driven Development implementation on AI-DLC (AI Development Life
 | ファイル | 役割 |
 |---------|------|
 | `src/utils/finance.js` | 全共有ロジック（給与計算・localStorage helpers）|
-| `src/tabs/AssetFlowSimulation.jsx` | 資産計画タブ |
-| `src/tabs/BankAccounts.jsx` | 口座管理タブ（~1900行・全読み不要）|
-| `src/tabs/CreditCard.jsx` | クレカタブ（~1290行・全読み不要）|
+| `src/utils/ccStorage.js` | クレカ用ストレージ・週予算・サマリー固定費 |
+| `src/tabs/CreditCard.jsx` | クレカタブ（~1200行・全読み不要）|
+| `src/tabs/Kakeibo.jsx` | 家計タブ |
 | `src/tabs/SalarySimulation.jsx` | 給与シミュレーションタブ |
 | `src/tabs/SalaryHistory.jsx` | 給与履歴タブ |
+| `src/components/CombinedSummary.jsx` | 家計タブ トップカード（2枚合計・固定費内訳）|
+| `src/components/LivingExpenseCard.jsx` | 家計タブ 生活費カード |
 
 ### よく使うユーティリティ（finance.js）
 - `newId()` — ユニークID生成
 - `fmt(n)` — 金額表示フォーマット（絶対値、カンマ区切り）
 - `ymStr(y, m)` — `YYYY-MM` 文字列生成
 - `addMonth(ym, n)` — 月を n ヶ月進める（負数で過去）
-- `loadFixedEvents()` / `saveFixedEvents(list)` — 固定費の読み書き
+- `isActiveForYm(item, ym)` — 固定費アイテムが指定月に有効か判定（recurrence対応）
 - `getCCTotal(cardId, ym)` — クレカ合計取得 `{ fixed, variable, total }`
 - `getSalaryTakeHome()` — 手取り計算（万円切り捨て）
 
 ### localStorage キー早見表
 | キー | 内容 |
 |------|------|
-| `salary_simulation` | 給与固定項目・残業時間 |
-| `bank_fixed_events` | 固定費イベントリスト |
+| `salary_simulation` | 給与固定項目・残業時間・カスタム支給/控除項目 |
 | `cc_fixed_{cardId}` | クレカ固定費（jcb / smbc）|
 | `cc_var_{cardId}_{ym}` | クレカ変動費（月別）|
-| `bank_accounts` | 口座定義リスト |
+| `cc_summary_fixed` | 家計タブ固定費内訳リスト |
+| `life_weekly_budget` | 週予算 |
 | `cc_cards` | カード定義リスト |
-| `asset_salary_override` | 資産計画タブの手取り手動上書き |
 
 ---
 
@@ -89,3 +90,12 @@ Kiro-style Spec Driven Development implementation on AI-DLC (AI Development Life
 - **既存ファイルは `Edit` ツール優先**（`Write` は新規ファイル作成のみ）
 - 変更箇所が複数あっても、1ファイルなら複数の `Edit` で対応する
 - フルrewriteはファイルが完全に別物になる場合のみ許可
+
+## Validation
+- 実装後は必ず `npx vite build` でビルドエラーがないか確認する
+- ビルドが通ることが最低限の検証。テストがある場合は実行する
+
+## Context Management
+- 無関係なタスク間では `/clear` でコンテキストをリセットする
+- 調査フェーズにはサブエージェントを活用し、メインコンテキストを汚さない
+- コンテキストが膨らんだら `/compact` で要約する
