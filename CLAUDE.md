@@ -46,56 +46,29 @@ Kiro-style Spec Driven Development implementation on AI-DLC (AI Development Life
 
 ---
 
-## Project Quick Reference
+## Reference Docs
+詳細は必要なときだけ参照する（トークン節約のため常時読み込み不要）:
+- アーキテクチャ・画面構成・コンポーネントツリー: @doc/architecture.md
+- localStorage キー・データ型定義: @doc/storage.md
+- ビルド手順・ブランチ・コミット規約: @doc/dev-workflow.md
 
-### Key Files
-| ファイル | 役割 |
-|---------|------|
-| `src/utils/finance.js` | 全共有ロジック（給与計算・localStorage helpers）|
-| `src/utils/ccStorage.js` | クレカ用ストレージ・週予算・サマリー固定費 |
-| `src/tabs/CreditCard.jsx` | クレカタブ（~1200行・全読み不要）|
-| `src/tabs/Kakeibo.jsx` | 家計タブ |
-| `src/tabs/SalarySimulation.jsx` | 給与シミュレーションタブ |
-| `src/tabs/SalaryHistory.jsx` | 給与履歴タブ |
-| `src/components/CombinedSummary.jsx` | 家計タブ トップカード（2枚合計・固定費内訳）|
-| `src/components/LivingExpenseCard.jsx` | 家計タブ 生活費カード |
+## Quick Reference
 
-### よく使うユーティリティ（finance.js）
-- `newId()` — ユニークID生成
-- `fmt(n)` — 金額表示フォーマット（絶対値、カンマ区切り）
-- `ymStr(y, m)` — `YYYY-MM` 文字列生成
-- `addMonth(ym, n)` — 月を n ヶ月進める（負数で過去）
-- `isActiveForYm(item, ym)` — 固定費アイテムが指定月に有効か判定（recurrence対応）
-- `getCCTotal(cardId, ym)` — クレカ合計取得 `{ fixed, variable, total }`
-- `getSalaryTakeHome()` — 手取り計算（万円切り捨て）
+### Key Utils（finance.js）
+- `newId()` — ID生成 / `fmt(n)` — 金額フォーマット / `ymStr(y,m)` — YYYY-MM生成
+- `isActiveForYm(item, ym)` — 固定費が指定月に有効か / `getCCTotal(cardId, ym)` — クレカ合計
 
-### localStorage キー早見表
-| キー | 内容 |
-|------|------|
-| `salary_simulation` | 給与固定項目・残業時間・カスタム支給/控除項目 |
-| `cc_fixed_{cardId}` | クレカ固定費（jcb / smbc）|
-| `cc_var_{cardId}_{ym}` | クレカ変動費（月別）|
-| `cc_summary_fixed` | 家計タブ固定費内訳リスト |
-| `life_weekly_budget` | 週予算 |
-| `cc_cards` | カード定義リスト |
+### Reading Rules
+- 大ファイルは全読みしない — `Grep` で行番号特定 → `Read` で周辺のみ
+- 構造把握は `Glob` + `Grep` 優先
 
----
+### Editing Rules
+- 既存ファイルは `Edit` 優先（`Write` は新規のみ）
+- フルrewriteはファイルが完全に別物になる場合のみ
 
-## Efficient File Reading
-- **大ファイルは全読みしない** — `limit` / `offset` で必要箇所のみ読む
-- 関数を探すときは `Grep` で行番号特定 → その周辺だけ `Read`
-- 全体構造の把握が必要な場合も `Glob` + `Grep` を優先し、Explore agentは最終手段
+### Validation
+- 実装後は必ず `npx vite build` でビルド確認
 
-## Editing Rules
-- **既存ファイルは `Edit` ツール優先**（`Write` は新規ファイル作成のみ）
-- 変更箇所が複数あっても、1ファイルなら複数の `Edit` で対応する
-- フルrewriteはファイルが完全に別物になる場合のみ許可
-
-## Validation
-- 実装後は必ず `npx vite build` でビルドエラーがないか確認する
-- ビルドが通ることが最低限の検証。テストがある場合は実行する
-
-## Context Management
-- 無関係なタスク間では `/clear` でコンテキストをリセットする
-- 調査フェーズにはサブエージェントを活用し、メインコンテキストを汚さない
-- コンテキストが膨らんだら `/compact` で要約する
+### Context Management
+- 無関係なタスク間では `/clear` でリセット
+- 調査にはサブエージェントを活用しメインコンテキストを節約
