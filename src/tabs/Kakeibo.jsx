@@ -33,6 +33,9 @@ export default function Kakeibo() {
 
   const jcbFixed = loadFixed('jcb').filter(x => isActiveForYm(x, ym))
   const jcbVar   = loadVar('jcb', ym)
+  const prevYm   = addMonth(ym, -1)
+  const jcbFixedPrev = loadFixed('jcb').filter(x => isActiveForYm(x, prevYm))
+  const jcbVarPrev   = loadVar('jcb', prevYm)
   const jcbLimit = parseFloat(localStorage.getItem('cc_limit_jcb') || '') || 0
   const smbcLimit = parseFloat(localStorage.getItem('cc_limit_smbc') || '') || 0
 
@@ -67,6 +70,8 @@ export default function Kakeibo() {
         cardId="jcb"
         ym={ym}
         onUpdate={() => setRefreshKey(k => k + 1)}
+        prevFixedList={jcbFixedPrev}
+        prevVarList={jcbVarPrev}
       />
 
     </Box>

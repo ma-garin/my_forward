@@ -93,7 +93,7 @@ export function CategoryChart({ fixedList, varList }) {
   )
 }
 
-export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate }) {
+export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, prevFixedList = [], prevVarList = [] }) {
   const [selectedCat, setSelectedCat] = useState(null)
   const [detailView, setDetailView] = useState('list') // 'list' | 'edit'
   const [editTarget, setEditTarget] = useState(null)
@@ -106,6 +106,9 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate }) 
   all.forEach((x) => { map[x.category] = (map[x.category] ?? 0) + x.amount })
   const grandTotal = Object.values(map).reduce((s, v) => s + v, 0)
   const entries    = Object.entries(map).sort((a, b) => b[1] - a[1])
+
+  const prevMap = {}
+  ;[...prevFixedList, ...prevVarList].forEach((x) => { prevMap[x.category] = (prevMap[x.category] ?? 0) + x.amount })
 
   const catItems = selectedCat ? [
     ...fixedList.filter(x => x.category === selectedCat).map(x => ({ ...x, _type: 'fixed' })),
@@ -177,6 +180,9 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate }) 
           {entries.map(([cat, total], i) => {
             const pct   = grandTotal > 0 ? Math.round(total / grandTotal * 100) : 0
             const color = CHART_COLORS[i % CHART_COLORS.length]
+            const prevTotal = prevMap[cat] ?? 0
+            const hasPrev = prevFixedList.length > 0 || prevVarList.length > 0
+            const diff = hasPrev ? total - prevTotal : null
             return (
               <Box
                 key={cat}
@@ -195,9 +201,16 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate }) 
                     <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
                     <Typography variant="caption" sx={{ fontSize: 12, color: '#546e7a' }}>{cat}</Typography>
                   </Stack>
-                  <Stack direction="row" alignItems="baseline" gap={1}>
-                    <Typography variant="caption" sx={{ fontSize: 11, color: 'text.secondary' }}>{pct}%</Typography>
-                    <Typography variant="body2" fontWeight={600}>¥{fmt(total)}</Typography>
+                  <Stack direction="row" alignItems="center" gap={1}>
+                    {diff !== null && diff !== 0 && (
+                      <Typography variant="caption" sx={{ fontSize: 10, color: diff > 0 ? '#c62828' : '#2e7d32', fontWeight: 600 }}>
+                        {diff > 0 ? '+' : ''}¥{fmt(Math.abs(diff))}
+                      </Typography>
+                    )}
+                    <Stack direction="row" alignItems="baseline" gap={0.5}>
+                      <Typography variant="caption" sx={{ fontSize: 11, color: 'text.secondary' }}>{pct}%</Typography>
+                      <Typography variant="body2" fontWeight={600}>¥{fmt(total)}</Typography>
+                    </Stack>
                   </Stack>
                 </Stack>
               </Box>
