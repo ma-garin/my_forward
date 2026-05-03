@@ -2,14 +2,17 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Box, Card, CardContent, Typography, TextField,
   Divider, Stack, Button, Chip, InputAdornment,
+  IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import CheckIcon from '@mui/icons-material/Check'
+import AddIcon from '@mui/icons-material/Add'
+import DeleteIcon from '@mui/icons-material/Delete'
 import {
   DEFAULT_FIXED, UNIT_PRICE_RAW,
   calcKoyouhoken, calcShotokuzei,
   overtimeUnitPrice, overtimeUnitPriceFloor, calcTotalPay,
-  deriveRowSim,
+  deriveRowSim, newId,
 } from '../utils/finance'
 
 const STORAGE_KEY = 'salary_simulation'
@@ -23,14 +26,16 @@ function load() {
         fixed:      { ...DEFAULT_FIXED, ...p.fixed },
         overtime:   p.overtime ?? 20.0,
         customUnit: p.customUnit ?? '',
+        payItems:   p.payItems  ?? [],
+        dedItems:   p.dedItems  ?? [],
       }
     }
   } catch (_) {}
-  return { fixed: { ...DEFAULT_FIXED }, overtime: 20.0, customUnit: '' }
+  return { fixed: { ...DEFAULT_FIXED }, overtime: 20.0, customUnit: '', payItems: [], dedItems: [] }
 }
 
-function save(fixed, overtime, customUnit = '') {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ fixed, overtime, customUnit }))
+function save(fixed, overtime, customUnit = '', payItems = [], dedItems = []) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ fixed, overtime, customUnit, payItems, dedItems }))
 }
 
 // ─── 計算ロジック ────────────────────────────────────────────
@@ -145,6 +150,68 @@ function AutoRow({ label, valueC, valueF }) {
         ¥{fmt(value)}
       </Typography>
     </Stack>
+  )
+}
+
+// ─── カスタム項目行 ───────────────────────────────────────────
+
+function CustomRow({ item, editMode, onEdit, onDelete }) {
+  return (
+    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 0.75 }}>
+      {editMode ? (
+        <>
+          <TextField size="small" value={item.label}
+            onChange={(e) => onEdit(item.id, 'label', e.target.value)}
+            inputProps={{ style: { fontSize: 13, width: 100 } }}
+            sx={{ '& .MuiInputBase-root': { height: 32 }, mr: 1 }} />
+          <Stack direction="row" alignItems="center" gap={0.5}>
+            <TextField size="small" type="number"
+              inputProps={{ min: 0, style: { textAlign: 'right', width: 90 } }}
+              value={item.amount}
+              onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 0) onEdit(item.id, 'amount', v) }}
+              sx={{ '& .MuiInputBase-root': { height: 32, fontSize: 13 } }} />
+            <IconButton size="small" onClick={() => onDelete(item.id)} sx={{ p: 0.5 }}>
+              <DeleteIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
+            </IconButton>
+          </Stack>
+        </>
+      ) : (
+        <>
+          <Typography variant="body2" color="text.secondary">{item.label}</Typography>
+          <Typography variant="body2" fontWeight={500}>¥{fmt(item.amount)}</Typography>
+        </>
+      )}
+    </Stack>
+  )
+}
+
+// ─── 項目追加ダイアログ ───────────────────────────────────────
+
+function AddItemDialog({ open, onClose, onAdd }) {
+  const [label, setLabel] = useState('')
+  const [amount, setAmount] = useState('')
+  const handleAdd = () => {
+    const a = parseInt(amount, 10)
+    if (!label.trim() || isNaN(a) || a < 0) return
+    onAdd({ id: newId(), label: label.trim(), amount: a })
+    setLabel(''); setAmount(''); onClose()
+  }
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle sx={{ pb: 1, fontSize: 15 }}>項目を追加</DialogTitle>
+      <DialogContent sx={{ pt: '8px !important' }}>
+        <Stack gap={1.5}>
+          <TextField label="項目名" size="small" fullWidth autoFocus value={label} onChange={e => setLabel(e.target.value)} />
+          <TextField label="金額（円）" size="small" fullWidth type="number" inputProps={{ min: 0 }}
+            value={amount} onChange={e => setAmount(e.target.value)} />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} size="small">キャンセル</Button>
+        <Button onClick={handleAdd} variant="contained" size="small"
+          disabled={!label.trim() || !(parseInt(amount, 10) >= 0)}>追加</Button>
+      </DialogActions>
+    </Dialog>
   )
 }
 
@@ -267,10 +334,13 @@ function OvertimeInput({ overtime, onChange }) {
 
 export default function SalarySimulation() {
   const init = load()
-  const [fixed, setFixed]       = useState(init.fixed)
-  const [overtime, setOvertime] = useState(init.overtime)
-  const [editMode, setEditMode] = useState(false)
+  const [fixed, setFixed]           = useState(init.fixed)
+  const [overtime, setOvertime]     = useState(init.overtime)
+  const [editMode, setEditMode]     = useState(false)
   const [customUnit, setCustomUnit] = useState(init.customUnit)
+  const [payItems, setPayItems]     = useState(init.payItems)
+  const [dedItems, setDedItems]     = useState(init.dedItems)
+  const [addDlg, setAddDlg]         = useState(null) // 'pay' | 'ded' | null
 
   const parsedCustomUnit = customUnit === '' ? null : (parseInt(customUnit, 10) || null)
   const { unitR, unitF, unitC, otR, otF, otC } = calcAllOvertime(fixed, overtime, parsedCustomUnit)
@@ -278,33 +348,66 @@ export default function SalarySimulation() {
   const rowF = deriveRowLocal(fixed, otF)
   const rowC = otC != null ? deriveRowLocal(fixed, otC) : null
 
+  const customPayTotal = payItems.reduce((s, x) => s + x.amount, 0)
+  const customDedTotal = dedItems.reduce((s, x) => s + x.amount, 0)
+  const baseRow = rowC ?? rowF
+  const displayTakeHome = baseRow.takeHome + customPayTotal - customDedTotal
+  const displayTotalPay = baseRow.totalPay + customPayTotal
+  const displayTotalDed = baseRow.totalDed + customDedTotal
+
   const editFixed = useCallback((key, val) => {
     setFixed((prev) => {
       const next = { ...prev, [key]: val }
-      save(next, overtime, customUnit)
+      save(next, overtime, customUnit, payItems, dedItems)
       return next
     })
-  }, [overtime, customUnit])
+  }, [overtime, customUnit, payItems, dedItems])
 
   const clearFixed = useCallback((key) => {
     setFixed((prev) => {
       const next = { ...prev, [key]: null }
-      save(next, overtime, customUnit)
+      save(next, overtime, customUnit, payItems, dedItems)
       return next
     })
-  }, [overtime, customUnit])
+  }, [overtime, customUnit, payItems, dedItems])
 
   const handleOvertimeChange = (val) => {
     const v = Math.round(val * 100) / 100
     if (!isNaN(v) && v >= 0) {
       setOvertime(v)
-      save(fixed, v, customUnit)
+      save(fixed, v, customUnit, payItems, dedItems)
     }
   }
 
   const toggleEdit = () => {
-    if (editMode) save(fixed, overtime, customUnit)
+    if (editMode) save(fixed, overtime, customUnit, payItems, dedItems)
     setEditMode((v) => !v)
+  }
+
+  const editCustomItem = (list, setList, id, field, val) => {
+    const next = list.map(x => x.id === id ? { ...x, [field]: val } : x)
+    setList(next)
+    if (field === 'amount') save(fixed, overtime, customUnit,
+      list === payItems ? next : payItems,
+      list === dedItems ? next : dedItems)
+  }
+
+  const deleteCustomItem = (list, setList, id) => {
+    const next = list.filter(x => x.id !== id)
+    setList(next)
+    save(fixed, overtime, customUnit,
+      list === payItems ? next : payItems,
+      list === dedItems ? next : dedItems)
+  }
+
+  const addCustomItem = (type, item) => {
+    if (type === 'pay') {
+      const next = [...payItems, item]
+      setPayItems(next); save(fixed, overtime, customUnit, next, dedItems)
+    } else {
+      const next = [...dedItems, item]
+      setDedItems(next); save(fixed, overtime, customUnit, payItems, next)
+    }
   }
 
   return (
@@ -318,10 +421,10 @@ export default function SalarySimulation() {
             <Typography variant="caption" sx={{ opacity: .6, fontSize: 9, color: '#90caf9' }}>自由入力単価</Typography>
           )}
           <Typography variant="h4" sx={{ fontWeight: 700, mt: 0.25, letterSpacing: -0.5 }}>
-            ¥{fmt((rowC ?? rowF).takeHome)}
+            ¥{fmt(displayTakeHome)}
           </Typography>
           <Typography variant="caption" sx={{ opacity: .55, fontSize: 10, mt: 0.25 }}>
-            総支給 ¥{fmt((rowC ?? rowF).totalPay)}
+            総支給 ¥{fmt(displayTotalPay)}
           </Typography>
         </CardContent>
       </Card>
@@ -398,17 +501,29 @@ export default function SalarySimulation() {
         <FixedRow label="通勤手当" value={fixed.tsuukinteate}  editMode={editMode} fieldKey="tsuukinteate"  onEdit={editFixed} />
         <Divider />
         <AutoRow label="時間外手当" valueC={otC} valueF={otF} />
-        {fixed.shinyateate > 0 && (
+        {(fixed.shinyateate > 0 || editMode) && (
           <>
             <Divider />
             <FixedRow label="深夜手当" value={fixed.shinyateate} editMode={editMode} fieldKey="shinyateate" onEdit={editFixed} />
           </>
         )}
+        {payItems.map((item) => (
+          <Box key={item.id}>
+            <Divider />
+            <CustomRow item={item} editMode={editMode}
+              onEdit={(id, f, v) => editCustomItem(payItems, setPayItems, id, f, v)}
+              onDelete={(id) => deleteCustomItem(payItems, setPayItems, id)} />
+          </Box>
+        ))}
+        {editMode && (
+          <Button size="small" startIcon={<AddIcon />} onClick={() => setAddDlg('pay')}
+            sx={{ mt: 0.5, fontSize: 11, color: 'text.secondary' }}>項目を追加</Button>
+        )}
         <Divider sx={{ my: 0.5 }} />
         <Stack direction="row" justifyContent="space-between" sx={{ pt: 0.5 }}>
           <Typography variant="body2" fontWeight={600}>支給額合計</Typography>
           <Typography variant="body2" fontWeight={700} color={rowC != null ? '#1565c0' : 'primary.dark'}>
-            ¥{fmt((rowC ?? rowF).totalPay)}
+            ¥{fmt(displayTotalPay)}
           </Typography>
         </Stack>
       </SectionCard>
@@ -432,14 +547,32 @@ export default function SalarySimulation() {
         <FixedRow label="組合費"   value={fixed.kumiaifi}   editMode={editMode} fieldKey="kumiaifi"   onEdit={editFixed} />
         <Divider />
         <FixedRow label="食事補助" value={fixed.shokuhi}    editMode={editMode} fieldKey="shokuhi"    onEdit={editFixed} />
+        {dedItems.map((item) => (
+          <Box key={item.id}>
+            <Divider />
+            <CustomRow item={item} editMode={editMode}
+              onEdit={(id, f, v) => editCustomItem(dedItems, setDedItems, id, f, v)}
+              onDelete={(id) => deleteCustomItem(dedItems, setDedItems, id)} />
+          </Box>
+        ))}
+        {editMode && (
+          <Button size="small" startIcon={<AddIcon />} onClick={() => setAddDlg('ded')}
+            sx={{ mt: 0.5, fontSize: 11, color: 'text.secondary' }}>項目を追加</Button>
+        )}
         <Divider sx={{ my: 0.5 }} />
         <Stack direction="row" justifyContent="space-between" sx={{ pt: 0.5 }}>
           <Typography variant="body2" fontWeight={600}>控除額合計</Typography>
           <Typography variant="body2" fontWeight={700} color="error.main">
-            ¥{fmt((rowC ?? rowF).totalDed)}
+            ¥{fmt(displayTotalDed)}
           </Typography>
         </Stack>
       </SectionCard>
+
+      <AddItemDialog
+        open={addDlg !== null}
+        onClose={() => setAddDlg(null)}
+        onAdd={(item) => addCustomItem(addDlg, item)}
+      />
 
     </Box>
   )
