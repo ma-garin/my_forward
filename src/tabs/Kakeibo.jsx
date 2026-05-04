@@ -5,7 +5,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import CombinedSummary from '../components/CombinedSummary'
 import LivingExpenseCard from '../components/LivingExpenseCard'
 import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/CategoryViews'
-import { loadFixed, loadVar } from '../utils/ccStorage'
+import { loadFixed, loadVar, CARDS } from '../utils/ccStorage'
 import { isActiveForYm } from '../utils/finance'
 
 function ymStr(y, m) {
@@ -19,8 +19,13 @@ function addMonth(ym, n) {
 }
 
 function currentYm() {
-  const d = new Date()
-  return ymStr(d.getFullYear(), d.getMonth() + 1)
+  const today = new Date()
+  const cutoff = CARDS.jcb?.cutoffDay ?? 0
+  if (cutoff > 0 && today.getDate() <= cutoff) {
+    const d = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+    return ymStr(d.getFullYear(), d.getMonth() + 1)
+  }
+  return ymStr(today.getFullYear(), today.getMonth() + 1)
 }
 
 export default function Kakeibo() {

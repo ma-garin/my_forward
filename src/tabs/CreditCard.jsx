@@ -841,11 +841,21 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
 
 // ─── メインコンポーネント ─────────────────────────
 
-export default function CreditCard() {
+function defaultBillingMonth() {
   const today = new Date()
+  const cutoff = CARDS.jcb?.cutoffDay ?? 0
+  if (cutoff > 0 && today.getDate() <= cutoff) {
+    const d = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+    return { year: d.getFullYear(), month: d.getMonth() + 1 }
+  }
+  return { year: today.getFullYear(), month: today.getMonth() + 1 }
+}
+
+export default function CreditCard() {
+  const { year: defaultYear, month: defaultMonth } = defaultBillingMonth()
   const [cardId,  setCardId]  = useState('jcb')
-  const [year,    setYear]    = useState(today.getFullYear())
-  const [month,   setMonth]   = useState(today.getMonth() + 1)
+  const [year,    setYear]    = useState(defaultYear)
+  const [month,   setMonth]   = useState(defaultMonth)
 
   const card = CARDS[cardId]
   const ym   = ymStr(year, month)

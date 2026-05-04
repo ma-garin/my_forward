@@ -104,6 +104,25 @@ export function sumLiving(list, fromStr, toStr) {
     .reduce((s, x) => s + x.amount, 0)
 }
 
+// 日付文字列(YYYY-MM-DD)とカードの締め日から請求月(YYYY-MM)を返す
+export function getBillingYmForDate(dateStr, cutoffDay) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  if (cutoffDay > 0 && d <= cutoffDay) {
+    return m === 1
+      ? `${y - 1}-12`
+      : `${y}-${String(m - 1).padStart(2, '0')}`
+  }
+  return `${y}-${String(m).padStart(2, '0')}`
+}
+
+// 週の期間[fromStr, toStr]で各カードの請求月セットを返す
+export function getBillingMonthsForRange(fromStr, toStr, cutoffDay) {
+  return [...new Set([
+    getBillingYmForDate(fromStr, cutoffDay),
+    getBillingYmForDate(toStr, cutoffDay),
+  ])]
+}
+
 // ─── ストレージ ─────────────────────────────────────────────
 
 const INIT_FLAG = 'cc_init_v4'

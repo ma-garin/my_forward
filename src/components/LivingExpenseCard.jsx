@@ -4,6 +4,7 @@ import { fmt } from '../utils/finance'
 import {
   CARDS, loadVar, loadWeeklyBudget, saveWeeklyBudget,
   getThisWeekRange, getRecentWeeks, sumLiving, countFridaysUntil,
+  getBillingMonthsForRange,
 } from '../utils/ccStorage'
 import AmountField from './AmountField'
 
@@ -14,10 +15,12 @@ export default function LivingExpenseCard({ ym }) {
 
   const { mondayStr, sundayStr, label } = getThisWeekRange()
 
-  const mondayYm  = mondayStr.slice(0, 7)
-  const sundayYm  = sundayStr.slice(0, 7)
-  const weekMonths = [...new Set([mondayYm, sundayYm])]
-  const weekList   = weekMonths.flatMap(m => [...loadVar('jcb', m), ...loadVar('smbc', m)])
+  const jcbCutoff  = CARDS.jcb?.cutoffDay ?? 0
+  const smbcCutoff = CARDS.smbc?.cutoffDay ?? 0
+  const weekList   = [
+    ...getBillingMonthsForRange(mondayStr, sundayStr, jcbCutoff).flatMap(m => loadVar('jcb', m)),
+    ...getBillingMonthsForRange(mondayStr, sundayStr, smbcCutoff).flatMap(m => loadVar('smbc', m)),
+  ]
   const weekUsed   = sumLiving(weekList, mondayStr, sundayStr)
   const weekRemain = weeklyBudget - weekUsed
   const weekPct    = weeklyBudget > 0 ? Math.min(weekUsed / weeklyBudget * 100, 100) : 0
@@ -89,8 +92,10 @@ export default function LivingExpenseCard({ ym }) {
             <Box>
               <Typography variant="caption" sx={{ opacity: .5, fontSize: 9, display: 'block', mb: 0.5 }}>直近4週</Typography>
               {weeks.map((w, i) => {
-                const wMonths = [...new Set([w.from.slice(0, 7), w.to.slice(0, 7)])]
-                const wList   = wMonths.flatMap(m => [...loadVar('jcb', m), ...loadVar('smbc', m)])
+                const wList = [
+                  ...getBillingMonthsForRange(w.from, w.to, jcbCutoff).flatMap(m => loadVar('jcb', m)),
+                  ...getBillingMonthsForRange(w.from, w.to, smbcCutoff).flatMap(m => loadVar('smbc', m)),
+                ]
                 const used    = sumLiving(wList, w.from, w.to)
                 const pct     = weeklyBudget > 0 ? Math.min(used / weeklyBudget * 100, 100) : 0
                 const isThis  = i === 0
