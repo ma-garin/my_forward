@@ -13,15 +13,15 @@ export default function LivingExpenseCard({ ym }) {
   const [editOpen, setEditOpen]         = useState(false)
   const [editVal, setEditVal]           = useState('')
 
-  const { mondayStr, sundayStr, label } = getThisWeekRange()
+  const { weekStartStr, weekEndStr, label } = getThisWeekRange()
 
   const jcbCutoff  = CARDS.jcb?.cutoffDay ?? 0
   const smbcCutoff = CARDS.smbc?.cutoffDay ?? 0
   const weekList   = [
-    ...getBillingMonthsForRange(mondayStr, sundayStr, jcbCutoff).flatMap(m => loadVar('jcb', m)),
-    ...getBillingMonthsForRange(mondayStr, sundayStr, smbcCutoff).flatMap(m => loadVar('smbc', m)),
+    ...getBillingMonthsForRange(weekStartStr, weekEndStr, jcbCutoff).flatMap(m => loadVar('jcb', m)),
+    ...getBillingMonthsForRange(weekStartStr, weekEndStr, smbcCutoff).flatMap(m => loadVar('smbc', m)),
   ]
-  const weekUsed   = sumLiving(weekList, mondayStr, sundayStr)
+  const weekUsed   = sumLiving(weekList, weekStartStr, weekEndStr)
   const weekRemain = weeklyBudget - weekUsed
   const weekPct    = weeklyBudget > 0 ? Math.min(weekUsed / weeklyBudget * 100, 100) : 0
 

@@ -71,16 +71,16 @@ export function getThisWeekRange() {
   const toStr = (d) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   return {
-    mondayStr: toStr(sunday),
-    sundayStr: toStr(saturday),
+    weekStartStr: toStr(sunday),
+    weekEndStr:   toStr(saturday),
     label: `${sunday.getMonth() + 1}/${sunday.getDate()} 〜 ${saturday.getMonth() + 1}/${saturday.getDate()}`,
   }
 }
 
 export function getRecentWeeks(n = 4) {
-  const { mondayStr } = getThisWeekRange()
+  const { weekStartStr } = getThisWeekRange()
   const weeks = []
-  let d = new Date(mondayStr)
+  let d = new Date(weekStartStr)
   for (let i = 0; i < n; i++) {
     const sun = new Date(d)
     const sat = new Date(d)

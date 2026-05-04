@@ -7,7 +7,7 @@ import {
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import { fmt, loadCategories } from '../utils/finance'
-import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS, saveFixed, saveVar } from '../utils/ccStorage'
+import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS, saveFixed, saveVar, loadFixed, loadVar, CARDS } from '../utils/ccStorage'
 
 function DonutChart({ data, size = 160 }) {
   const total = data.reduce((s, d) => s + d.value, 0)
@@ -142,6 +142,7 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
 
   function saveEdit() {
     if (!editTarget) return
+    const targetCardId = editTarget._cardId ?? cardId
     const patch = {
       name: editForm.name,
       amount: Number(editForm.amount),
@@ -149,14 +150,15 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
       spendType: editForm.spendType,
     }
     if (editTarget._type === 'fixed') {
-      const updated = fixedList.map(x => x.id === editTarget.id ? { ...x, ...patch } : x)
-      saveFixed(cardId, updated)
+      const full = loadFixed(targetCardId)
+      const updated = full.map(x => x.id === editTarget.id ? { ...x, ...patch } : x)
+      saveFixed(targetCardId, updated)
     } else {
-      const updated = varList.map(x => x.id === editTarget.id ? { ...x, ...patch, date: editForm.date } : x)
-      saveVar(cardId, ym, updated)
+      const full = loadVar(targetCardId, ym)
+      const updated = full.map(x => x.id === editTarget.id ? { ...x, ...patch, date: editForm.date } : x)
+      saveVar(targetCardId, ym, updated)
     }
     onUpdate?.()
-    // カテゴリ名が変わった場合はダイアログを閉じる
     if (editForm.category !== selectedCat) {
       closeDetail()
     } else {
@@ -166,7 +168,7 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
   }
 
   const categories = loadCategories()
-  const interactive = !!cardId
+  const interactive = !!(cardId || fixedList.some(x => x._cardId) || varList.some(x => x._cardId))
 
   return (
     <>
@@ -229,7 +231,7 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
               {catItems.map(item => (
                 <Stack key={item.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1 }}>
                   <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
-                    <Stack direction="row" alignItems="center" gap={0.75}>
+                    <Stack direction="row" alignItems="center" gap={0.75} flexWrap="wrap">
                       <Chip
                         label={item._type === 'fixed' ? '固定' : '変動'}
                         size="small"
@@ -240,6 +242,13 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
                           color: item._type === 'fixed' ? '#546e7a' : '#00695c',
                         }}
                       />
+                      {item._cardId && (
+                        <Chip
+                          label={CARDS[item._cardId]?.shortName ?? item._cardId}
+                          size="small"
+                          sx={{ height: 18, fontSize: 10, bgcolor: CARDS[item._cardId]?.color ?? '#ccc', color: '#fff' }}
+                        />
+                      )}
                       <Typography variant="body2" noWrap>{item.name}</Typography>
                     </Stack>
                     {item._type === 'var' && item.date && (
