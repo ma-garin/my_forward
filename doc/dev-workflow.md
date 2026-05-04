@@ -42,3 +42,10 @@ refactor: リファクタリング
 - localStorage のみ使用（外部API通信なし）
 - `finance.js` の計算ロジックは給与計算・クレカ合計など複数箇所で共用されるため、変更時は影響範囲を確認する
 - `isActiveForYm(item, ym)` は固定費フィルタの共通関数。新たにフィルタが必要な箇所ではこれを使う
+- `getBillingYmForDate(dateStr, cutoffDay)` で日付→請求月変換。変動費の月跨ぎロードに使う
+- デフォルト表示月はJCB締め日（15日）基準（`CreditCard.jsx` / `Kakeibo.jsx` の `defaultBillingMonth` / `currentYm`）
+
+## バックアップ
+
+設定画面（右上ハンバーガー → データ管理）から全データの一括エクスポート/インポートが可能。  
+localStorage がクリアされるとデータが消えるため、定期的なバックアップを推奨。

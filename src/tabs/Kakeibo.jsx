@@ -4,6 +4,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import CombinedSummary from '../components/CombinedSummary'
 import LivingExpenseCard from '../components/LivingExpenseCard'
+import IncomeSummaryCard from '../components/IncomeSummaryCard'
 import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/CategoryViews'
 import { loadFixed, loadVar, CARDS } from '../utils/ccStorage'
 import { isActiveForYm } from '../utils/finance'
@@ -28,6 +29,8 @@ function currentYm() {
   return ymStr(today.getFullYear(), today.getMonth() + 1)
 }
 
+const tag = (list, cardId) => list.map(x => ({ ...x, _cardId: cardId }))
+
 export default function Kakeibo() {
   const [ym, setYm] = useState(currentYm)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -36,12 +39,22 @@ export default function Kakeibo() {
 
   const [year, month] = ym.split('-').map(Number)
 
-  const jcbFixed = loadFixed('jcb').filter(x => isActiveForYm(x, ym))
-  const jcbVar   = loadVar('jcb', ym)
-  const prevYm   = addMonth(ym, -1)
-  const jcbFixedPrev = loadFixed('jcb').filter(x => isActiveForYm(x, prevYm))
-  const jcbVarPrev   = loadVar('jcb', prevYm)
-  const jcbLimit = parseFloat(localStorage.getItem('cc_limit_jcb') || '') || 0
+  const jcbFixed   = loadFixed('jcb').filter(x => isActiveForYm(x, ym))
+  const jcbVar     = loadVar('jcb', ym)
+  const smbcFixed  = loadFixed('smbc').filter(x => isActiveForYm(x, ym))
+  const smbcVar    = loadVar('smbc', ym)
+  const allFixed   = [...tag(jcbFixed, 'jcb'), ...tag(smbcFixed, 'smbc')]
+  const allVar     = [...tag(jcbVar, 'jcb'), ...tag(smbcVar, 'smbc')]
+
+  const prevYm         = addMonth(ym, -1)
+  const jcbFixedPrev   = loadFixed('jcb').filter(x => isActiveForYm(x, prevYm))
+  const jcbVarPrev     = loadVar('jcb', prevYm)
+  const smbcFixedPrev  = loadFixed('smbc').filter(x => isActiveForYm(x, prevYm))
+  const smbcVarPrev    = loadVar('smbc', prevYm)
+  const allFixedPrev   = [...tag(jcbFixedPrev, 'jcb'), ...tag(smbcFixedPrev, 'smbc')]
+  const allVarPrev     = [...tag(jcbVarPrev, 'jcb'), ...tag(smbcVarPrev, 'smbc')]
+
+  const jcbLimit  = parseFloat(localStorage.getItem('cc_limit_jcb') || '') || 0
   const smbcLimit = parseFloat(localStorage.getItem('cc_limit_smbc') || '') || 0
 
   return (
@@ -56,27 +69,29 @@ export default function Kakeibo() {
         <IconButton size="small" aria-label="次の月" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
       </Stack>
 
+      {/* 収支サマリー */}
+      <IncomeSummaryCard fixedList={allFixed} varList={allVar} />
+
       {/* 2枚合計サマリー */}
       <CombinedSummary ym={ym} jcbLimit={jcbLimit} smbcLimit={smbcLimit} />
 
       {/* 生活費カード */}
       <LivingExpenseCard ym={ym} />
 
-      {/* 消費分類（JCB） */}
-      <SpendTypeChart fixedList={jcbFixed} varList={jcbVar} />
+      {/* 消費分類（全カード） */}
+      <SpendTypeChart fixedList={allFixed} varList={allVar} />
 
-      {/* カテゴリ別グラフ（JCB） */}
-      <CategoryChart fixedList={jcbFixed} varList={jcbVar} />
+      {/* カテゴリ別グラフ（全カード） */}
+      <CategoryChart fixedList={allFixed} varList={allVar} />
 
-      {/* カテゴリ別集計（JCB） */}
+      {/* カテゴリ別集計（全カード） */}
       <CategoryBreakdown
-        fixedList={jcbFixed}
-        varList={jcbVar}
-        cardId="jcb"
+        fixedList={allFixed}
+        varList={allVar}
         ym={ym}
         onUpdate={() => setRefreshKey(k => k + 1)}
-        prevFixedList={jcbFixedPrev}
-        prevVarList={jcbVarPrev}
+        prevFixedList={allFixedPrev}
+        prevVarList={allVarPrev}
       />
 
     </Box>
