@@ -20,7 +20,7 @@ import SwipeableDrawer from '@mui/material/SwipeableDrawer'
 import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm } from '../utils/finance'
 import {
   CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
-  prevBusinessDay, sumLiving,
+  prevBusinessDay, sumLiving, getBillingYmForDate,
   loadFixed, saveFixed, loadVar, saveVar,
   loadLimit, saveLimit, loadBilled, saveBilled,
 } from '../utils/ccStorage'
@@ -1217,7 +1217,7 @@ export default function CreditCard() {
         onClose={() => setAddOpen(false)}
         onSave={handleAddSave}
         categories={categories}
-        defaultDate={ym === todayStr.slice(0, 7) ? todayStr : `${ym}-01`}
+        defaultDate={getBillingYmForDate(todayStr, CARDS.jcb.cutoffDay) === ym ? todayStr : `${ym}-01`}
         onEditCategories={() => setCatDlgOpen(true)}
         currentCardId={cardId}
       />
