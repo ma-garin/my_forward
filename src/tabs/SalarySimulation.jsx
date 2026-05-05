@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Box, Card, CardContent, Typography, TextField,
   Divider, Stack, Button, Chip, InputAdornment,
@@ -7,6 +7,7 @@ import {
 import EditIcon from '@mui/icons-material/Edit'
 import CheckIcon from '@mui/icons-material/Check'
 import AddIcon from '@mui/icons-material/Add'
+import RemoveIcon from '@mui/icons-material/Remove'
 import DeleteIcon from '@mui/icons-material/Delete'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -60,7 +61,7 @@ function SectionCard({ title, children }) {
   )
 }
 
-function FixedRow({ label, value, editMode, fieldKey, onEdit }) {
+function FixedRow({ label, value, editMode, fieldKey, onEdit, onDelete }) {
   return (
     <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 0.75 }}>
       <Stack direction="row" alignItems="center" gap={0.75}>
@@ -68,13 +69,20 @@ function FixedRow({ label, value, editMode, fieldKey, onEdit }) {
         {!editMode && <Chip label="固定" size="small" sx={{ height: 16, fontSize: 10, bgcolor: '#eceff1', color: '#78909c' }} />}
       </Stack>
       {editMode ? (
-        <TextField
-          size="small" type="number"
-          inputProps={{ min: 0, style: { textAlign: 'right', width: 110 } }}
-          value={value}
-          onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 0) onEdit(fieldKey, v) }}
-          sx={{ '& .MuiInputBase-root': { height: 32, fontSize: 13 } }}
-        />
+        <Stack direction="row" alignItems="center" gap={0.5}>
+          <TextField
+            size="small" type="number"
+            inputProps={{ min: 0, style: { textAlign: 'right', width: 110 } }}
+            value={value}
+            onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 0) onEdit(fieldKey, v) }}
+            sx={{ '& .MuiInputBase-root': { height: 32, fontSize: 13 } }}
+          />
+          {onDelete && (
+            <IconButton size="small" onClick={onDelete} sx={{ p: 0.5, color: 'error.light' }}>
+              <DeleteIcon sx={{ fontSize: 15 }} />
+            </IconButton>
+          )}
+        </Stack>
       ) : (
         <Typography variant="body2" fontWeight={500}>¥{fmt(value)}</Typography>
       )}
@@ -198,40 +206,106 @@ function AddItemDialog({ open, onClose, onAdd }) {
   )
 }
 
+// ─── ドラムロール ─────────────────────────────────────────────
+
+const DRUM_ITEM_H = 36
+
+function DrumRoll({ items, value, onChange }) {
+  const ref = useRef(null)
+  const programmatic = useRef(false)
+  const timerRef = useRef(null)
+  const idx = Math.max(0, items.indexOf(value))
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    programmatic.current = true
+    el.scrollTo({ top: idx * DRUM_ITEM_H, behavior: 'smooth' })
+    const t = setTimeout(() => { programmatic.current = false }, 400)
+    return () => clearTimeout(t)
+  }, [idx])
+
+  const handleScroll = () => {
+    if (programmatic.current) return
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      const el = ref.current
+      if (!el) return
+      const newIdx = Math.max(0, Math.min(items.length - 1, Math.round(el.scrollTop / DRUM_ITEM_H)))
+      if (items[newIdx] !== value) onChange(items[newIdx])
+    }, 150)
+  }
+
+  return (
+    <Box
+      ref={ref}
+      onScroll={handleScroll}
+      sx={{
+        height: DRUM_ITEM_H * 3,
+        overflowY: 'scroll',
+        scrollSnapType: 'y mandatory',
+        scrollbarWidth: 'none',
+        '&::-webkit-scrollbar': { display: 'none' },
+        border: '1px solid #e0e0e0',
+        borderRadius: 1,
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 33%, black 67%, transparent)',
+        maskImage: 'linear-gradient(to bottom, transparent, black 33%, black 67%, transparent)',
+        width: 52,
+        flexShrink: 0,
+      }}
+    >
+      <Box sx={{ height: DRUM_ITEM_H, flexShrink: 0 }} />
+      {items.map(item => (
+        <Box key={item} onClick={() => onChange(item)}
+          sx={{
+            height: DRUM_ITEM_H, scrollSnapAlign: 'center',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 15, cursor: 'pointer', userSelect: 'none',
+            fontWeight: item === value ? 700 : 400,
+            color: item === value ? 'text.primary' : 'text.disabled',
+          }}>
+          {String(item).padStart(2, '0')}
+        </Box>
+      ))}
+      <Box sx={{ height: DRUM_ITEM_H, flexShrink: 0 }} />
+    </Box>
+  )
+}
+
+const HOUR_ITEMS = Array.from({ length: 81 }, (_, i) => i)
+const MINUTE_ITEMS = Array.from({ length: 60 }, (_, i) => i)
+
 // ─── 残業時間入力 ─────────────────────────────────────────────
 
 function OvertimeInput({ overtime, onChange }) {
   const hours = Math.floor(overtime)
   const minutes = Math.min(59, Math.max(0, Math.round((overtime - hours) * 60)))
+
+  const setHours = (h) => onChange(Math.max(0, Math.min(80, h)) + minutes / 60)
+  const setMinutes = (m) => onChange(hours + Math.max(0, Math.min(59, m)) / 60)
+
   return (
-    <Stack direction="row" gap={1.5} alignItems="center" sx={{ my: 1 }}>
-      <Stack direction="row" alignItems="center" gap={0.5}>
-        <TextField size="small" type="number"
-          inputProps={{ min: 0, max: 80, style: { textAlign: 'right', width: 56 } }}
-          value={hours}
-          onChange={(e) => {
-            const h = Math.max(0, Math.min(80, parseInt(e.target.value, 10) || 0))
-            onChange(h + minutes / 60)
-          }}
-          sx={{ '& .MuiInputBase-root': { height: 36 } }}
-        />
-        <Typography variant="body2" color="text.secondary">時間</Typography>
+    <Stack direction="row" gap={2} alignItems="center" justifyContent="center" sx={{ my: 1 }}>
+      <Stack direction="row" alignItems="center" gap={0.25}>
+        <IconButton size="small" onClick={() => setHours(hours - 1)} disabled={hours <= 0}>
+          <RemoveIcon fontSize="small" />
+        </IconButton>
+        <DrumRoll items={HOUR_ITEMS} value={hours} onChange={setHours} />
+        <IconButton size="small" onClick={() => setHours(hours + 1)} disabled={hours >= 80}>
+          <AddIcon fontSize="small" />
+        </IconButton>
+        <Typography variant="body2" color="text.secondary" sx={{ ml: 0.25 }}>時間</Typography>
       </Stack>
-      <Stack direction="row" alignItems="center" gap={0.5}>
-        <TextField size="small" type="number"
-          inputProps={{ min: 0, max: 59, style: { textAlign: 'right', width: 56 } }}
-          value={minutes}
-          onChange={(e) => {
-            const m = Math.max(0, Math.min(59, parseInt(e.target.value, 10) || 0))
-            onChange(hours + m / 60)
-          }}
-          sx={{ '& .MuiInputBase-root': { height: 36 } }}
-        />
-        <Typography variant="body2" color="text.secondary">分</Typography>
+      <Stack direction="row" alignItems="center" gap={0.25}>
+        <IconButton size="small" onClick={() => setMinutes(minutes - 1)} disabled={minutes <= 0}>
+          <RemoveIcon fontSize="small" />
+        </IconButton>
+        <DrumRoll items={MINUTE_ITEMS} value={minutes} onChange={setMinutes} />
+        <IconButton size="small" onClick={() => setMinutes(minutes + 1)} disabled={minutes >= 59}>
+          <AddIcon fontSize="small" />
+        </IconButton>
+        <Typography variant="body2" color="text.secondary" sx={{ ml: 0.25 }}>分</Typography>
       </Stack>
-      <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
-        （{overtime.toFixed(2)}h）
-      </Typography>
     </Stack>
   )
 }
@@ -466,16 +540,27 @@ export default function SalarySimulation() {
         <FixedRow label="基本給"   value={fixed.shokunokyuu}   editMode={editMode} fieldKey="shokunokyuu"   onEdit={editFixed} />
         <Divider />
         <FixedRow label="住宅手当" value={fixed.jyuutakuteate} editMode={editMode} fieldKey="jyuutakuteate" onEdit={editFixed} />
-        <Divider />
-        <FixedRow label="特命手当" value={fixed.tokumei}       editMode={editMode} fieldKey="tokumei"       onEdit={editFixed} />
-        <Divider />
-        <FixedRow label="通勤手当" value={fixed.tsuukinteate}  editMode={editMode} fieldKey="tsuukinteate"  onEdit={editFixed} />
+        {(fixed.tokumei > 0 || editMode) && (
+          <>
+            <Divider />
+            <FixedRow label="特命手当" value={fixed.tokumei} editMode={editMode} fieldKey="tokumei" onEdit={editFixed}
+              onDelete={() => editFixed('tokumei', 0)} />
+          </>
+        )}
+        {(fixed.tsuukinteate > 0 || editMode) && (
+          <>
+            <Divider />
+            <FixedRow label="通勤手当" value={fixed.tsuukinteate} editMode={editMode} fieldKey="tsuukinteate" onEdit={editFixed}
+              onDelete={() => editFixed('tsuukinteate', 0)} />
+          </>
+        )}
         <Divider />
         <AutoRow label="時間外手当" valueC={otC} valueF={otF} />
         {(fixed.shinyateate > 0 || editMode) && (
           <>
             <Divider />
-            <FixedRow label="深夜手当" value={fixed.shinyateate} editMode={editMode} fieldKey="shinyateate" onEdit={editFixed} />
+            <FixedRow label="深夜手当" value={fixed.shinyateate} editMode={editMode} fieldKey="shinyateate" onEdit={editFixed}
+              onDelete={() => editFixed('shinyateate', 0)} />
           </>
         )}
         {payItems.map((item) => (
@@ -517,13 +602,15 @@ export default function SalarySimulation() {
         {(fixed.kumiaifi > 0 || editMode) && (
           <>
             <Divider />
-            <FixedRow label="組合費" value={fixed.kumiaifi} editMode={editMode} fieldKey="kumiaifi" onEdit={editFixed} />
+            <FixedRow label="組合費" value={fixed.kumiaifi} editMode={editMode} fieldKey="kumiaifi" onEdit={editFixed}
+              onDelete={() => editFixed('kumiaifi', 0)} />
           </>
         )}
         {(fixed.shokuhi > 0 || editMode) && (
           <>
             <Divider />
-            <FixedRow label="食事補助" value={fixed.shokuhi} editMode={editMode} fieldKey="shokuhi" onEdit={editFixed} />
+            <FixedRow label="食事補助" value={fixed.shokuhi} editMode={editMode} fieldKey="shokuhi" onEdit={editFixed}
+              onDelete={() => editFixed('shokuhi', 0)} />
           </>
         )}
         {dedItems.map((item) => (
