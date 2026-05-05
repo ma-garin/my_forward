@@ -34,8 +34,8 @@ const FIXED_FIELDS = [
   { key: 'kenkouhoken',   label: '健康保険' },
   { key: 'kouseinenkin',  label: '厚生年金' },
   { key: 'jyuuminzei',    label: '住民税' },
-  { key: 'kumiaifi',      label: '組合費' },
-  { key: 'shokuhi',       label: '食費控除' },
+  { key: 'kumiaifi',      label: '組合費',   note: '0にすると給与タブから非表示' },
+  { key: 'shokuhi',       label: '食費控除',  note: '0にすると給与タブから非表示' },
 ]
 
 function AddItemDialog({ open, onClose, onAdd }) {
