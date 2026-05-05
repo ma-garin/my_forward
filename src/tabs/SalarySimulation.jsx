@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   Box, Card, CardContent, Typography, TextField,
   Divider, Stack, Button, Chip, InputAdornment,
@@ -215,117 +215,40 @@ function AddItemDialog({ open, onClose, onAdd }) {
   )
 }
 
-// ─── ドラムロール ─────────────────────────────────────────────
-
-const ITEM_H = 24
-const DRUM_H = ITEM_H * 5  // 5 items visible
-const HOUR_ITEMS = Array.from({ length: 81 }, (_, i) => i)
-const MINUTE_ITEMS = Array.from({ length: 60 }, (_, i) => i)
-
-function DrumRoll({ items, value, onChange, format = (v) => String(v) }) {
-  const idxOf = (v) => { const i = items.indexOf(v); return i >= 0 ? i : 0 }
-  const [offset, setOffset] = useState(() => idxOf(value) * ITEM_H)
-  const [isDragging, setIsDragging] = useState(false)
-  const startY = useRef(null)
-  const startOffset = useRef(0)
-
-  useEffect(() => {
-    if (!isDragging) setOffset(idxOf(value) * ITEM_H)
-  }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const clamp = (o) => Math.max(0, Math.min((items.length - 1) * ITEM_H, o))
-
-  const onTouchStart = (e) => {
-    e.preventDefault()
-    startY.current = e.touches[0].clientY
-    startOffset.current = offset
-    setIsDragging(true)
-  }
-  const onTouchMove = (e) => {
-    e.preventDefault()
-    if (startY.current == null) return
-    setOffset(clamp(startOffset.current + (startY.current - e.touches[0].clientY)))
-  }
-  const onTouchEnd = () => {
-    setIsDragging(false)
-    startY.current = null
-    const newIdx = Math.max(0, Math.min(items.length - 1, Math.round(offset / ITEM_H)))
-    setOffset(newIdx * ITEM_H)
-    onChange(items[newIdx])
-  }
-
-  const centerIdx = Math.round(offset / ITEM_H)
-
-  return (
-    <Box
-      sx={{ position: 'relative', width: 52, height: DRUM_H, overflow: 'hidden', userSelect: 'none', touchAction: 'none' }}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-    >
-      {/* Scrolling list */}
-      <Box sx={{
-        position: 'absolute', top: ITEM_H * 2, left: 0, right: 0,
-        transform: `translateY(${-offset}px)`,
-        transition: isDragging ? 'none' : 'transform 0.2s ease',
-      }}>
-        {items.map((item, i) => {
-          const sel = i === centerIdx
-          return (
-            <Box key={String(item)} sx={{ height: ITEM_H, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Typography sx={{
-                fontSize: sel ? 15 : 10, fontWeight: sel ? 700 : 400,
-                color: sel ? 'primary.dark' : 'text.disabled',
-                lineHeight: 1, transition: isDragging ? 'none' : 'all 0.15s',
-              }}>
-                {format(item)}
-              </Typography>
-            </Box>
-          )
-        })}
-      </Box>
-      {/* Center selector lines */}
-      <Box sx={{
-        position: 'absolute', top: ITEM_H * 2, left: 8, right: 8, height: ITEM_H,
-        borderTop: '1.5px solid', borderBottom: '1.5px solid', borderColor: 'primary.light',
-        pointerEvents: 'none', zIndex: 1,
-      }} />
-      {/* Top fade */}
-      <Box sx={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H * 2,
-        background: 'linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%)',
-        pointerEvents: 'none', zIndex: 2,
-      }} />
-      {/* Bottom fade */}
-      <Box sx={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H * 2,
-        background: 'linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%)',
-        pointerEvents: 'none', zIndex: 2,
-      }} />
-    </Box>
-  )
-}
-
-// ─── 残業時間入力（ドラムロール）────────────────────────────────
+// ─── 残業時間入力 ─────────────────────────────────────────────
 
 function OvertimeInput({ overtime, onChange }) {
   const hours = Math.floor(overtime)
   const minutes = Math.min(59, Math.max(0, Math.round((overtime - hours) * 60)))
   return (
-    <Stack direction="row" alignItems="center" justifyContent="center" spacing={1} sx={{ my: 1 }}>
-      <Stack alignItems="center">
-        <DrumRoll items={HOUR_ITEMS} value={hours} onChange={(h) => onChange(h + minutes / 60)} />
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>時間</Typography>
-      </Stack>
-      <Typography variant="body1" color="text.disabled" sx={{ mb: 1.5, lineHeight: 1 }}>:</Typography>
-      <Stack alignItems="center">
-        <DrumRoll
-          items={MINUTE_ITEMS} value={minutes}
-          format={(v) => String(v).padStart(2, '0')}
-          onChange={(m) => onChange(hours + m / 60)}
+    <Stack direction="row" gap={1.5} alignItems="center" sx={{ my: 1 }}>
+      <Stack direction="row" alignItems="center" gap={0.5}>
+        <TextField size="small" type="number"
+          inputProps={{ min: 0, max: 80, style: { textAlign: 'right', width: 56 } }}
+          value={hours}
+          onChange={(e) => {
+            const h = Math.max(0, Math.min(80, parseInt(e.target.value, 10) || 0))
+            onChange(h + minutes / 60)
+          }}
+          sx={{ '& .MuiInputBase-root': { height: 36 } }}
         />
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>分</Typography>
+        <Typography variant="body2" color="text.secondary">時間</Typography>
       </Stack>
+      <Stack direction="row" alignItems="center" gap={0.5}>
+        <TextField size="small" type="number"
+          inputProps={{ min: 0, max: 59, style: { textAlign: 'right', width: 56 } }}
+          value={minutes}
+          onChange={(e) => {
+            const m = Math.max(0, Math.min(59, parseInt(e.target.value, 10) || 0))
+            onChange(hours + m / 60)
+          }}
+          sx={{ '& .MuiInputBase-root': { height: 36 } }}
+        />
+        <Typography variant="body2" color="text.secondary">分</Typography>
+      </Stack>
+      <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
+        （{overtime.toFixed(2)}h）
+      </Typography>
     </Stack>
   )
 }
@@ -431,14 +354,6 @@ export default function SalarySimulation() {
 
       {/* 残業時間 */}
       <SectionCard title="残業時間">
-        <Stack direction="row" alignItems="baseline" spacing={1} sx={{ mb: 1.5 }}>
-          <Typography variant="h5" fontWeight={700} color="primary.dark">
-            {Math.floor(overtime)}時間{Math.round((overtime % 1) * 60)}分
-          </Typography>
-          <Typography variant="body2" color="text.secondary">（{overtime.toFixed(2)}h）</Typography>
-          <Box sx={{ flex: 1 }} />
-        </Stack>
-
         <OvertimeInput overtime={overtime} onChange={handleOvertimeChange} />
 
         {/* 残業単価・金額 */}
@@ -542,11 +457,19 @@ export default function SalarySimulation() {
           autoValue={rowF.shotokuCalc} overrideValue={fixed.shotokuOverride ?? null}
           editMode={editMode} fieldKey="shotokuOverride" onEdit={editFixed} onClear={clearFixed} />
         <Divider />
-        <FixedRow label="住民税"   value={fixed.jyuuminzei} editMode={editMode} fieldKey="jyuuminzei" onEdit={editFixed} />
-        <Divider />
-        <FixedRow label="組合費"   value={fixed.kumiaifi}   editMode={editMode} fieldKey="kumiaifi"   onEdit={editFixed} />
-        <Divider />
-        <FixedRow label="食事補助" value={fixed.shokuhi}    editMode={editMode} fieldKey="shokuhi"    onEdit={editFixed} />
+        <FixedRow label="住民税" value={fixed.jyuuminzei} editMode={editMode} fieldKey="jyuuminzei" onEdit={editFixed} />
+        {(fixed.kumiaifi > 0 || editMode) && (
+          <>
+            <Divider />
+            <FixedRow label="組合費" value={fixed.kumiaifi} editMode={editMode} fieldKey="kumiaifi" onEdit={editFixed} />
+          </>
+        )}
+        {(fixed.shokuhi > 0 || editMode) && (
+          <>
+            <Divider />
+            <FixedRow label="食事補助" value={fixed.shokuhi} editMode={editMode} fieldKey="shokuhi" onEdit={editFixed} />
+          </>
+        )}
         {dedItems.map((item) => (
           <Box key={item.id}>
             <Divider />
