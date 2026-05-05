@@ -3,9 +3,9 @@
  * 座標ベースの行単位マッチングで wkhtmltopdf 等のテーブル形式PDFに対応
  */
 import * as pdfjsLib from 'pdfjs-dist'
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 // ─── PDF → テキストアイテム抽出 ──────────────────────────────
 async function extractPage(arrayBuffer) {
