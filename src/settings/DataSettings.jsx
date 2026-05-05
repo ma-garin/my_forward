@@ -23,22 +23,30 @@ function getAllKeys() {
   return keys
 }
 
-// Android: Web Share API でネイティブ共有シート（Google Drive等）を開く
-// Desktop: <a download> でファイル保存
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 100)
+}
+
+// Share API が使える場合は共有シート（Android Google Drive等）、失敗時は download にフォールバック
 async function saveBlob(blob, filename) {
   const file = new File([blob], filename, { type: blob.type })
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    await navigator.share({ files: [file], title: filename })
-  } else {
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 100)
+    try {
+      await navigator.share({ files: [file], title: filename })
+      return
+    } catch (e) {
+      if (e?.name === 'AbortError') throw e  // ユーザーがキャンセル → 呼び出し元に伝える
+      // それ以外の失敗（NotAllowedError等）→ download にフォールバック
+    }
   }
+  downloadBlob(blob, filename)
 }
 
 async function exportKeys(keys, filename) {
