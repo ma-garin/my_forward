@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { execSync } from 'child_process'
-import { watch } from 'fs'
+import { existsSync, watch } from 'fs'
 import path from 'path'
 
 const SALARY_DIR = path.resolve(__dirname, '../salary')
@@ -13,6 +13,11 @@ function salaryWatchPlugin() {
   return {
     name: 'salary-watch',
     configureServer(server) {
+      if (!existsSync(SALARY_DIR)) {
+        console.log(`[salary-watch] ${SALARY_DIR} がないため監視をスキップします`)
+        return
+      }
+
       let debounce = null
 
       const runImport = () => {

@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Box, Card, CardContent, Typography, Stack, Divider, IconButton, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { getCCTotal, getSimulatedTakeHome, fmt, newId } from '../utils/finance'
+import { getCCTotal, getSimulatedIncome, fmt, newId } from '../utils/finance'
 import {
   loadSalaryOverride, saveSalaryOverride,
   loadSummaryFixed, saveSummaryFixed,
@@ -18,7 +18,7 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   const combined      = jcb.total + smbc.total
   const combinedLimit = jcbLimit + smbcLimit
 
-  const [salaryInput, setSalaryInput] = useState(loadSalaryOverride)
+  const [salaryInput, setSalaryInput] = useState(() => loadSalaryOverride(ym))
   const [fixedItems,  setFixedItems]  = useState(loadSummaryFixed)
   const [livingUnit,  setLivingUnit]  = useState(loadLivingUnit)
 
@@ -28,7 +28,11 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   const [deleteDlg,   setDeleteDlg]   = useState(null)
   const [livingEdit,  setLivingEdit]  = useState(null)
 
-  const simSalary = getSimulatedTakeHome()
+  useEffect(() => {
+    setSalaryInput(loadSalaryOverride(ym))
+  }, [ym])
+
+  const simSalary = getSimulatedIncome(ym)
   const salary    = parseFloat(salaryInput) || 0
   const hasSalary = salary > 0
 
@@ -107,14 +111,14 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
             <AmountField
               dark
               value={salaryInput}
-              onChange={(raw) => { setSalaryInput(raw); saveSalaryOverride(raw) }}
+              onChange={(raw) => { setSalaryInput(raw); saveSalaryOverride(raw, ym) }}
               placeholder="手取り額"
               inputSx={{ '& .MuiInputBase-root': { height: 32 } }}
             />
           </Box>
           {simSalary > 0 && (
             <Button size="small"
-              onClick={() => { const v = String(simSalary); setSalaryInput(v); saveSalaryOverride(v) }}
+              onClick={() => { const v = String(simSalary); setSalaryInput(v); saveSalaryOverride(v, ym) }}
               sx={{ fontSize: 10, minWidth: 0, px: 1, py: 0.25, color: 'rgba(255,255,255,.7)',
                     border: '1px solid rgba(255,255,255,.3)', borderRadius: 1, whiteSpace: 'nowrap' }}>
               反映

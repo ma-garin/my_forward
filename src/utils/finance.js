@@ -15,6 +15,28 @@ export const DEFAULT_FIXED = {
 
 export const UNIT_PRICE_RAW = 0
 
+export const SALARY_MONTHLY_KEY = 'salary_simulation_monthly'
+export const LEGACY_SALARY_KEY = 'salary_simulation'
+
+export function addMonth(ym, n) {
+  const [y, m] = ym.split('-').map(Number)
+  const d = new Date(y, m - 1 + n, 1)
+  return ymStr(d.getFullYear(), d.getMonth() + 1)
+}
+
+export function currentBillingYm(cutoffDay = 15) {
+  const today = new Date()
+  if (cutoffDay > 0 && today.getDate() <= cutoffDay) {
+    return addMonth(ymStr(today.getFullYear(), today.getMonth() + 1), -1)
+  }
+  return ymStr(today.getFullYear(), today.getMonth() + 1)
+}
+
+export function isBonusMonth(ym) {
+  const month = Number(ym?.slice(5, 7))
+  return month === 6 || month === 12
+}
+
 // ─── 給与計算ロジック（SalarySimulationと共有）──────────────
 
 export function calcKoyouhoken(grossSalary) {
@@ -94,6 +116,125 @@ export function deriveRowSim(f, otPay) {
   return { totalPay, koyouCalc, koyou, shotokuCalc, shotoku, totalDed, takeHome: totalPay - totalDed }
 }
 
+// ─── 月別給与シミュレーション ───────────────────────────────
+
+export function normalizeSalaryMonth(data = {}) {
+  return {
+    fixed:         { ...DEFAULT_FIXED, ...(data.fixed ?? {}) },
+    overtime:      data.overtime ?? 20.0,
+    customUnit:    data.customUnit ?? '',
+    payItems:      data.payItems ?? [],
+    dedItems:      data.dedItems ?? [],
+    bonusTakeHome: data.bonusTakeHome ?? '',
+  }
+}
+
+function readMonthlySalaryStore() {
+  try {
+    const raw = localStorage.getItem(SALARY_MONTHLY_KEY)
+    const parsed = raw ? JSON.parse(raw) : null
+    const months = parsed?.months && typeof parsed.months === 'object' ? parsed.months : {}
+    return {
+      version: 1,
+      migratedLegacy: parsed?.migratedLegacy ?? Object.keys(months).length > 0,
+      months,
+    }
+  } catch {
+    return { version: 1, migratedLegacy: false, months: {} }
+  }
+}
+
+function writeMonthlySalaryStore(store) {
+  localStorage.setItem(SALARY_MONTHLY_KEY, JSON.stringify({
+    version: 1,
+    migratedLegacy: store.migratedLegacy ?? false,
+    months: store.months ?? {},
+  }))
+}
+
+function loadLegacySalaryMonth() {
+  try {
+    const raw = localStorage.getItem(LEGACY_SALARY_KEY)
+    return raw ? normalizeSalaryMonth(JSON.parse(raw)) : null
+  } catch {
+    return null
+  }
+}
+
+function ensureLegacySalaryMigrated(store, ym) {
+  if (store.migratedLegacy) return store
+  if (store.months[ym]) return store
+  const legacy = loadLegacySalaryMonth()
+  if (!legacy) {
+    const next = { ...store, migratedLegacy: true }
+    writeMonthlySalaryStore(next)
+    return next
+  }
+  const next = { ...store, migratedLegacy: true, months: { ...store.months, [ym]: legacy } }
+  writeMonthlySalaryStore(next)
+  return next
+}
+
+export function loadSalaryMonth(ym = currentBillingYm()) {
+  let store = ensureLegacySalaryMigrated(readMonthlySalaryStore(), ym)
+  if (store.months[ym]) return normalizeSalaryMonth(store.months[ym])
+
+  const prevYm = addMonth(ym, -1)
+  if (store.months[prevYm]) {
+    const copied = { ...normalizeSalaryMonth(store.months[prevYm]), bonusTakeHome: '' }
+    const next = { ...store, months: { ...store.months, [ym]: copied } }
+    writeMonthlySalaryStore(next)
+    return copied
+  }
+
+  return normalizeSalaryMonth(loadLegacySalaryMonth() ?? {})
+}
+
+export function saveSalaryMonth(ym, data) {
+  const store = readMonthlySalaryStore()
+  const normalized = normalizeSalaryMonth(data)
+  if (!isBonusMonth(ym)) normalized.bonusTakeHome = ''
+  const next = {
+    ...store,
+    migratedLegacy: true,
+    months: {
+      ...store.months,
+      [ym]: normalized,
+    },
+  }
+  writeMonthlySalaryStore(next)
+}
+
+export function calcSalaryTakeHomeFromData(data) {
+  const saved = normalizeSalaryMonth(data)
+  const f = { ...DEFAULT_FIXED, ...saved.fixed }
+  const overtime = saved.overtime ?? 20.0
+  const customUnit = saved.customUnit ? (parseInt(saved.customUnit, 10) || null) : null
+
+  const up    = customUnit != null ? customUnit : overtimeUnitPriceFloor(f)
+  const otPay = Math.floor(up * overtime)
+
+  const baseOtR  = Math.floor(overtimeUnitPrice(f) * 20)
+  const totalPay = calcTotalPay(f, 20) - baseOtR + otPay
+
+  const koyouCalc   = calcKoyouhoken(totalPay)
+  const koyou       = f.koyouOverride   != null ? f.koyouOverride   : koyouCalc
+  const taxable     = totalPay - f.tsuukinteate
+  const social      = f.kenkouhoken + f.kouseinenkin + koyou
+  const shotokuCalc = calcShotokuzei(taxable, social)
+  const shotoku     = f.shotokuOverride != null ? f.shotokuOverride : shotokuCalc
+  const totalDed    = f.kenkouhoken + f.kouseinenkin + koyou + shotoku + f.jyuuminzei + f.kumiaifi + f.shokuhi
+  const customPay   = saved.payItems.reduce((sum, x) => sum + x.amount, 0)
+  const customDed   = saved.dedItems.reduce((sum, x) => sum + x.amount, 0)
+  return totalPay - totalDed + customPay - customDed
+}
+
+export function getSalaryBonusTakeHome(ym = currentBillingYm()) {
+  if (!isBonusMonth(ym)) return 0
+  const v = parseInt(String(loadSalaryMonth(ym).bonusTakeHome).replace(/,/g, ''), 10)
+  return isNaN(v) ? 0 : v
+}
+
 // ─── クレジットカードストレージ ─────────────────────────────
 
 // カード別締め日（0 = 月末締め）
@@ -166,33 +307,16 @@ export function getSalaryTakeHome() {
 // ─── 給与手取り取得（シミュレーション表示値・オーバーライド反映）──
 // 給与タブの「今月の手取りシミュレーション」に表示される値と同じ計算
 
-export function getSimulatedTakeHome() {
+export function getSimulatedTakeHome(ym = currentBillingYm()) {
   try {
-    const s = localStorage.getItem('salary_simulation')
-    if (!s) return 0
-    const saved = JSON.parse(s)
-    const f = { ...DEFAULT_FIXED, ...saved.fixed }
-    const overtime = saved.overtime ?? 20.0
-    const customUnit = saved.customUnit ? (parseInt(saved.customUnit, 10) || null) : null
-
-    // カスタム単価があれば rowC、なければ rowF（切り捨て単価）
-    const up    = customUnit != null ? customUnit : overtimeUnitPriceFloor(f)
-    const otPay = Math.floor(up * overtime)
-
-    const baseOtR  = Math.floor(overtimeUnitPrice(f) * 20)
-    const totalPay = calcTotalPay(f, 20) - baseOtR + otPay
-
-    const koyouCalc  = calcKoyouhoken(totalPay)
-    const koyou      = f.koyouOverride  != null ? f.koyouOverride  : koyouCalc
-    const taxable    = totalPay - f.tsuukinteate
-    const social     = f.kenkouhoken + f.kouseinenkin + koyou
-    const shotokuCalc = calcShotokuzei(taxable, social)
-    const shotoku    = f.shotokuOverride != null ? f.shotokuOverride : shotokuCalc
-    const totalDed   = f.kenkouhoken + f.kouseinenkin + koyou + shotoku + f.jyuuminzei + f.kumiaifi + f.shokuhi
-    return totalPay - totalDed
+    return calcSalaryTakeHomeFromData(loadSalaryMonth(ym))
   } catch {
     return 0
   }
+}
+
+export function getSimulatedIncome(ym = currentBillingYm()) {
+  return getSimulatedTakeHome(ym) + getSalaryBonusTakeHome(ym)
 }
 
 
