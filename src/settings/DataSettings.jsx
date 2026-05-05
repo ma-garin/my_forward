@@ -8,6 +8,7 @@ import LockOpenIcon from '@mui/icons-material/LockOpen'
 // 現3タブ（カード・家計・給与）で使用しているキーのみエクスポート対象
 function isActiveKey(k) {
   return k === 'salary_simulation'
+      || k === 'life_weekly_budget'
       || k.startsWith('salary_base_')
       || k.startsWith('salary_extra_')
       || k.startsWith('cc_')
@@ -105,11 +106,14 @@ function EncryptedBackupSection({ activeKeys }) {
   const [status, setStatus]     = useState(null) // null | 'ok' | 'err'
   const [msg, setMsg]           = useState('')
   const [loading, setLoading]   = useState(false)
+  // 暗号化済みBlobをstateに持ち、保存ボタン押下時（＝ユーザー操作）にShare APIを呼ぶ
+  const [readyBlob, setReadyBlob]     = useState(null)
+  const [readyFilename, setReadyFilename] = useState('')
   const fileRef = useRef()
 
-  const handleExport = async () => {
+  const handlePrepare = async () => {
     if (!password) { setStatus('err'); setMsg('パスワードを入力してください'); return }
-    setLoading(true)
+    setLoading(true); setReadyBlob(null); setStatus(null)
     try {
       const data = {}
       activeKeys.forEach(k => {
@@ -117,10 +121,22 @@ function EncryptedBackupSection({ activeKeys }) {
       })
       const b64  = await encryptData(password, JSON.stringify(data))
       const blob = new Blob([`${HEADER}\n${b64}`], { type: 'application/octet-stream' })
-      await saveBlob(blob, `myforward_encrypted_${new Date().toISOString().slice(0, 10)}.mfenc`)
-      setStatus('ok'); setMsg('暗号化ファイルを保存しました')
-    } catch { setStatus('err'); setMsg('エクスポートに失敗しました') }
+      const fname = `myforward_encrypted_${new Date().toISOString().slice(0, 10)}.mfenc`
+      setReadyBlob(blob); setReadyFilename(fname)
+      setStatus('ok'); setMsg('準備完了。「ファイルを保存」を押してください')
+    } catch { setStatus('err'); setMsg('暗号化に失敗しました') }
     setLoading(false)
+  }
+
+  // このハンドラはボタン押下から直接呼ばれるため、Share API のユーザー操作要件を確実に満たす
+  const handleSave = async () => {
+    if (!readyBlob) return
+    try {
+      await saveBlob(readyBlob, readyFilename)
+      setReadyBlob(null); setStatus('ok'); setMsg('保存しました')
+    } catch (e) {
+      if (e?.name !== 'AbortError') { setStatus('err'); setMsg('保存をキャンセルしました') }
+    }
   }
 
   const handleImport = async (file) => {
@@ -151,25 +167,35 @@ function EncryptedBackupSection({ activeKeys }) {
       <TextField
         label="パスワード（全端末で共通）"
         type="password" size="small" fullWidth
-        value={password} onChange={e => { setPassword(e.target.value); setStatus(null) }}
+        value={password} onChange={e => { setPassword(e.target.value); setStatus(null); setReadyBlob(null) }}
         sx={{ mb: 1.5, bgcolor: '#fff', borderRadius: 1 }}
       />
       {status && <Alert severity={status === 'ok' ? 'success' : 'error'} sx={{ mb: 1.5, py: 0 }}>{msg}</Alert>}
-      <Stack direction="row" gap={1}>
-        <Button variant="contained" startIcon={loading ? <CircularProgress size={14} color="inherit" /> : <LockIcon />}
-          fullWidth disabled={loading}
+
+      {/* エクスポート: ステップ1 暗号化 → ステップ2 保存 */}
+      <Stack direction="row" gap={1} sx={{ mb: 1 }}>
+        <Button variant="contained" fullWidth disabled={loading || !!readyBlob}
+          startIcon={loading ? <CircularProgress size={14} color="inherit" /> : <LockIcon />}
           sx={{ bgcolor: '#1565c0', '&:hover': { bgcolor: '#0d47a1' }, fontSize: 12 }}
-          onClick={handleExport}>
-          暗号化エクスポート
+          onClick={handlePrepare}>
+          {loading ? '暗号化中…' : '① 暗号化する'}
         </Button>
-        <Button variant="contained" startIcon={loading ? <CircularProgress size={14} color="inherit" /> : <LockOpenIcon />}
-          fullWidth disabled={loading} component="label"
-          sx={{ bgcolor: '#6a1b9a', '&:hover': { bgcolor: '#4a148c' }, fontSize: 12 }}>
-          暗号化インポート
-          <input ref={fileRef} type="file" accept=".mfenc,.json" hidden
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImport(f); e.target.value = '' }} />
+        <Button variant="contained" fullWidth disabled={!readyBlob}
+          startIcon={<DownloadIcon />}
+          sx={{ bgcolor: readyBlob ? '#2e7d32' : undefined, '&:hover': { bgcolor: '#1b5e20' }, fontSize: 12 }}
+          onClick={handleSave}>
+          ② ファイルを保存
         </Button>
       </Stack>
+
+      {/* インポート */}
+      <Button variant="outlined" fullWidth disabled={loading} component="label"
+        startIcon={loading ? <CircularProgress size={14} color="inherit" /> : <LockOpenIcon />}
+        sx={{ fontSize: 12 }}>
+        暗号化インポート
+        <input ref={fileRef} type="file" accept=".mfenc,.json" hidden
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImport(f); e.target.value = '' }} />
+      </Button>
     </Box>
   )
 }
