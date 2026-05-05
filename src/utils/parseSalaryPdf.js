@@ -3,7 +3,7 @@
  * 座標ベースの行単位マッチングで wkhtmltopdf 等のテーブル形式PDFに対応
  */
 import * as pdfjsLib from 'pdfjs-dist'
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.js?url'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
