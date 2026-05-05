@@ -1,5 +1,6 @@
 import { Box, Card, CardContent, Typography, Stack, Divider } from '@mui/material'
 import { fmt, getSimulatedTakeHome } from '../utils/finance'
+import { loadSummaryFixed, loadLivingUnit, countFridaysUntil, nextPayDay } from '../utils/ccStorage'
 
 function getTakeHomeWithCustom() {
   try {
@@ -19,9 +20,20 @@ export default function IncomeSummaryCard({ fixedList, varList }) {
   const takeHome = getTakeHomeWithCustom()
   if (takeHome === 0) return null
 
-  const expense = [...fixedList, ...varList]
+  // クレカ固定費・変動費
+  const ccExpense = [...fixedList, ...varList]
     .filter(x => x.sign !== 1)
     .reduce((s, x) => s + x.amount, 0)
+
+  // CombinedSummaryと同じ固定費内訳（家賃・光熱費など手動入力分）
+  const summaryFixed = loadSummaryFixed().reduce((s, x) => s + x.amount, 0)
+
+  // 生活費（今月の週数 × 週予算）
+  const livingUnit = loadLivingUnit()
+  const fridays    = livingUnit > 0 ? countFridaysUntil(new Date(), nextPayDay(new Date())) : 0
+  const livingCost = fridays * livingUnit
+
+  const expense = ccExpense + summaryFixed + livingCost
 
   const balance = takeHome - expense
   const savingRate = takeHome > 0 ? Math.round((balance / takeHome) * 100) : 0
