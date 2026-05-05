@@ -1,115 +1,150 @@
 /**
  * ブラウザ内 PDF 給与明細パーサー
- * parse_salary.py のロジックを JavaScript / pdf.js で再実装
+ * 座標ベースの行単位マッチングで wkhtmltopdf 等のテーブル形式PDFに対応
  */
 import * as pdfjsLib from 'pdfjs-dist'
 
-// pdf.js ワーカーを CDN から読み込み（Vite 環境用）
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
 
-// ─── PDF → テキスト抽出 ─────────────────────────────────
-
+// ─── PDF → テキストアイテム抽出 ──────────────────────────────
 async function extractPage(arrayBuffer) {
   const doc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
   const page = await doc.getPage(1)
   const content = await page.getTextContent()
-
-  // テキスト全体
-  const fullText = content.items.map(i => i.str).join(' ')
-
-  // 座標付きワード一覧（源泉徴収票用）
   const viewport = page.getViewport({ scale: 1.0 })
-  const words = content.items
+
+  const items = content.items
     .filter(i => i.str.trim())
     .map(i => {
       const [,, , , tx, ty] = i.transform
-      const top = viewport.height - ty
-      return { text: i.str.trim(), x0: tx, top }
+      return { text: i.str.trim(), x0: tx, top: viewport.height - ty }
     })
 
-  return { fullText, words }
+  // テキスト連結（正規表現フォールバック用）
+  const fullText = content.items.map(i => i.str).join(' ')
+
+  return { items, fullText }
 }
 
-// ─── 二重文字の正規化（PDF アーティファクト除去）────────
+// ─── 座標ベースの行グループ化 ────────────────────────────────
+// 同じ行（Y座標が近い）のアイテムをグループ化し、行内はX順にソート
+function buildRows(items) {
+  const rows = []
+  for (const item of items) {
+    const row = rows.find(r => Math.abs(r.top - item.top) < 6)
+    if (row) row.items.push(item)
+    else rows.push({ top: item.top, items: [item] })
+  }
+  rows.forEach(r => r.items.sort((a, b) => a.x0 - b.x0))
+  rows.sort((a, b) => a.top - b.top)
+  return rows
+}
 
+// 行のテキストを結合（スペースなし）
+function rowText(row) {
+  return row.items.map(i => i.text).join('')
+}
+
+// 行内の数値を抽出（カンマ区切り数字）
+function rowNumbers(row) {
+  return row.items
+    .filter(i => /^[\d,]+$/.test(i.text.replace(/,/g, '')))
+    .map(i => parseInt(i.text.replace(/,/g, ''), 10))
+    .filter(n => n > 0)
+}
+
+// ラベルに対応する値を行から探す（複数ラベル候補を順に試す）
+function findValue(rows, ...labels) {
+  for (const label of labels) {
+    for (const row of rows) {
+      if (rowText(row).includes(label)) {
+        const nums = rowNumbers(row)
+        if (nums.length > 0) return nums[0]
+      }
+    }
+  }
+  return null
+}
+
+// ─── 二重文字の正規化（フォールバック用） ────────────────────
 function dedup(text) {
   const result = []
   let i = 0
   while (i < text.length) {
     const c = text[i]
     if (c.charCodeAt(0) < 256 || c === ' ' || c === '\n') {
-      result.push(c)
-      i++
+      result.push(c); i++
     } else {
       if (i + 1 < text.length && text[i + 1] === c) {
-        result.push(c)
-        i += 2
+        result.push(c); i += 2
       } else {
-        result.push(c)
-        i++
+        result.push(c); i++
       }
     }
   }
   return result.join('')
 }
 
-// ─── テキストからラベル付き数値を抽出 ──────────────────
-
-function getText(text, label) {
+// テキスト連結版のフォールバック検索
+function getTextFallback(text, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const m = text.match(new RegExp(escaped + '\\s*([\\d,]+)'))
-  if (!m) return null
-  return parseInt(m[1].replace(/,/g, ''), 10)
+  return m ? parseInt(m[1].replace(/,/g, ''), 10) : null
 }
 
-// ─── 給与明細・賞与明細パーサー ──────────────────────────
-
-function parseSalaryText(text, fileName) {
-  const t = dedup(text)
+// ─── 給与明細・賞与明細パーサー ──────────────────────────────
+function parseSalaryText(fullText, rows, fileName) {
+  const t = dedup(fullText)
   const isBonus = fileName.includes('賞与')
 
-  const yM = fileName.match(/(\d{4})年/)
-  const mM = fileName.match(/(\d+)月/)
+  // 年月: ファイル名優先、次にPDFテキストから
+  const yM = fileName.match(/(\d{4})年/) || t.match(/(\d{4})年/)
+  const mM = fileName.match(/(\d+)月/)   || t.match(/(\d{1,2})月/)
 
-  const otH = t.match(/時間外勤務\s*([\d.]+)/)
+  // 時間外勤務時間: 行内の小数を探す
+  const otRow = rows.find(r => rowText(r).includes('時間外勤務'))
+  const otH = otRow
+    ? otRow.items.find(i => /^[\d.]+$/.test(i.text) && i.text.includes('.'))?.text
+    : t.match(/時間外勤務\s*([\d.]+)/)?.[1]
+
+  const get = (...labels) =>
+    findValue(rows, ...labels) ?? getTextFallback(t, labels[0])
 
   return {
     year:          yM ? parseInt(yM[1], 10) : null,
     month:         mM ? parseInt(mM[1], 10) : null,
     type:          isBonus ? 'bonus' : 'salary',
-    takeHome:      getText(t, '差引支給額'),
-    totalPay:      getText(t, '支給額合計'),
-    totalDed:      getText(t, '控除額合計'),
-    overtime:      getText(t, '時間外手当'),
-    overtimeHours: otH ? parseFloat(otH[1]) : null,
-    basePay:       getText(t, '基本給') ?? getText(t, '職能給'),
-    health:        getText(t, '健康保険'),
-    pension:       getText(t, '厚生年金保険'),
-    employment:    getText(t, '雇用保険'),
-    income:        getText(t, '所得税'),
-    resident:      getText(t, '住民税'),
-    union:         getText(t, '組合費'),
-    workDays:      getText(t, '勤務日数'),
+    takeHome:      get('差引支給額', '差引支給', '差引'),
+    totalPay:      get('支給額合計', '支給合計'),
+    totalDed:      get('控除額合計', '控除合計'),
+    overtime:      get('時間外手当', '時間外'),
+    overtimeHours: otH ? parseFloat(otH) : null,
+    basePay:       get('基本給', '職能給', '基本'),
+    health:        get('健康保険'),
+    pension:       get('厚生年金保険', '厚生年金'),
+    employment:    get('雇用保険'),
+    income:        get('所得税'),
+    resident:      get('住民税'),
+    union:         get('組合費'),
+    workDays:      get('勤務日数'),
   }
 }
 
-// ─── 源泉徴収票パーサー（座標ベース）──────────────────
+// ─── 源泉徴収票パーサー（座標ベース）────────────────────────
+function parseWithholdingData(fullText, items, fileName) {
+  const t = dedup(fullText)
 
-function parseWithholdingData(text, words, fileName) {
-  const t = dedup(text)
-
-  // 令和N年 → 西暦
   const reiwa = t.match(/令和(\d+)年/)
   let year = reiwa ? 2018 + parseInt(reiwa[1], 10) : null
   if (!year) {
-    const yM = fileName.match(/(\d{4})年/)
+    const yM = fileName.match(/(\d{4})年/) || t.match(/(\d{4})年/)
     year = yM ? parseInt(yM[1], 10) : null
   }
 
   const numRe = /^[\d,]+$/
   const pickRow = (minTop, maxTop) =>
-    words
+    items
       .filter(w => w.top >= minTop && w.top <= maxTop && numRe.test(w.text.replace(/,/g, '')))
       .sort((a, b) => a.x0 - b.x0)
       .map(w => parseInt(w.text.replace(/,/g, ''), 10))
@@ -127,24 +162,20 @@ function parseWithholdingData(text, words, fileName) {
   }
 }
 
-// ─── 公開 API: File → パース結果 ────────────────────────
-
+// ─── 公開 API ─────────────────────────────────────────────
 export async function parseSalaryPdf(file) {
   const buf = await file.arrayBuffer()
-  const { fullText, words } = await extractPage(buf)
+  const { items, fullText } = await extractPage(buf)
   const name = file.name
 
   if (name.includes('源泉徴収票')) {
-    return { type: 'withholding', data: parseWithholdingData(fullText, words, name) }
+    return { type: 'withholding', data: parseWithholdingData(fullText, items, name) }
   }
-  return { type: 'salary', data: parseSalaryText(fullText, name) }
+
+  const rows = buildRows(items)
+  return { type: 'salary', data: parseSalaryText(fullText, rows, name) }
 }
 
-/**
- * 複数ファイルを一括パース
- * @param {File[]} files
- * @returns {Promise<{ salaries: object[], withholding: object[], errors: string[] }>}
- */
 export async function parseMultiplePdfs(files) {
   const salaries = []
   const withholding = []
