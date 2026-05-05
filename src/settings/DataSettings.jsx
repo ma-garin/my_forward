@@ -148,13 +148,13 @@ async function decryptData(password, b64) {
 
 // ─── 暗号化バックアップ UI ────────────────────────────────────
 function EncryptedBackupSection({ activeKeys }) {
-  const [password, setPassword]         = useState('')
-  const [status, setStatus]             = useState(null)
-  const [msg, setMsg]                   = useState('')
-  const [loading, setLoading]           = useState(false)
-  const [readyBlob, setReadyBlob]       = useState(null)
+  const [password, setPassword]           = useState('')
+  const [status, setStatus]               = useState(null)
+  const [msg, setMsg]                     = useState('')
+  const [loading, setLoading]             = useState(false)
+  const [readyBlob, setReadyBlob]         = useState(null)
   const [readyFilename, setReadyFilename] = useState('')
-  const [saved, setSaved]               = useState(false)
+  const [saved, setSaved]                 = useState(false)
   const fileRef = useRef()
 
   const handlePrepare = async () => {
@@ -285,7 +285,7 @@ export default function DataSettings() {
   const activeKeys = getAllKeys().filter(isActiveKey)
   const [bulkSaved, setBulkSaved] = useState(false)
 
-  // showSaveFilePicker をユーザー操作の直後に呼ぶため、ここで直接 saveBlob を呼ぶ
+  // showSaveFilePicker をユーザー操作の直後に呼ぶため buildExportBlob と saveBlob を直接呼ぶ
   const doBulkExport = async () => {
     setBulkSaved(false)
     const filename = `myforward_backup_${new Date().toISOString().slice(0, 10)}.json`
