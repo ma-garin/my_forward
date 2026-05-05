@@ -5,6 +5,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 
 function isActiveKey(k) {
   return k === 'salary_simulation'
+      || k === 'salary_simulation_monthly'
       || k === 'life_weekly_budget'
       || k.startsWith('salary_base_')
       || k.startsWith('salary_extra_')
@@ -112,7 +113,7 @@ export default function DataSettings() {
       </Typography>
       <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 2, px: 2 }}>
         <DataRow label="給与シミュレーション" exportFilename="myforward_salary"
-          filterKeys={(keys) => keys.filter(k => k === 'salary_simulation')} />
+          filterKeys={(keys) => keys.filter(k => k === 'salary_simulation' || k === 'salary_simulation_monthly')} />
         <Divider />
         <DataRow label="カード" exportFilename="myforward_card"
           filterKeys={(keys) => keys.filter(k => k.startsWith('cc_'))} />
