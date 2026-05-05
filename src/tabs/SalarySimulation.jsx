@@ -8,34 +8,17 @@ import EditIcon from '@mui/icons-material/Edit'
 import CheckIcon from '@mui/icons-material/Check'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import {
   DEFAULT_FIXED, UNIT_PRICE_RAW,
-  calcKoyouhoken, calcShotokuzei,
   overtimeUnitPrice, overtimeUnitPriceFloor, calcTotalPay,
   deriveRowSim, newId,
+  addMonth, currentBillingYm, isBonusMonth, loadSalaryMonth, saveSalaryMonth,
 } from '../utils/finance'
 
-const STORAGE_KEY = 'salary_simulation'
-
-function load() {
-  try {
-    const s = localStorage.getItem(STORAGE_KEY)
-    if (s) {
-      const p = JSON.parse(s)
-      return {
-        fixed:      { ...DEFAULT_FIXED, ...p.fixed },
-        overtime:   p.overtime ?? 20.0,
-        customUnit: p.customUnit ?? '',
-        payItems:   p.payItems  ?? [],
-        dedItems:   p.dedItems  ?? [],
-      }
-    }
-  } catch (_) {}
-  return { fixed: { ...DEFAULT_FIXED }, overtime: 20.0, customUnit: '', payItems: [], dedItems: [] }
-}
-
-function save(fixed, overtime, customUnit = '', payItems = [], dedItems = []) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ fixed, overtime, customUnit, payItems, dedItems }))
+function save(ym, fixed, overtime, customUnit = '', payItems = [], dedItems = [], bonusTakeHome = '') {
+  saveSalaryMonth(ym, { fixed, overtime, customUnit, payItems, dedItems, bonusTakeHome })
 }
 
 // ─── 計算ロジック ────────────────────────────────────────────
@@ -256,90 +239,132 @@ function OvertimeInput({ overtime, onChange }) {
 // ─── メインコンポーネント ────────────────────────────────────
 
 export default function SalarySimulation() {
-  const init = load()
-  const [fixed, setFixed]           = useState(init.fixed)
-  const [overtime, setOvertime]     = useState(init.overtime)
+  const [initial] = useState(() => {
+    const initialYm = currentBillingYm()
+    return { ym: initialYm, data: loadSalaryMonth(initialYm) }
+  })
+  const [ym, setYm]                 = useState(initial.ym)
+  const [fixed, setFixed]           = useState(initial.data.fixed)
+  const [overtime, setOvertime]     = useState(initial.data.overtime)
   const [editMode, setEditMode]     = useState(false)
-  const [customUnit, setCustomUnit] = useState(init.customUnit)
-  const [payItems, setPayItems]     = useState(init.payItems)
-  const [dedItems, setDedItems]     = useState(init.dedItems)
+  const [customUnit, setCustomUnit] = useState(initial.data.customUnit)
+  const [payItems, setPayItems]     = useState(initial.data.payItems)
+  const [dedItems, setDedItems]     = useState(initial.data.dedItems)
+  const [bonusTakeHome, setBonusTakeHome] = useState(initial.data.bonusTakeHome)
   const [addDlg, setAddDlg]         = useState(null) // 'pay' | 'ded' | null
 
+  const [year, month] = ym.split('-').map(Number)
+  const bonusMonth = isBonusMonth(ym)
+
+  const persistCurrent = useCallback(() => {
+    save(ym, fixed, overtime, customUnit, payItems, dedItems, bonusTakeHome)
+  }, [ym, fixed, overtime, customUnit, payItems, dedItems, bonusTakeHome])
+
+  const loadYm = useCallback((nextYm) => {
+    const next = loadSalaryMonth(nextYm)
+    setYm(nextYm)
+    setFixed(next.fixed)
+    setOvertime(next.overtime)
+    setCustomUnit(next.customUnit)
+    setPayItems(next.payItems)
+    setDedItems(next.dedItems)
+    setBonusTakeHome(next.bonusTakeHome)
+    setEditMode(false)
+  }, [])
+
+  const changeMonth = (n) => {
+    persistCurrent()
+    loadYm(addMonth(ym, n))
+  }
+
   const parsedCustomUnit = customUnit === '' ? null : (parseInt(customUnit, 10) || null)
-  const { unitR, unitF, unitC, otR, otF, otC } = calcAllOvertime(fixed, overtime, parsedCustomUnit)
+  const { unitR, unitF, unitC, otF, otC } = calcAllOvertime(fixed, overtime, parsedCustomUnit)
 
   const rowF = deriveRowLocal(fixed, otF)
   const rowC = otC != null ? deriveRowLocal(fixed, otC) : null
 
   const customPayTotal = payItems.reduce((s, x) => s + x.amount, 0)
   const customDedTotal = dedItems.reduce((s, x) => s + x.amount, 0)
+  const bonusAmount = bonusMonth ? (parseInt(String(bonusTakeHome).replace(/,/g, ''), 10) || 0) : 0
   const baseRow = rowC ?? rowF
-  const displayTakeHome = baseRow.takeHome + customPayTotal - customDedTotal
+  const salaryTakeHome = baseRow.takeHome + customPayTotal - customDedTotal
+  const displayTakeHome = salaryTakeHome + bonusAmount
   const displayTotalPay = baseRow.totalPay + customPayTotal
   const displayTotalDed = baseRow.totalDed + customDedTotal
 
   const editFixed = useCallback((key, val) => {
     setFixed((prev) => {
       const next = { ...prev, [key]: val }
-      save(next, overtime, customUnit, payItems, dedItems)
+      save(ym, next, overtime, customUnit, payItems, dedItems, bonusTakeHome)
       return next
     })
-  }, [overtime, customUnit, payItems, dedItems])
+  }, [ym, overtime, customUnit, payItems, dedItems, bonusTakeHome])
 
   const clearFixed = useCallback((key) => {
     setFixed((prev) => {
       const next = { ...prev, [key]: null }
-      save(next, overtime, customUnit, payItems, dedItems)
+      save(ym, next, overtime, customUnit, payItems, dedItems, bonusTakeHome)
       return next
     })
-  }, [overtime, customUnit, payItems, dedItems])
+  }, [ym, overtime, customUnit, payItems, dedItems, bonusTakeHome])
 
   const handleOvertimeChange = (val) => {
     const v = Math.round(val * 100) / 100
     if (!isNaN(v) && v >= 0) {
       setOvertime(v)
-      save(fixed, v, customUnit, payItems, dedItems)
+      save(ym, fixed, v, customUnit, payItems, dedItems, bonusTakeHome)
     }
   }
 
   const toggleEdit = () => {
-    if (editMode) save(fixed, overtime, customUnit, payItems, dedItems)
+    if (editMode) persistCurrent()
     setEditMode((v) => !v)
   }
 
   const editCustomItem = (list, setList, id, field, val) => {
     const next = list.map(x => x.id === id ? { ...x, [field]: val } : x)
     setList(next)
-    if (field === 'amount') save(fixed, overtime, customUnit,
+    save(ym, fixed, overtime, customUnit,
       list === payItems ? next : payItems,
-      list === dedItems ? next : dedItems)
+      list === dedItems ? next : dedItems,
+      bonusTakeHome)
   }
 
   const deleteCustomItem = (list, setList, id) => {
     const next = list.filter(x => x.id !== id)
     setList(next)
-    save(fixed, overtime, customUnit,
+    save(ym, fixed, overtime, customUnit,
       list === payItems ? next : payItems,
-      list === dedItems ? next : dedItems)
+      list === dedItems ? next : dedItems,
+      bonusTakeHome)
   }
 
   const addCustomItem = (type, item) => {
     if (type === 'pay') {
       const next = [...payItems, item]
-      setPayItems(next); save(fixed, overtime, customUnit, next, dedItems)
+      setPayItems(next); save(ym, fixed, overtime, customUnit, next, dedItems, bonusTakeHome)
     } else {
       const next = [...dedItems, item]
-      setDedItems(next); save(fixed, overtime, customUnit, payItems, next)
+      setDedItems(next); save(ym, fixed, overtime, customUnit, payItems, next, bonusTakeHome)
     }
   }
 
   return (
     <Box sx={{ px: 2, pt: 2, pb: 10 }}>
 
+      {/* 月ナビゲーション */}
+      <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
+        <IconButton size="small" aria-label="前の月" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
+        <Typography variant="subtitle2" fontWeight={600} sx={{ minWidth: 80, textAlign: 'center' }}>
+          {year}年{month}月
+        </Typography>
+        <IconButton size="small" aria-label="次の月" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
+      </Stack>
+
       {/* 手取りサマリー */}
       <Card sx={{ mb: 2, bgcolor: '#263238', color: '#fff' }}>
         <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
-          <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>今月の手取り（シミュレーション）</Typography>
+          <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>{ym} の手取り（シミュレーション）</Typography>
           {rowC != null && (
             <Typography variant="caption" sx={{ opacity: .6, fontSize: 9, color: '#90caf9' }}>自由入力単価</Typography>
           )}
@@ -349,8 +374,39 @@ export default function SalarySimulation() {
           <Typography variant="caption" sx={{ opacity: .55, fontSize: 10, mt: 0.25 }}>
             総支給 ¥{fmt(displayTotalPay)}
           </Typography>
+          {bonusMonth && bonusAmount > 0 && (
+            <Stack direction="row" gap={1.5} sx={{ mt: 0.75 }}>
+              <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>
+                給与 ¥{fmt(salaryTakeHome)}
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: .75, fontSize: 10, color: '#ffcc80' }}>
+                賞与 ¥{fmt(bonusAmount)}
+              </Typography>
+            </Stack>
+          )}
         </CardContent>
       </Card>
+
+      {bonusMonth && (
+        <SectionCard title="賞与">
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Typography variant="caption" color="text.secondary" sx={{ minWidth: 72 }}>賞与手取り</Typography>
+            <TextField
+              size="small" type="number" fullWidth
+              inputProps={{ min: 0, style: { textAlign: 'right', fontSize: 13 } }}
+              value={bonusTakeHome}
+              onChange={(e) => {
+                setBonusTakeHome(e.target.value)
+                save(ym, fixed, overtime, customUnit, payItems, dedItems, e.target.value)
+              }}
+              sx={{ '& .MuiInputBase-root': { height: 32 } }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">¥</InputAdornment>,
+              }}
+            />
+          </Stack>
+        </SectionCard>
+      )}
 
       {/* 残業時間 */}
       <SectionCard title="残業時間">
@@ -376,7 +432,7 @@ export default function SalarySimulation() {
             size="small" type="number" placeholder={String(unitR)}
             inputProps={{ min: 1, style: { textAlign: 'right', width: 70, fontSize: 13 } }}
             value={customUnit}
-            onChange={(e) => { setCustomUnit(e.target.value); save(fixed, overtime, e.target.value) }}
+            onChange={(e) => { setCustomUnit(e.target.value); save(ym, fixed, overtime, e.target.value, payItems, dedItems, bonusTakeHome) }}
             sx={{ '& .MuiInputBase-root': { height: 32 } }}
             InputProps={{
               startAdornment: <InputAdornment position="start">¥</InputAdornment>,
@@ -386,7 +442,7 @@ export default function SalarySimulation() {
           {customUnit !== '' && (
             <Button size="small" variant="text" color="inherit"
               sx={{ fontSize: 11, minWidth: 0, px: 1, color: 'text.disabled' }}
-              onClick={() => { setCustomUnit(''); save(fixed, overtime, '') }}>クリア</Button>
+              onClick={() => { setCustomUnit(''); save(ym, fixed, overtime, '', payItems, dedItems, bonusTakeHome) }}>クリア</Button>
           )}
         </Stack>
       </SectionCard>

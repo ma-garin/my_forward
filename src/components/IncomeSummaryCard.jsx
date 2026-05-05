@@ -1,23 +1,9 @@
 import { Box, Card, CardContent, Typography, Stack, Divider } from '@mui/material'
-import { fmt, getSimulatedTakeHome } from '../utils/finance'
+import { fmt, getSimulatedIncome } from '../utils/finance'
 import { loadSummaryFixed, loadLivingUnit, countFridaysUntil, nextPayDay } from '../utils/ccStorage'
 
-function getTakeHomeWithCustom() {
-  try {
-    const s = localStorage.getItem('salary_simulation')
-    if (!s) return getSimulatedTakeHome()
-    const saved = JSON.parse(s)
-    const base = getSimulatedTakeHome()
-    const customPay = (saved.payItems ?? []).reduce((sum, x) => sum + x.amount, 0)
-    const customDed = (saved.dedItems ?? []).reduce((sum, x) => sum + x.amount, 0)
-    return base + customPay - customDed
-  } catch {
-    return 0
-  }
-}
-
-export default function IncomeSummaryCard({ fixedList, varList }) {
-  const takeHome = getTakeHomeWithCustom()
+export default function IncomeSummaryCard({ fixedList, varList, ym }) {
+  const takeHome = getSimulatedIncome(ym)
   if (takeHome === 0) return null
 
   // クレカ固定費・変動費

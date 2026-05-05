@@ -10,7 +10,9 @@
 | `cc_limit_{cardId}` | `number` | 月間利用上限額 | `loadLimit(cardId)` / `saveLimit(cardId, v)` |
 | `cc_cards` | `Card[]` | カード定義リスト | `loadCards()` / `saveCards(list)` |
 | `cc_categories` | `string[]` | カテゴリ一覧 | `loadCategories()` / `saveCategories(list)` |
-| `cc_salary_override` | `number` | 家計タブ・給与手動入力値 | `loadSalaryOverride()` / `saveSalaryOverride(v)` |
+| `cc_salary_override` | `number` | 旧形式: 家計タブ・給与手動入力値 | 初回のみ月別キーへ移行 |
+| `cc_salary_override_by_ym` | `{ [ym: string]: string }` | 家計タブ・月別給与手動入力値 | `loadSalaryOverride(ym)` / `saveSalaryOverride(v, ym)` |
+| `cc_salary_override_migrated_v1` | `string` | 旧給与手動入力値の移行済みフラグ | 自動管理 |
 | `cc_summary_fixed` | `SummaryItem[]` | 家計タブ固定費内訳 | `loadSummaryFixed()` / `saveSummaryFixed(list)` |
 | `cc_living_unit` | `number` | 週予算（円） | `loadLivingUnit()` / `saveLivingUnit(v)` |
 | `cc_living_override_{cardId}_{ym}` | `number` | 生活費手動上書き | `loadLivingOverride(cardId, ym)` / `saveLivingOverride(cardId, ym, v)` |
@@ -20,7 +22,8 @@
 
 | キー | 型 | 内容 |
 |------|---|------|
-| `salary_simulation` | `SimData` | 給与固定項目・残業時間・カスタム支給/控除項目 |
+| `salary_simulation` | `SimData` | 旧形式: 給与固定項目・残業時間・カスタム支給/控除項目 |
+| `salary_simulation_monthly` | `{ version: 1, migratedLegacy: boolean, months: { [ym: string]: SimData } }` | 月別給与シミュレーション |
 | `salary_base_data` | `BaseItem[]` | 月別給与ベースデータ（SalaryHistory） |
 | `salary_base_withholding` | `WHItem[]` | 源泉徴収票データ（SalaryHistory） |
 | `salary_extra_data` | `ExtraItem[]` | 残業等追加データ（SalaryHistory） |
@@ -84,6 +87,7 @@ SimData = {
   customUnit: string        // 残業単価 自由入力
   payItems: CustomItem[]    // カスタム支給項目
   dedItems: CustomItem[]    // カスタム控除項目
+  bonusTakeHome?: string    // 6月・12月の賞与手取り
 }
 
 CustomItem = { id: string; label: string; amount: number }

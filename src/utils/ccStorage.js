@@ -1,4 +1,4 @@
-import { DEFAULT_JCB_FIXED } from './finance'
+import { DEFAULT_JCB_FIXED, currentBillingYm } from './finance'
 
 // ─── カード定義 ────────────────────────────────────────────
 
@@ -179,11 +179,42 @@ export function loadWeeklyBudget() {
 }
 export function saveWeeklyBudget(v) { localStorage.setItem('life_weekly_budget', String(v)) }
 
-export function loadSalaryOverride() {
-  const v = parseFloat(localStorage.getItem('cc_salary_override') || '')
+const salaryOverrideMonthlyKey = 'cc_salary_override_by_ym'
+const salaryOverrideMigratedKey = 'cc_salary_override_migrated_v1'
+
+function loadSalaryOverrideMap() {
+  try { return JSON.parse(localStorage.getItem(salaryOverrideMonthlyKey) || '{}') } catch { return {} }
+}
+
+function saveSalaryOverrideMap(map) {
+  localStorage.setItem(salaryOverrideMonthlyKey, JSON.stringify(map))
+}
+
+function migrateLegacySalaryOverride(ym) {
+  const map = loadSalaryOverrideMap()
+  if (localStorage.getItem(salaryOverrideMigratedKey)) return map
+  if (map[ym] != null) return map
+  const legacy = localStorage.getItem('cc_salary_override')
+  if (legacy == null || legacy === '') {
+    localStorage.setItem(salaryOverrideMigratedKey, '1')
+    return map
+  }
+  const next = { ...map, [ym]: legacy }
+  saveSalaryOverrideMap(next)
+  localStorage.setItem(salaryOverrideMigratedKey, '1')
+  return next
+}
+
+export function loadSalaryOverride(ym = currentBillingYm()) {
+  const map = migrateLegacySalaryOverride(ym)
+  const v = parseFloat(map[ym] ?? '')
   return isNaN(v) ? '' : String(v)
 }
-export function saveSalaryOverride(v) { localStorage.setItem('cc_salary_override', v) }
+export function saveSalaryOverride(v, ym = currentBillingYm()) {
+  const map = loadSalaryOverrideMap()
+  saveSalaryOverrideMap({ ...map, [ym]: v })
+  localStorage.setItem(salaryOverrideMigratedKey, '1')
+}
 
 const DEFAULT_SUMMARY_FIXED = [
   { id: 's1', label: '家賃',     amount: 82330 },

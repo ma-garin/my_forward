@@ -6,31 +6,21 @@ import {
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { DEFAULT_FIXED, newId } from '../utils/finance'
+import { DEFAULT_FIXED, currentBillingYm, loadSalaryMonth, newId, saveSalaryMonth } from '../utils/finance'
 
-const STORAGE_KEY = 'salary_simulation'
-
-function loadAll() {
-  try {
-    const s = localStorage.getItem(STORAGE_KEY)
-    if (s) {
-      const p = JSON.parse(s)
-      return {
-        fixed:    { ...DEFAULT_FIXED, ...p.fixed },
-        payItems: p.payItems ?? [],
-        dedItems: p.dedItems ?? [],
-      }
-    }
-  } catch (_) {}
-  return { fixed: { ...DEFAULT_FIXED }, payItems: [], dedItems: [] }
+function loadAll(ym) {
+  const p = loadSalaryMonth(ym)
+  return {
+    fixed:      { ...DEFAULT_FIXED, ...p.fixed },
+    payItems:   p.payItems ?? [],
+    dedItems:   p.dedItems ?? [],
+    customUnit: p.customUnit ?? '',
+  }
 }
 
-function saveAll(fixed, payItems, dedItems) {
-  try {
-    const s = localStorage.getItem(STORAGE_KEY)
-    const current = s ? JSON.parse(s) : {}
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, fixed, payItems, dedItems }))
-  } catch (_) {}
+function saveAll(ym, fixed, payItems, dedItems, customUnit) {
+  const current = loadSalaryMonth(ym)
+  saveSalaryMonth(ym, { ...current, fixed, payItems, dedItems, customUnit })
 }
 
 const FIXED_FIELDS = [
@@ -118,10 +108,15 @@ function CustomSection({ title, items, onAdd, onDelete }) {
 }
 
 export default function SalarySettings() {
-  const init = loadAll()
-  const [fixed,    setFixed]    = useState(init.fixed)
-  const [payItems, setPayItems] = useState(init.payItems)
-  const [dedItems, setDedItems] = useState(init.dedItems)
+  const [initial] = useState(() => {
+    const initialYm = currentBillingYm()
+    return { ym: initialYm, data: loadAll(initialYm) }
+  })
+  const [ym] = useState(initial.ym)
+  const [fixed,    setFixed]    = useState(initial.data.fixed)
+  const [payItems, setPayItems] = useState(initial.data.payItems)
+  const [dedItems, setDedItems] = useState(initial.data.dedItems)
+  const [customUnit, setCustomUnit] = useState(initial.data.customUnit)
   const [saved, setSaved] = useState(false)
 
   const handleChange = (key, val) => {
@@ -131,18 +126,21 @@ export default function SalarySettings() {
   }
 
   const handleSave = () => {
-    saveAll(fixed, payItems, dedItems)
+    saveAll(ym, fixed, payItems, dedItems, customUnit)
     setSaved(true)
   }
 
-  const addPay = (item) => { const next = [...payItems, item]; setPayItems(next); saveAll(fixed, next, dedItems); setSaved(false) }
-  const addDed = (item) => { const next = [...dedItems, item]; setDedItems(next); saveAll(fixed, payItems, next); setSaved(false) }
-  const delPay = (id)   => { const next = payItems.filter(x => x.id !== id); setPayItems(next); saveAll(fixed, next, dedItems); setSaved(false) }
-  const delDed = (id)   => { const next = dedItems.filter(x => x.id !== id); setDedItems(next); saveAll(fixed, payItems, next); setSaved(false) }
+  const addPay = (item) => { const next = [...payItems, item]; setPayItems(next); saveAll(ym, fixed, next, dedItems, customUnit); setSaved(false) }
+  const addDed = (item) => { const next = [...dedItems, item]; setDedItems(next); saveAll(ym, fixed, payItems, next, customUnit); setSaved(false) }
+  const delPay = (id)   => { const next = payItems.filter(x => x.id !== id); setPayItems(next); saveAll(ym, fixed, next, dedItems, customUnit); setSaved(false) }
+  const delDed = (id)   => { const next = dedItems.filter(x => x.id !== id); setDedItems(next); saveAll(ym, fixed, payItems, next, customUnit); setSaved(false) }
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>給与設定</Typography>
+      <Typography variant="subtitle1" fontWeight={700}>給与設定</Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+        {ym} の給与設定
+      </Typography>
 
       {FIXED_FIELDS.map((f, i) =>
         f.section ? (
@@ -172,13 +170,10 @@ export default function SalarySettings() {
         label="残業単価（時給）"
         size="small" fullWidth sx={{ mb: 2 }}
         InputProps={{ startAdornment: <InputAdornment position="start">¥</InputAdornment> }}
-        defaultValue={(() => { try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); return s.unitPrice || '' } catch { return '' } })()}
+        value={customUnit}
         onChange={(e) => {
-          try {
-            const s = localStorage.getItem(STORAGE_KEY)
-            const cur = s ? JSON.parse(s) : {}
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...cur, unitPrice: parseFloat(e.target.value) || 0 }))
-          } catch (_) {}
+          setCustomUnit(e.target.value)
+          saveAll(ym, fixed, payItems, dedItems, e.target.value)
           setSaved(false)
         }}
       />
