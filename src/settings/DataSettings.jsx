@@ -22,21 +22,31 @@ function getAllKeys() {
   return keys
 }
 
-function exportKeys(keys, filename) {
+// Android: Web Share API でネイティブ共有シート（Google Drive等）を開く
+// Desktop: <a download> でファイル保存
+async function saveBlob(blob, filename) {
+  const file = new File([blob], filename, { type: blob.type })
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({ files: [file], title: filename })
+  } else {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 100)
+  }
+}
+
+async function exportKeys(keys, filename) {
   const data = {}
   keys.forEach(k => {
     try { data[k] = JSON.parse(localStorage.getItem(k)) } catch {}
   })
-  // application/octet-stream にすることで Android が「アプリで開く」ではなく Downloads に保存する
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/octet-stream' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${filename}_${new Date().toISOString().slice(0, 10)}.json`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  setTimeout(() => URL.revokeObjectURL(url), 100)
+  await saveBlob(blob, `${filename}_${new Date().toISOString().slice(0, 10)}.json`)
 }
 
 function importFile(file, onDone) {
@@ -107,14 +117,7 @@ function EncryptedBackupSection({ activeKeys }) {
       })
       const b64  = await encryptData(password, JSON.stringify(data))
       const blob = new Blob([`${HEADER}\n${b64}`], { type: 'application/octet-stream' })
-      const url  = URL.createObjectURL(blob)
-      const a    = document.createElement('a')
-      a.href     = url
-      a.download = `myforward_encrypted_${new Date().toISOString().slice(0, 10)}.mfenc`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      setTimeout(() => URL.revokeObjectURL(url), 100)
+      await saveBlob(blob, `myforward_encrypted_${new Date().toISOString().slice(0, 10)}.mfenc`)
       setStatus('ok'); setMsg('暗号化ファイルを保存しました')
     } catch { setStatus('err'); setMsg('エクスポートに失敗しました') }
     setLoading(false)
@@ -181,7 +184,7 @@ function DataRow({ label, exportFilename, exportKeys: getExportKeys }) {
       <Typography fontSize={14} fontWeight={500}>{label}</Typography>
       <Stack direction="row" gap={1}>
         <Button size="small" variant="outlined" startIcon={<DownloadIcon />}
-          onClick={() => exportKeys(keys, exportFilename)}
+          onClick={async () => exportKeys(keys, exportFilename)}
           sx={{ fontSize: 12 }}>
           出力
         </Button>
@@ -213,7 +216,7 @@ export default function DataSettings() {
         <Stack direction="row" gap={1}>
           <Button variant="contained" startIcon={<DownloadIcon />} fullWidth
             sx={{ bgcolor: '#43a047', '&:hover': { bgcolor: '#388e3c' } }}
-            onClick={() => exportKeys(activeKeys, 'myforward_backup')}>
+            onClick={async () => exportKeys(activeKeys, 'myforward_backup')}>
             一括エクスポート
           </Button>
           <Button variant="contained" startIcon={<UploadFileIcon />} fullWidth component="label">
