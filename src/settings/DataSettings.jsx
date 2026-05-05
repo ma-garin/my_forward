@@ -7,7 +7,6 @@ import LockOpenIcon from '@mui/icons-material/LockOpen'
 
 const GDRIVE_BACKUP_URL = 'https://drive.google.com/drive/folders/1BM9emtr7yBNVcgGOUZzr9hCK08zSzNKb'
 
-// 現3タブ（カード・家計・給与）で使用しているキーのみエクスポート対象
 function isActiveKey(k) {
   return k === 'salary_simulation'
       || k === 'life_weekly_budget'
@@ -36,27 +35,58 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 100)
 }
 
-// Share API で共有シートを表示。キャンセル・失敗時はダウンロードにフォールバック（常に成功）
+/**
+ * ファイル保存。優先順位:
+ *   1. showSaveFilePicker (Chrome 86+ / Android) — システムファイルピッカー、Google Drive 選択可
+ *   2. Web Share API (iOS Safari / Samsung Internet 等)
+ *   3. <a download> フォールバック
+ * 戻り値: true=保存完了, false=ユーザーがキャンセル
+ */
 async function saveBlob(blob, filename) {
+  const isJson = filename.endsWith('.json')
+  const types = [{
+    description: isJson ? 'JSONバックアップ' : '暗号化バックアップ',
+    accept: isJson
+      ? { 'application/json': ['.json'] }
+      : { 'application/octet-stream': ['.mfenc'] },
+  }]
+
+  // 1. File System Access API（Android Chrome PWA 対応、Google Drive 選択可）
+  if ('showSaveFilePicker' in window) {
+    try {
+      const handle = await window.showSaveFilePicker({ suggestedName: filename, types })
+      const writable = await handle.createWritable()
+      await writable.write(blob)
+      await writable.close()
+      return true
+    } catch (e) {
+      if (e?.name === 'AbortError') return false  // ユーザーキャンセル
+      // SecurityError 等 → 次の方法へ
+    }
+  }
+
+  // 2. Web Share API
   const file = new File([blob], filename, { type: blob.type })
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: filename })
-      return
+      return true
     } catch {
-      // キャンセル・Share失敗 → ダウンロードにフォールバック
+      // キャンセル・失敗 → download へ
     }
   }
+
+  // 3. <a download> フォールバック
   downloadBlob(blob, filename)
+  return true
 }
 
-async function exportKeys(keys, filename) {
+function buildExportBlob(keys) {
   const data = {}
   keys.forEach(k => {
     try { data[k] = JSON.parse(localStorage.getItem(k)) } catch {}
   })
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  await saveBlob(blob, `${filename}_${new Date().toISOString().slice(0, 10)}.json`)
+  return new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
 }
 
 function importFile(file) {
@@ -64,9 +94,7 @@ function importFile(file) {
   reader.onload = (ev) => {
     try {
       const data = JSON.parse(ev.target.result)
-      Object.entries(data).forEach(([k, v]) => {
-        localStorage.setItem(k, JSON.stringify(v))
-      })
+      Object.entries(data).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)))
       alert('インポート完了しました。アプリを再読み込みします。')
       window.location.reload()
     } catch {
@@ -78,12 +106,10 @@ function importFile(file) {
 
 function DriveLink() {
   return (
-    <Box>
-      <Link href={GDRIVE_BACKUP_URL} target="_blank" rel="noopener"
-        sx={{ fontSize: 11, display: 'block', mt: 0.5 }}>
-        Google Drive バックアップフォルダを開く →
-      </Link>
-    </Box>
+    <Link href={GDRIVE_BACKUP_URL} target="_blank" rel="noopener"
+      sx={{ fontSize: 11, display: 'block', mt: 0.5 }}>
+      Google Drive バックアップフォルダを開く →
+    </Link>
   )
 }
 
@@ -112,23 +138,23 @@ async function encryptData(password, data) {
 }
 
 async function decryptData(password, b64) {
-  const key  = await deriveKey(password)
-  const buf  = Uint8Array.from(atob(b64), c => c.charCodeAt(0))
-  const iv   = buf.slice(0, 12)
-  const ct   = buf.slice(12)
-  const pt   = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct)
+  const key = await deriveKey(password)
+  const buf = Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+  const iv  = buf.slice(0, 12)
+  const ct  = buf.slice(12)
+  const pt  = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct)
   return new TextDecoder().decode(pt)
 }
 
-// ─── 暗号化エクスポート/インポート UI ───────────────────────
+// ─── 暗号化バックアップ UI ────────────────────────────────────
 function EncryptedBackupSection({ activeKeys }) {
-  const [password, setPassword] = useState('')
-  const [status, setStatus]     = useState(null)
-  const [msg, setMsg]           = useState('')
-  const [loading, setLoading]   = useState(false)
+  const [password, setPassword]           = useState('')
+  const [status, setStatus]               = useState(null)
+  const [msg, setMsg]                     = useState('')
+  const [loading, setLoading]             = useState(false)
   const [readyBlob, setReadyBlob]         = useState(null)
   const [readyFilename, setReadyFilename] = useState('')
-  const [saved, setSaved]       = useState(false)
+  const [saved, setSaved]                 = useState(false)
   const fileRef = useRef()
 
   const handlePrepare = async () => {
@@ -136,9 +162,7 @@ function EncryptedBackupSection({ activeKeys }) {
     setLoading(true); setReadyBlob(null); setStatus(null); setSaved(false)
     try {
       const data = {}
-      activeKeys.forEach(k => {
-        try { data[k] = JSON.parse(localStorage.getItem(k)) } catch {}
-      })
+      activeKeys.forEach(k => { try { data[k] = JSON.parse(localStorage.getItem(k)) } catch {} })
       const b64  = await encryptData(password, JSON.stringify(data))
       const blob = new Blob([`${HEADER}\n${b64}`], { type: 'application/octet-stream' })
       const fname = `myforward_encrypted_${new Date().toISOString().slice(0, 10)}.mfenc`
@@ -148,21 +172,18 @@ function EncryptedBackupSection({ activeKeys }) {
     setLoading(false)
   }
 
+  // ボタン押下から直接呼ぶことで showSaveFilePicker のユーザー操作要件を満たす
   const handleSave = async () => {
     if (!readyBlob) return
-    try {
-      await saveBlob(readyBlob, readyFilename)
-      setReadyBlob(null); setStatus('ok'); setMsg('保存しました'); setSaved(true)
-    } catch {
-      setStatus('err'); setMsg('保存に失敗しました')
-    }
+    const ok = await saveBlob(readyBlob, readyFilename)
+    if (ok) { setReadyBlob(null); setStatus('ok'); setMsg('保存しました'); setSaved(true) }
   }
 
   const handleImport = async (file) => {
     if (!password) { setStatus('err'); setMsg('パスワードを入力してください'); return }
     setLoading(true)
     try {
-      const text = await file.text()
+      const text  = await file.text()
       const lines = text.split('\n')
       if (lines[0].trim() !== HEADER) throw new Error('invalid header')
       const plain = await decryptData(password, lines[1].trim())
@@ -184,9 +205,9 @@ function EncryptedBackupSection({ activeKeys }) {
         AES-256-GCM暗号化。Google Drive 等に保存してデバイス間で共有できます。
       </Typography>
       <TextField
-        label="パスワード（全端末で共通）"
-        type="password" size="small" fullWidth
-        value={password} onChange={e => { setPassword(e.target.value); setStatus(null); setReadyBlob(null); setSaved(false) }}
+        label="パスワード（全端末で共通）" type="password" size="small" fullWidth
+        value={password}
+        onChange={e => { setPassword(e.target.value); setStatus(null); setReadyBlob(null); setSaved(false) }}
         sx={{ mb: 1.5, bgcolor: '#fff', borderRadius: 1 }}
       />
       {status && (
@@ -195,7 +216,6 @@ function EncryptedBackupSection({ activeKeys }) {
           {saved && <DriveLink />}
         </Alert>
       )}
-
       <Stack direction="row" gap={1} sx={{ mb: 1 }}>
         <Button variant="contained" fullWidth disabled={loading || !!readyBlob}
           startIcon={loading ? <CircularProgress size={14} color="inherit" /> : <LockIcon />}
@@ -210,7 +230,6 @@ function EncryptedBackupSection({ activeKeys }) {
           ② ファイルを保存
         </Button>
       </Stack>
-
       <Button variant="outlined" fullWidth disabled={loading} component="label"
         startIcon={loading ? <CircularProgress size={14} color="inherit" /> : <LockOpenIcon />}
         sx={{ fontSize: 12 }}>
@@ -222,20 +241,17 @@ function EncryptedBackupSection({ activeKeys }) {
   )
 }
 
-// ─── 汎用行コンポーネント ────────────────────────────────────
+// ─── 個別エクスポート行 ───────────────────────────────────────
 function DataRow({ label, exportFilename, exportKeys: getExportKeys }) {
   const [saved, setSaved] = useState(false)
-  const allKeys = getAllKeys()
-  const keys = getExportKeys(allKeys)
+  const keys = getExportKeys(getAllKeys())
 
   const doExport = async () => {
-    try {
-      setSaved(false)
-      await exportKeys(keys, exportFilename)
-      setSaved(true)
-    } catch {
-      alert('エクスポートに失敗しました')
-    }
+    setSaved(false)
+    const filename = `${exportFilename}_${new Date().toISOString().slice(0, 10)}.json`
+    const blob = buildExportBlob(keys)
+    const ok = await saveBlob(blob, filename)
+    if (ok) setSaved(true)
   }
 
   return (
@@ -264,33 +280,30 @@ function DataRow({ label, exportFilename, exportKeys: getExportKeys }) {
   )
 }
 
-// ─── メイン ─────────────────────────────────────────────────
+// ─── メイン ──────────────────────────────────────────────────
 export default function DataSettings() {
   const activeKeys = getAllKeys().filter(isActiveKey)
   const [bulkSaved, setBulkSaved] = useState(false)
 
+  // showSaveFilePicker をユーザー操作の直後に呼ぶため buildExportBlob と saveBlob を直接呼ぶ
   const doBulkExport = async () => {
-    try {
-      setBulkSaved(false)
-      await exportKeys(activeKeys, 'myforward_backup')
-      setBulkSaved(true)
-    } catch {
-      alert('エクスポートに失敗しました')
-    }
+    setBulkSaved(false)
+    const filename = `myforward_backup_${new Date().toISOString().slice(0, 10)}.json`
+    const blob = buildExportBlob(activeKeys)
+    const ok = await saveBlob(blob, filename)
+    if (ok) setBulkSaved(true)
   }
 
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>データ管理</Typography>
 
-      {/* 暗号化バックアップ */}
       <EncryptedBackupSection activeKeys={activeKeys} />
 
-      {/* 全データ */}
       <Box sx={{ p: 2, bgcolor: '#e8f5e9', borderRadius: 2, mb: 2 }}>
         <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>全データ一括</Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          Android: 共有シートが開きます。「Driveに保存」を選んでバックアップフォルダに移動してください。
+          保存ダイアログが開きます。Google Drive のバックアップフォルダを選択して保存できます。
         </Typography>
         {bulkSaved && (
           <Alert severity="success" sx={{ mb: 1, py: 0.5, fontSize: 12 }}>
@@ -311,7 +324,6 @@ export default function DataSettings() {
         </Stack>
       </Box>
 
-      {/* 個別 */}
       <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', mb: 0.5 }}>
         個別データ
       </Typography>
