@@ -15,6 +15,7 @@ import SettingsMain from './settings/SettingsMain'
 import SalarySettings from './settings/SalarySettings'
 import CardSettings from './settings/CardSettings'
 import DataSettings from './settings/DataSettings'
+import AppInfo from './settings/AppInfo'
 
 const TABS = [
   { label: 'カード', icon: <CreditCardIcon /> },
@@ -27,6 +28,7 @@ const SETTINGS_TITLES = {
   card:          'カード設定',
   data:          'データ管理',
   salaryHistory: '給与履歴',
+  appInfo:       'アプリ情報',
 }
 
 export default function App() {
@@ -95,6 +97,7 @@ export default function App() {
             {settingsPage === 'card'          && <CardSettings />}
             {settingsPage === 'data'          && <DataSettings />}
             {settingsPage === 'salaryHistory' && <SalaryHistory />}
+            {settingsPage === 'appInfo'       && <AppInfo />}
           </Box>
         </Drawer>
       </Box>
