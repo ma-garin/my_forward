@@ -55,7 +55,12 @@ async function exportKeys(keys, filename) {
     try { data[k] = JSON.parse(localStorage.getItem(k)) } catch {}
   })
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/octet-stream' })
-  await saveBlob(blob, `${filename}_${new Date().toISOString().slice(0, 10)}.json`)
+  try {
+    await saveBlob(blob, `${filename}_${new Date().toISOString().slice(0, 10)}.json`)
+  } catch (e) {
+    if (e?.name !== 'AbortError') throw e
+    // AbortError = ユーザーがキャンセル → 何もしない
+  }
 }
 
 function importFile(file, onDone) {
@@ -143,7 +148,8 @@ function EncryptedBackupSection({ activeKeys }) {
       await saveBlob(readyBlob, readyFilename)
       setReadyBlob(null); setStatus('ok'); setMsg('保存しました')
     } catch (e) {
-      if (e?.name !== 'AbortError') { setStatus('err'); setMsg('保存をキャンセルしました') }
+      if (e?.name !== 'AbortError') { setStatus('err'); setMsg('保存に失敗しました') }
+      // AbortError = ユーザーが共有シートを閉じた → readyBlobを残して再試行可能にする
     }
   }
 
@@ -218,7 +224,7 @@ function DataRow({ label, exportFilename, exportKeys: getExportKeys }) {
       <Typography fontSize={14} fontWeight={500}>{label}</Typography>
       <Stack direction="row" gap={1}>
         <Button size="small" variant="outlined" startIcon={<DownloadIcon />}
-          onClick={async () => exportKeys(keys, exportFilename)}
+          onClick={async () => { try { await exportKeys(keys, exportFilename) } catch { alert('エクスポートに失敗しました') } }}
           sx={{ fontSize: 12 }}>
           出力
         </Button>
@@ -246,11 +252,14 @@ export default function DataSettings() {
 
       {/* 全データ */}
       <Box sx={{ p: 2, bgcolor: '#e8f5e9', borderRadius: 2, mb: 2 }}>
-        <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>全データ一括</Typography>
+        <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>全データ一括</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+          Android: 共有シートが開くので「Drive に保存」等を選択。PC: ブラウザのダウンロードフォルダに保存されます。
+        </Typography>
         <Stack direction="row" gap={1}>
           <Button variant="contained" startIcon={<DownloadIcon />} fullWidth
             sx={{ bgcolor: '#43a047', '&:hover': { bgcolor: '#388e3c' } }}
-            onClick={async () => exportKeys(activeKeys, 'myforward_backup')}>
+            onClick={async () => { try { await exportKeys(activeKeys, 'myforward_backup') } catch { alert('エクスポートに失敗しました') } }}>
             一括エクスポート
           </Button>
           <Button variant="contained" startIcon={<UploadFileIcon />} fullWidth component="label">
