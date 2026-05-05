@@ -35,6 +35,7 @@ export default function IncomeSummaryCard({ fixedList, varList }) {
 
   const expense = ccExpense + summaryFixed + livingCost
 
+
   const balance = takeHome - expense
   const savingRate = takeHome > 0 ? Math.round((balance / takeHome) * 100) : 0
 
