@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-  FormControl, IconButton, InputLabel, MenuItem, Select, Snackbar, Stack,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle,
+  FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Snackbar,
+  Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   TextField, Typography,
 } from '@mui/material'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
@@ -9,10 +10,10 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import AmountField, { parseAmount } from '../components/AmountField'
-import { fmt, loadCategories, ymStr } from '../utils/finance'
+import { fmt, isActiveForYm, loadCategories, ymStr } from '../utils/finance'
 import {
-  CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
-  getBillingYmForDate, loadVar, saveVar,
+  CARDS, SPEND_TYPES, SPEND_TYPE_COLORS,
+  getBillingYmForDate, loadFixed, saveFixed, loadVar, saveVar,
 } from '../utils/ccStorage'
 
 function defaultBillingMonth() {
@@ -33,31 +34,72 @@ function changeYm(year, month, delta) {
   return { year: y, month: m }
 }
 
-function sortByDate(list) {
+function dateFromYmDay(ym, day) {
+  const d = parseInt(day, 10)
+  if (isNaN(d) || d < 1) return null
+  const [year, month] = ym.split('-').map(Number)
+  const lastDay = new Date(year, month, 0).getDate()
+  return `${ym}-${String(Math.min(d, lastDay)).padStart(2, '0')}`
+}
+
+function paymentSource(cardId) {
+  return cardId === 'jcb' ? 'JCBカード' : 'VISAカード'
+}
+
+function dateLabel(date) {
+  if (!date) return '—'
+  const d = new Date(`${date}T00:00:00`)
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土']
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}(${weekdays[d.getDay()]})`
+}
+
+function sortRows(list) {
   return [...list].sort((a, b) => {
     const dateCompare = (a.date ?? '').localeCompare(b.date ?? '')
     if (dateCompare !== 0) return dateCompare
+    const sourceCompare = (a.cardId ?? '').localeCompare(b.cardId ?? '')
+    if (sourceCompare !== 0) return sourceCompare
     return (a.name ?? '').localeCompare(b.name ?? '')
   })
 }
 
-function shortDate(date) {
-  if (!date) return '日付なし'
-  const [, m, d] = date.split('-')
-  return `${parseInt(m, 10)}/${parseInt(d, 10)}`
+function withCumulative(list) {
+  let running = 0
+  return list.map(row => {
+    running += row.amount
+    return { ...row, cumulative: running }
+  })
 }
 
-function loadExpenses(ym) {
-  return Object.values(CARDS).flatMap(card =>
-    loadVar(card.id, ym)
+function loadExpenseRows(ym) {
+  const rows = Object.values(CARDS).flatMap(card => {
+    const variableRows = loadVar(card.id, ym)
       .filter(item => item.sign !== 1)
       .map(item => ({
         ...item,
+        type: 'var',
         cardId: card.id,
-        cardName: card.shortName,
         sourceYm: ym,
+        sourceLabel: paymentSource(card.id),
       }))
-  )
+
+    const fixedRows = loadFixed(card.id)
+      .filter(item => isActiveForYm(item, ym))
+      .map(item => ({ item, date: dateFromYmDay(ym, item.day) }))
+      .filter(({ date }) => date)
+      .map(({ item, date }) => ({
+        ...item,
+        date,
+        type: 'fixed',
+        cardId: card.id,
+        sourceYm: ym,
+        sourceLabel: paymentSource(card.id),
+      }))
+
+    return [...variableRows, ...fixedRows]
+  })
+
+  return withCumulative(sortRows(rows))
 }
 
 function ExpenseEditDialog({ open, item, categories, onClose, onSave }) {
@@ -105,26 +147,26 @@ function ExpenseEditDialog({ open, item, categories, onClose, onSave }) {
         <Stack spacing={1.5} sx={{ mt: 0.5 }}>
           <TextField label="日付" type="date" size="small" fullWidth
             InputLabelProps={{ shrink: true }}
-            value={date} onChange={(e) => setDate(e.target.value)} />
+            value={date} onChange={(e) => setDate(e.target.value)}
+            helperText={item.type === 'fixed' ? '固定費は日付の日だけを保存します' : undefined} />
           <FormControl size="small" fullWidth>
-            <InputLabel>カード</InputLabel>
-            <Select value={cardId} label="カード" onChange={(e) => setCardId(e.target.value)}>
-              {Object.values(CARDS).map(card => (
-                <MenuItem key={card.id} value={card.id}>{card.shortName}</MenuItem>
-              ))}
+            <InputLabel>支払元</InputLabel>
+            <Select value={cardId} label="支払元" onChange={(e) => setCardId(e.target.value)}>
+              <MenuItem value="jcb">JCBカード</MenuItem>
+              <MenuItem value="smbc">VISAカード</MenuItem>
             </Select>
           </FormControl>
           <FormControl size="small" fullWidth>
-            <InputLabel>カテゴリ</InputLabel>
+            <InputLabel>項目</InputLabel>
             <Select value={categoryOptions.includes(category) ? category : categoryOptions[0]}
-              label="カテゴリ" onChange={(e) => setCategory(e.target.value)}>
+              label="項目" onChange={(e) => setCategory(e.target.value)}>
               {categoryOptions.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
             </Select>
           </FormControl>
+          <TextField label="内容" size="small" fullWidth
+            value={name} onChange={(e) => setName(e.target.value)} />
           <TextField label="支払先" size="small" fullWidth
             value={payee} onChange={(e) => setPayee(e.target.value)} />
-          <TextField label="項目名" size="small" fullWidth
-            value={name} onChange={(e) => setName(e.target.value)} />
           <AmountField label="金額" value={String(amount)} onChange={setAmount} />
           <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12 }}>消費分類</Typography>
@@ -161,15 +203,8 @@ export default function Cashflow() {
   const [categories] = useState(loadCategories)
 
   const ym = ymStr(year, month)
-  const expenses = useMemo(() => sortByDate(loadExpenses(ym)), [ym, version])
-  const total = expenses.reduce((sum, item) => sum + item.amount, 0)
-  const grouped = expenses.reduce((acc, item) => {
-    const date = item.date || '日付なし'
-    const last = acc[acc.length - 1]
-    if (last && last.date === date) last.items.push(item)
-    else acc.push({ date, items: [item] })
-    return acc
-  }, [])
+  const rows = useMemo(() => loadExpenseRows(ym), [ym, version])
+  const total = rows.reduce((sum, item) => sum + item.amount, 0)
 
   const notify = (severity, message) => setSnack({ open: true, severity, message })
   const refresh = () => setVersion(v => v + 1)
@@ -180,30 +215,57 @@ export default function Cashflow() {
     setMonth(next.month)
   }
 
+  const handleSaveVar = (source, data) => {
+    const targetYm = getBillingYmForDate(data.date, data.cardId)
+    const oldList = loadVar(source.cardId, source.sourceYm)
+    const cleanedOld = oldList.filter(x => x.id !== source.id)
+    const nextItem = {
+      id: source.id,
+      name: data.name,
+      payee: data.payee,
+      amount: data.amount,
+      category: data.category,
+      date: data.date,
+      spendType: data.spendType,
+    }
+
+    if (source.cardId === data.cardId && source.sourceYm === targetYm) {
+      saveVar(data.cardId, targetYm, sortRows(oldList.map(x => x.id === source.id ? nextItem : x)))
+      return
+    }
+
+    saveVar(source.cardId, source.sourceYm, cleanedOld)
+    saveVar(data.cardId, targetYm, sortRows([...loadVar(data.cardId, targetYm), nextItem]))
+  }
+
+  const handleSaveFixed = (source, data) => {
+    const oldList = loadFixed(source.cardId)
+    const cleanedOld = oldList.filter(x => x.id !== source.id)
+    const day = parseInt(data.date.slice(8), 10)
+    const current = oldList.find(x => x.id === source.id) ?? source
+    const nextItem = {
+      ...current,
+      name: data.name,
+      payee: data.payee,
+      amount: data.amount,
+      category: data.category,
+      spendType: data.spendType,
+      day,
+    }
+
+    if (source.cardId === data.cardId) {
+      saveFixed(data.cardId, oldList.map(x => x.id === source.id ? nextItem : x))
+      return
+    }
+
+    saveFixed(source.cardId, cleanedOld)
+    saveFixed(data.cardId, [...loadFixed(data.cardId), nextItem])
+  }
+
   const handleSaveEdit = (source, data) => {
     try {
-      const targetYm = getBillingYmForDate(data.date, data.cardId)
-      const oldList = loadVar(source.cardId, source.sourceYm)
-      const cleanedOld = oldList.filter(x => x.id !== source.id)
-      const nextItem = {
-        id: source.id,
-        name: data.name,
-        payee: data.payee,
-        amount: data.amount,
-        category: data.category,
-        date: data.date,
-        spendType: data.spendType,
-      }
-
-      if (source.cardId === data.cardId && source.sourceYm === targetYm) {
-        const next = sortByDate(oldList.map(x => x.id === source.id ? nextItem : x))
-        saveVar(data.cardId, targetYm, next)
-      } else {
-        saveVar(source.cardId, source.sourceYm, cleanedOld)
-        const targetList = loadVar(data.cardId, targetYm)
-        saveVar(data.cardId, targetYm, sortByDate([...targetList, nextItem]))
-      }
-
+      if (source.type === 'fixed') handleSaveFixed(source, data)
+      else handleSaveVar(source, data)
       setEditItem(null)
       refresh()
       notify('success', '支出を更新しました')
@@ -215,8 +277,11 @@ export default function Cashflow() {
   const handleDelete = () => {
     if (!deleteItem) return
     try {
-      const next = loadVar(deleteItem.cardId, deleteItem.sourceYm).filter(x => x.id !== deleteItem.id)
-      saveVar(deleteItem.cardId, deleteItem.sourceYm, next)
+      if (deleteItem.type === 'fixed') {
+        saveFixed(deleteItem.cardId, loadFixed(deleteItem.cardId).filter(x => x.id !== deleteItem.id))
+      } else {
+        saveVar(deleteItem.cardId, deleteItem.sourceYm, loadVar(deleteItem.cardId, deleteItem.sourceYm).filter(x => x.id !== deleteItem.id))
+      }
       setDeleteItem(null)
       refresh()
       notify('success', '支出を削除しました')
@@ -224,6 +289,9 @@ export default function Cashflow() {
       notify('error', '支出の削除に失敗しました')
     }
   }
+
+  const cellSx = { fontSize: 12, py: 0.9, borderColor: '#eeeeee', whiteSpace: 'nowrap' }
+  const amountSx = { ...cellSx, textAlign: 'right', color: '#b23b3b', fontVariantNumeric: 'tabular-nums' }
 
   return (
     <Box sx={{ p: 2 }}>
@@ -233,7 +301,7 @@ export default function Cashflow() {
         </IconButton>
         <Box sx={{ textAlign: 'center' }}>
           <Typography variant="subtitle1" fontWeight={700}>{year}年{month}月</Typography>
-          <Typography variant="caption" color="text.secondary">支出一覧</Typography>
+          <Typography variant="caption" color="text.secondary">JCB/VISA 支出明細</Typography>
         </Box>
         <IconButton size="small" aria-label="翌月" onClick={() => moveMonth(1)}>
           <ChevronRightIcon />
@@ -242,63 +310,52 @@ export default function Cashflow() {
 
       <Box sx={{ bgcolor: '#263238', color: '#fff', borderRadius: 2, px: 2, py: 1.25, mb: 1.5 }}>
         <Typography variant="caption" sx={{ opacity: 0.75 }}>月合計</Typography>
-        <Typography variant="h6" fontWeight={700}>¥{fmt(total)}</Typography>
+        <Typography variant="h6" fontWeight={700}>-¥{fmt(total)}</Typography>
       </Box>
 
-      {expenses.length === 0 ? (
+      {rows.length === 0 ? (
         <Typography variant="caption" color="text.disabled" sx={{ display: 'block', py: 2, textAlign: 'center' }}>
           この月の支出はありません
         </Typography>
       ) : (
-        <Box sx={{ mx: -2 }}>
-          {grouped.map(({ date, items }) => (
-            <Box key={date}>
-              <Box sx={{ px: 2, py: 0.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #eeeeee' }}>
-                <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: 'text.secondary' }}>
-                  {shortDate(date)}
-                  <Typography component="span" variant="caption" sx={{ fontSize: 10, color: 'text.disabled', ml: 1 }}>
-                    ¥{fmt(items.reduce((sum, item) => sum + item.amount, 0))}
-                  </Typography>
-                </Typography>
-              </Box>
-              {items.map(item => (
-                <Box key={`${item.cardId}-${item.id}`} sx={{ px: 2, py: 0.75, borderBottom: '1px solid #f5f5f5' }}>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-                    <Stack direction="row" alignItems="center" gap={0.75} sx={{ flex: 1, minWidth: 0 }}>
-                      <Chip label={item.cardName} size="small"
-                        sx={{ height: 18, fontSize: 9, flexShrink: 0, bgcolor: CARDS[item.cardId]?.color ?? '#37474f', color: '#fff' }} />
-                      <Chip label={item.category} size="small"
-                        sx={{ height: 18, fontSize: 9, flexShrink: 0, bgcolor: CATEGORY_COLORS[item.category] ?? '#eceff1', color: '#37474f' }} />
-                      {item.spendType && (
-                        <Chip label={item.spendType} size="small"
-                          sx={{ height: 16, fontSize: 8, flexShrink: 0, bgcolor: SPEND_TYPE_COLORS[item.spendType] ?? '#eceff1', color: '#fff' }} />
-                      )}
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="body2" sx={{ fontSize: 12, fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.name}
-                        </Typography>
-                        {item.payee && (
-                          <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
-                            {item.payee}
-                          </Typography>
-                        )}
-                      </Box>
-                    </Stack>
-                    <Stack direction="row" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
-                      <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 700 }}>¥{fmt(item.amount)}</Typography>
-                      <IconButton size="small" aria-label="編集" onClick={() => setEditItem(item)} sx={{ p: 0.75 }}>
-                        <EditIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-                      </IconButton>
-                      <IconButton size="small" aria-label="削除" onClick={() => setDeleteItem(item)} sx={{ p: 0.75 }}>
-                        <DeleteIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-                      </IconButton>
-                    </Stack>
-                  </Stack>
-                </Box>
+        <TableContainer component={Paper} variant="outlined" sx={{ mx: -2, width: 'calc(100% + 32px)', overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 720 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f7f4ef' }}>
+                {['日付', '支払元', '項目', '内容', '金額', '累計'].map((label, index) => (
+                  <TableCell key={label} align={index >= 4 ? 'right' : 'left'} sx={{
+                    fontSize: 12, fontWeight: 700, py: 1, whiteSpace: 'nowrap', borderColor: '#e7e2da',
+                  }}>
+                    {label}
+                  </TableCell>
+                ))}
+                <TableCell sx={{ width: 64, py: 1, borderColor: '#e7e2da' }} />
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.map(row => (
+                <TableRow key={`${row.type}-${row.cardId}-${row.id}`} hover>
+                  <TableCell sx={cellSx}>{dateLabel(row.date)}</TableCell>
+                  <TableCell sx={cellSx}>{row.sourceLabel}</TableCell>
+                  <TableCell sx={cellSx}>{row.category}</TableCell>
+                  <TableCell sx={{ ...cellSx, minWidth: 160, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {row.name}
+                  </TableCell>
+                  <TableCell sx={amountSx}>-{fmt(row.amount)}</TableCell>
+                  <TableCell sx={amountSx}>-{fmt(row.cumulative)}</TableCell>
+                  <TableCell align="right" sx={{ ...cellSx, px: 0.5 }}>
+                    <IconButton size="small" aria-label="編集" onClick={() => setEditItem(row)} sx={{ p: 0.5 }}>
+                      <EditIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                    </IconButton>
+                    <IconButton size="small" aria-label="削除" onClick={() => setDeleteItem(row)} sx={{ p: 0.5 }}>
+                      <DeleteIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
               ))}
-            </Box>
-          ))}
-        </Box>
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
       <ExpenseEditDialog
