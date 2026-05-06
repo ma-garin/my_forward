@@ -61,10 +61,7 @@ async function shareJson(keys, filename) {
     && file
     && navigator.canShare({ files: [file] })
 
-  if (!canShareFile) {
-    alert('この端末またはブラウザではファイル共有に対応していません。ダウンロードを使用してください。')
-    return false
-  }
+  if (!canShareFile) return false
 
   try {
     await navigator.share({
@@ -74,9 +71,7 @@ async function shareJson(keys, filename) {
     })
     return true
   } catch (err) {
-    if (err?.name !== 'AbortError') {
-      alert('共有に失敗しました。ダウンロードを使用してください。')
-    }
+    if (err?.name !== 'AbortError') return false
     return false
   }
 }
@@ -98,21 +93,31 @@ function importFile(file) {
 
 function DataRow({ label, exportFilename, filterKeys }) {
   const [message, setMessage] = useState('')
+  const [severity, setSeverity] = useState('success')
   const keys = filterKeys(getAllKeys())
   const android = isAndroid()
 
   const handleExport = async () => {
     setMessage('')
-    if (android && await shareJson(keys, exportFilename)) {
-      setMessage('共有しました')
+    if (android) {
+      const ok = await shareJson(keys, exportFilename)
+      setMessage(ok ? '共有しました' : '共有できませんでした。「共有」ボタンをお試しください。')
+      setSeverity(ok ? 'success' : 'warning')
       return
     }
-    if (downloadJson(keys, exportFilename)) setMessage('ダウンロードしました')
+    if (downloadJson(keys, exportFilename)) {
+      setMessage('ダウンロードしました')
+      setSeverity('success')
+    }
   }
 
   const handleShare = async () => {
     setMessage('')
-    if (await shareJson(keys, exportFilename)) setMessage('共有しました')
+    const ok = await shareJson(keys, exportFilename)
+    if (ok) {
+      setMessage('共有しました')
+      setSeverity('success')
+    }
   }
 
   return (
@@ -138,7 +143,7 @@ function DataRow({ label, exportFilename, filterKeys }) {
           </Button>
         </Stack>
       </Stack>
-      {message && <Alert severity="success" sx={{ py: 0.25, mt: 0.5, fontSize: 12 }}>{message}</Alert>}
+      {message && <Alert severity={severity} sx={{ py: 0.25, mt: 0.5, fontSize: 12 }}>{message}</Alert>}
     </Box>
   )
 }
@@ -146,20 +151,30 @@ function DataRow({ label, exportFilename, filterKeys }) {
 export default function DataSettings() {
   const activeKeys = getAllKeys().filter(isActiveKey)
   const [bulkMessage, setBulkMessage] = useState('')
+  const [bulkSeverity, setBulkSeverity] = useState('success')
   const android = isAndroid()
 
   const handleBulkExport = async () => {
     setBulkMessage('')
-    if (android && await shareJson(activeKeys, 'myforward_backup')) {
-      setBulkMessage('共有しました')
+    if (android) {
+      const ok = await shareJson(activeKeys, 'myforward_backup')
+      setBulkMessage(ok ? '共有しました' : '共有できませんでした。「共有」ボタンをお試しください。')
+      setBulkSeverity(ok ? 'success' : 'warning')
       return
     }
-    if (downloadJson(activeKeys, 'myforward_backup')) setBulkMessage('ダウンロードしました')
+    if (downloadJson(activeKeys, 'myforward_backup')) {
+      setBulkMessage('ダウンロードしました')
+      setBulkSeverity('success')
+    }
   }
 
   const handleBulkShare = async () => {
     setBulkMessage('')
-    if (await shareJson(activeKeys, 'myforward_backup')) setBulkMessage('共有しました')
+    const ok = await shareJson(activeKeys, 'myforward_backup')
+    if (ok) {
+      setBulkMessage('共有しました')
+      setBulkSeverity('success')
+    }
   }
 
   return (
@@ -173,7 +188,7 @@ export default function DataSettings() {
             ? 'Androidでは保存先を選べる共有シートを優先して開きます。'
             : 'ダウンロードまたは共有で JSON ファイルとして保存できます。'}
         </Typography>
-        {bulkMessage && <Alert severity="success" sx={{ mb: 1, py: 0.5, fontSize: 12 }}>{bulkMessage}</Alert>}
+        {bulkMessage && <Alert severity={bulkSeverity} sx={{ mb: 1, py: 0.5, fontSize: 12 }}>{bulkMessage}</Alert>}
         <Stack direction="row" gap={1} flexWrap="wrap">
           <Button variant="contained" startIcon={<DownloadIcon />}
             sx={{ bgcolor: '#43a047', '&:hover': { bgcolor: '#388e3c' }, flex: '1 1 150px' }}
