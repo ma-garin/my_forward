@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Box, Typography, Button, Stack, Divider, Alert } from '@mui/material'
 import DownloadIcon from '@mui/icons-material/Download'
+import ShareIcon from '@mui/icons-material/Share'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 
 function isActiveKey(k) {
@@ -21,21 +22,59 @@ function getAllKeys() {
   return keys
 }
 
-function downloadJson(keys, filename) {
+function createJsonExport(keys, filename) {
   const data = {}
   keys.forEach(k => {
     try { data[k] = JSON.parse(localStorage.getItem(k)) } catch {}
   })
+  const fileName = `${filename}_${new Date().toISOString().slice(0, 10)}.json`
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const file = typeof File === 'function'
+    ? new File([blob], fileName, { type: 'application/json' })
+    : null
+
+  return { blob, file, fileName }
+}
+
+function downloadJson(keys, filename) {
+  const { blob, fileName } = createJsonExport(keys, filename)
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${filename}_${new Date().toISOString().slice(0, 10)}.json`
+  a.download = fileName
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
   setTimeout(() => URL.revokeObjectURL(url), 100)
   return true
+}
+
+async function shareJson(keys, filename) {
+  const { file } = createJsonExport(keys, filename)
+  const canShareFile = typeof navigator !== 'undefined'
+    && typeof navigator.share === 'function'
+    && typeof navigator.canShare === 'function'
+    && file
+    && navigator.canShare({ files: [file] })
+
+  if (!canShareFile) {
+    alert('この端末またはブラウザではファイル共有に対応していません。ダウンロードを使用してください。')
+    return false
+  }
+
+  try {
+    await navigator.share({
+      files: [file],
+      title: 'MyForwardバックアップ',
+      text: 'MyForwardのバックアップデータです。',
+    })
+    return true
+  } catch (err) {
+    if (err?.name !== 'AbortError') {
+      alert('共有に失敗しました。ダウンロードを使用してください。')
+    }
+    return false
+  }
 }
 
 function importFile(file) {
@@ -54,18 +93,33 @@ function importFile(file) {
 }
 
 function DataRow({ label, exportFilename, filterKeys }) {
-  const [saved, setSaved] = useState(false)
+  const [message, setMessage] = useState('')
   const keys = filterKeys(getAllKeys())
+
+  const handleDownload = () => {
+    setMessage('')
+    if (downloadJson(keys, exportFilename)) setMessage('ダウンロードしました')
+  }
+
+  const handleShare = async () => {
+    setMessage('')
+    if (await shareJson(keys, exportFilename)) setMessage('共有しました')
+  }
 
   return (
     <Box sx={{ py: 1 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Typography fontSize={14} fontWeight={500}>{label}</Typography>
-        <Stack direction="row" gap={1}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} flexWrap="wrap">
+        <Typography fontSize={14} fontWeight={500} sx={{ flex: '1 1 120px' }}>{label}</Typography>
+        <Stack direction="row" gap={1} flexWrap="wrap" justifyContent="flex-end">
           <Button size="small" variant="outlined" startIcon={<DownloadIcon />}
-            onClick={() => { setSaved(false); if (downloadJson(keys, exportFilename)) setSaved(true) }}
+            onClick={handleDownload}
             sx={{ fontSize: 12 }}>
             出力
+          </Button>
+          <Button size="small" variant="outlined" startIcon={<ShareIcon />}
+            onClick={handleShare}
+            sx={{ fontSize: 12 }}>
+            共有
           </Button>
           <Button size="small" variant="outlined" startIcon={<UploadFileIcon />}
             component="label" sx={{ fontSize: 12 }}>
@@ -75,14 +129,24 @@ function DataRow({ label, exportFilename, filterKeys }) {
           </Button>
         </Stack>
       </Stack>
-      {saved && <Alert severity="success" sx={{ py: 0.25, mt: 0.5, fontSize: 12 }}>ダウンロードしました</Alert>}
+      {message && <Alert severity="success" sx={{ py: 0.25, mt: 0.5, fontSize: 12 }}>{message}</Alert>}
     </Box>
   )
 }
 
 export default function DataSettings() {
   const activeKeys = getAllKeys().filter(isActiveKey)
-  const [bulkSaved, setBulkSaved] = useState(false)
+  const [bulkMessage, setBulkMessage] = useState('')
+
+  const handleBulkDownload = () => {
+    setBulkMessage('')
+    if (downloadJson(activeKeys, 'myforward_backup')) setBulkMessage('ダウンロードしました')
+  }
+
+  const handleBulkShare = async () => {
+    setBulkMessage('')
+    if (await shareJson(activeKeys, 'myforward_backup')) setBulkMessage('共有しました')
+  }
 
   return (
     <Box sx={{ p: 2 }}>
@@ -91,16 +155,22 @@ export default function DataSettings() {
       <Box sx={{ p: 2, bgcolor: '#e8f5e9', borderRadius: 2, mb: 2 }}>
         <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>全データ一括</Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          ダウンロードフォルダに JSON ファイルとして保存されます。
+          ダウンロードまたは共有で JSON ファイルとして保存できます。
         </Typography>
-        {bulkSaved && <Alert severity="success" sx={{ mb: 1, py: 0.5, fontSize: 12 }}>ダウンロードしました</Alert>}
-        <Stack direction="row" gap={1}>
-          <Button variant="contained" startIcon={<DownloadIcon />} fullWidth
-            sx={{ bgcolor: '#43a047', '&:hover': { bgcolor: '#388e3c' } }}
-            onClick={() => { setBulkSaved(false); if (downloadJson(activeKeys, 'myforward_backup')) setBulkSaved(true) }}>
+        {bulkMessage && <Alert severity="success" sx={{ mb: 1, py: 0.5, fontSize: 12 }}>{bulkMessage}</Alert>}
+        <Stack direction="row" gap={1} flexWrap="wrap">
+          <Button variant="contained" startIcon={<DownloadIcon />}
+            sx={{ bgcolor: '#43a047', '&:hover': { bgcolor: '#388e3c' }, flex: '1 1 150px' }}
+            onClick={handleBulkDownload}>
             一括エクスポート
           </Button>
-          <Button variant="contained" startIcon={<UploadFileIcon />} fullWidth component="label">
+          <Button variant="outlined" startIcon={<ShareIcon />}
+            sx={{ flex: '1 1 120px' }}
+            onClick={handleBulkShare}>
+            共有
+          </Button>
+          <Button variant="contained" startIcon={<UploadFileIcon />} component="label"
+            sx={{ flex: '1 1 150px' }}>
             一括インポート
             <input type="file" accept="*/*" hidden
               onChange={(e) => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = '' }} />
