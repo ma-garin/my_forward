@@ -12,7 +12,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import AmountField, { parseAmount } from '../components/AmountField'
 import { fmt, isActiveForYm, loadCategories, ymStr } from '../utils/finance'
 import {
-  CARDS, SPEND_TYPES, SPEND_TYPE_COLORS,
+  CARDS, CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
   getBillingYmForDate, loadFixed, saveFixed, loadVar, saveVar,
 } from '../utils/ccStorage'
 
@@ -115,7 +115,11 @@ function summarizeRows(rows, keyFn) {
     .sort((a, b) => b.amount - a.amount)
 }
 
-function SummaryBars({ title, rows, color }) {
+function pct(value, total) {
+  return total > 0 ? Math.round(value / total * 100) : 0
+}
+
+function SummaryBars({ title, rows, total }) {
   if (rows.length === 0) return null
   const max = Math.max(...rows.map(row => row.amount), 1)
 
@@ -125,21 +129,30 @@ function SummaryBars({ title, rows, color }) {
         {title}
       </Typography>
       <Stack spacing={0.75}>
-        {rows.map(row => (
+        {rows.map((row, index) => {
+          const color = CHART_COLORS[index % CHART_COLORS.length]
+          const percentage = pct(row.amount, total)
+          return (
           <Box key={row.label}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-              <Typography variant="caption" sx={{ fontSize: 11, minWidth: 88, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {row.label}
-              </Typography>
-              <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: '#b23b3b', fontVariantNumeric: 'tabular-nums' }}>
-                -¥{fmt(row.amount)}
-              </Typography>
+              <Stack direction="row" alignItems="center" gap={0.75} sx={{ minWidth: 0 }}>
+                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
+                <Typography variant="caption" sx={{ fontSize: 11, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {row.label}
+                </Typography>
+              </Stack>
+              <Stack direction="row" alignItems="baseline" gap={0.5} sx={{ flexShrink: 0 }}>
+                <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary' }}>{percentage}%</Typography>
+                <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: '#b23b3b', fontVariantNumeric: 'tabular-nums' }}>
+                  -¥{fmt(row.amount)}
+                </Typography>
+              </Stack>
             </Stack>
             <Box sx={{ height: 7, bgcolor: '#eeeeee', borderRadius: 4, overflow: 'hidden', mt: 0.25 }}>
               <Box sx={{ height: '100%', width: `${Math.max(3, row.amount / max * 100)}%`, bgcolor: color, borderRadius: 4 }} />
             </Box>
           </Box>
-        ))}
+        )})}
       </Stack>
     </Box>
   )
@@ -159,8 +172,8 @@ function SummaryCard({ rows, total }) {
           <Typography variant="caption" sx={{ color: '#b23b3b', fontWeight: 700 }}>-¥{fmt(total)}</Typography>
         </Stack>
         <Stack spacing={2}>
-          <SummaryBars title="項目別" rows={categoryRows} color="#607d8b" />
-          <SummaryBars title="支払元別" rows={sourceRows} color="#2e7d32" />
+          <SummaryBars title="項目別" rows={categoryRows} total={total} />
+          <SummaryBars title="支払元別" rows={sourceRows} total={total} />
         </Stack>
       </CardContent>
     </Card>
@@ -300,6 +313,8 @@ export default function Cashflow() {
   const ym = ymStr(year, month)
   const rows = useMemo(() => loadExpenseRows(ym), [ym, version])
   const total = rows.reduce((sum, item) => sum + item.amount, 0)
+  const fixedTotal = rows.filter(item => item.type === 'fixed').reduce((sum, item) => sum + item.amount, 0)
+  const variableTotal = rows.filter(item => item.type === 'var').reduce((sum, item) => sum + item.amount, 0)
 
   const notify = (severity, message) => setSnack({ open: true, severity, message })
   const refresh = () => setVersion(v => v + 1)
@@ -406,6 +421,9 @@ export default function Cashflow() {
       <Box sx={{ bgcolor: '#263238', color: '#fff', borderRadius: 2, px: 2, py: 1.25, mb: 1.5 }}>
         <Typography variant="caption" sx={{ opacity: 0.75 }}>月合計</Typography>
         <Typography variant="h6" fontWeight={700}>-¥{fmt(total)}</Typography>
+        <Typography variant="caption" sx={{ display: 'block', mt: 0.35, opacity: 0.78 }}>
+          固定費: -¥{fmt(fixedTotal)} ({pct(fixedTotal, total)}%) / 変動費: -¥{fmt(variableTotal)} ({pct(variableTotal, total)}%)
+        </Typography>
       </Box>
 
       {rows.length === 0 ? (
