@@ -14,9 +14,10 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import {
   DEFAULT_FIXED, UNIT_PRICE_RAW,
   overtimeUnitPrice, overtimeUnitPriceFloor, calcTotalPay,
-  deriveRowSim, newId,
+  deriveRowSim, newId, fmt,
   addMonth, currentBillingYm, isBonusMonth, loadSalaryMonth, saveSalaryMonth,
 } from '../utils/finance'
+import AmountField, { parseAmount } from '../components/AmountField'
 
 function save(ym, fixed, overtime, customUnit = '', payItems = [], dedItems = [], bonusTakeHome = '') {
   saveSalaryMonth(ym, { fixed, overtime, customUnit, payItems, dedItems, bonusTakeHome })
@@ -40,9 +41,7 @@ function calcAllOvertime(f, overtime, customUnit) {
 
 const deriveRowLocal = deriveRowSim
 
-// ─── 時間変換ユーティリティ ──────────────────────────────────
-
-function fmt(n) { return n.toLocaleString('ja-JP') }
+// ─── UI パーツ ───────────────────────────────────────────────
 
 // ─── UI パーツ ───────────────────────────────────────────────
 
@@ -70,13 +69,12 @@ function FixedRow({ label, value, editMode, fieldKey, onEdit, onDelete }) {
       </Stack>
       {editMode ? (
         <Stack direction="row" alignItems="center" gap={0.5}>
-          <TextField
-            size="small" type="number"
-            inputProps={{ min: 0, style: { textAlign: 'right', width: 110 } }}
-            value={value}
-            onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 0) onEdit(fieldKey, v) }}
-            sx={{ '& .MuiInputBase-root': { height: 32, fontSize: 13 } }}
-          />
+          <Box sx={{ width: 120 }}>
+            <AmountField
+              value={String(value)}
+              onChange={(raw) => { const v = parseAmount(raw); if (v >= 0) onEdit(fieldKey, v) }}
+            />
+          </Box>
           {onDelete && (
             <IconButton size="small" onClick={onDelete} sx={{ p: 0.5, color: 'error.light' }}>
               <DeleteIcon sx={{ fontSize: 15 }} />
@@ -107,11 +105,12 @@ function OverrideRow({ label, autoValue, overrideValue, editMode, fieldKey, onEd
       </Stack>
       {editMode ? (
         <Stack direction="row" alignItems="center" gap={0.5}>
-          <TextField size="small" type="number"
-            inputProps={{ min: 0, style: { textAlign: 'right', width: 90 } }}
-            value={displayValue}
-            onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 0) onEdit(fieldKey, v) }}
-            sx={{ '& .MuiInputBase-root': { height: 32, fontSize: 13 } }} />
+          <Box sx={{ width: 120 }}>
+            <AmountField
+              value={String(displayValue)}
+              onChange={(raw) => { const v = parseAmount(raw); if (v >= 0) onEdit(fieldKey, v) }}
+            />
+          </Box>
           {isOverridden && (
             <Button size="small" onClick={() => onClear(fieldKey)}
               sx={{ fontSize: 9, minWidth: 0, px: 0.75, py: 0.25, color: 'text.disabled' }}>自動</Button>
@@ -156,11 +155,12 @@ function CustomRow({ item, editMode, onEdit, onDelete }) {
             inputProps={{ style: { fontSize: 13, width: 100 } }}
             sx={{ '& .MuiInputBase-root': { height: 32 }, mr: 1 }} />
           <Stack direction="row" alignItems="center" gap={0.5}>
-            <TextField size="small" type="number"
-              inputProps={{ min: 0, style: { textAlign: 'right', width: 90 } }}
-              value={item.amount}
-              onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 0) onEdit(item.id, 'amount', v) }}
-              sx={{ '& .MuiInputBase-root': { height: 32, fontSize: 13 } }} />
+            <Box sx={{ width: 120 }}>
+              <AmountField
+                value={String(item.amount)}
+                onChange={(raw) => { const v = parseAmount(raw); if (v >= 0) onEdit(item.id, 'amount', v) }}
+              />
+            </Box>
             <IconButton size="small" onClick={() => onDelete(item.id)} sx={{ p: 0.5 }}>
               <DeleteIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
             </IconButton>
@@ -466,19 +466,15 @@ export default function SalarySimulation() {
         <SectionCard title="賞与">
           <Stack direction="row" alignItems="center" gap={1}>
             <Typography variant="caption" color="text.secondary" sx={{ minWidth: 72 }}>賞与手取り</Typography>
-            <TextField
-              size="small" type="number" fullWidth
-              inputProps={{ min: 0, style: { textAlign: 'right', fontSize: 13 } }}
-              value={bonusTakeHome}
-              onChange={(e) => {
-                setBonusTakeHome(e.target.value)
-                save(ym, fixed, overtime, customUnit, payItems, dedItems, e.target.value)
-              }}
-              sx={{ '& .MuiInputBase-root': { height: 32 } }}
-              InputProps={{
-                startAdornment: <InputAdornment position="start">¥</InputAdornment>,
-              }}
-            />
+            <Box sx={{ width: 150 }}>
+              <AmountField
+                value={String(bonusTakeHome)}
+                onChange={(raw) => {
+                  setBonusTakeHome(raw)
+                  save(ym, fixed, overtime, customUnit, payItems, dedItems, raw)
+                }}
+              />
+            </Box>
           </Stack>
         </SectionCard>
       )}
@@ -503,17 +499,15 @@ export default function SalarySimulation() {
         {/* 単価自由入力 */}
         <Stack direction="row" alignItems="center" gap={1} sx={{ mt: 1.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ minWidth: 60 }}>単価 自由入力</Typography>
-          <TextField
-            size="small" type="number" placeholder={String(unitR)}
-            inputProps={{ min: 1, style: { textAlign: 'right', width: 70, fontSize: 13 } }}
-            value={customUnit}
-            onChange={(e) => { setCustomUnit(e.target.value); save(ym, fixed, overtime, e.target.value, payItems, dedItems, bonusTakeHome) }}
-            sx={{ '& .MuiInputBase-root': { height: 32 } }}
-            InputProps={{
-              startAdornment: <InputAdornment position="start">¥</InputAdornment>,
-              endAdornment: <Typography variant="caption" sx={{ ml: 0.5, whiteSpace: 'nowrap' }}>/h</Typography>,
-            }}
-          />
+          <Box sx={{ width: 150 }}>
+            <AmountField
+              value={customUnit}
+              onChange={(raw) => { setCustomUnit(raw); save(ym, fixed, overtime, raw, payItems, dedItems, bonusTakeHome) }}
+            />
+          </Box>
+          {customUnit !== '' && (
+            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>/h</Typography>
+          )}
           {customUnit !== '' && (
             <Button size="small" variant="text" color="inherit"
               sx={{ fontSize: 11, minWidth: 0, px: 1, color: 'text.disabled' }}
