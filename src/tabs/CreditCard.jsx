@@ -1217,7 +1217,7 @@ export default function CreditCard() {
         onClose={() => setAddOpen(false)}
         onSave={handleAddSave}
         categories={categories}
-        defaultDate={getBillingYmForDate(todayStr, CARDS.jcb.cutoffDay) === ym ? todayStr : `${ym}-01`}
+        defaultDate={todayStr}
         onEditCategories={() => setCatDlgOpen(true)}
         currentCardId={cardId}
       />
