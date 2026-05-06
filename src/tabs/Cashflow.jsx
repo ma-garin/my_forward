@@ -167,6 +167,35 @@ function SummaryCard({ rows, total }) {
   )
 }
 
+function displayPayee(row) {
+  return row.payee?.trim() || row.name
+}
+
+function ExpenseDetailDialog({ item, onClose }) {
+  if (!item) return null
+
+  return (
+    <Dialog open={!!item} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle sx={{ pb: 0.5, fontSize: 16 }}>内容</DialogTitle>
+      <DialogContent>
+        <Stack spacing={1.25} sx={{ mt: 0.5 }}>
+          <Box>
+            <Typography variant="caption" color="text.secondary">支払先</Typography>
+            <Typography variant="body2" fontWeight={600}>{displayPayee(item)}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">内容</Typography>
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{item.name}</Typography>
+          </Box>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} size="small">閉じる</Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
 function ExpenseEditDialog({ open, item, categories, onClose, onSave }) {
   const [date, setDate] = useState('')
   const [cardId, setCardId] = useState('jcb')
@@ -264,6 +293,7 @@ export default function Cashflow() {
   const [version, setVersion] = useState(0)
   const [editItem, setEditItem] = useState(null)
   const [deleteItem, setDeleteItem] = useState(null)
+  const [detailItem, setDetailItem] = useState(null)
   const [snack, setSnack] = useState({ open: false, severity: 'success', message: '' })
   const [categories] = useState(loadCategories)
 
@@ -400,8 +430,16 @@ export default function Cashflow() {
                         {row.category}
                       </Typography>
                     </Stack>
-                    <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {row.name}
+                    <Typography
+                      variant="body2"
+                      onClick={() => row.payee ? setDetailItem(row) : undefined}
+                      sx={{
+                        fontSize: 13, fontWeight: 600, lineHeight: 1.35,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        cursor: row.payee ? 'pointer' : 'default',
+                        color: row.payee ? 'primary.main' : 'text.primary',
+                      }}>
+                      {displayPayee(row)}
                     </Typography>
                   </Box>
 
@@ -430,7 +468,7 @@ export default function Cashflow() {
             <Table size="small" sx={{ minWidth: 720 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: '#f7f4ef' }}>
-                  {['日付', '支払元', '項目', '内容', '金額', '累計'].map((label, index) => (
+                  {['日付', '支払元', '項目', '支払先', '金額', '累計'].map((label, index) => (
                     <TableCell key={label} align={index >= 4 ? 'right' : 'left'} sx={{
                       fontSize: 12, fontWeight: 700, py: 1, whiteSpace: 'nowrap', borderColor: '#e7e2da',
                     }}>
@@ -447,7 +485,20 @@ export default function Cashflow() {
                     <TableCell sx={cellSx}>{row.sourceLabel}</TableCell>
                     <TableCell sx={cellSx}>{row.category}</TableCell>
                     <TableCell sx={{ ...cellSx, minWidth: 160, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {row.name}
+                      <Typography
+                        component="span"
+                        onClick={() => row.payee ? setDetailItem(row) : undefined}
+                        sx={{
+                          fontSize: 12,
+                          cursor: row.payee ? 'pointer' : 'default',
+                          color: row.payee ? 'primary.main' : 'text.primary',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          display: 'block',
+                        }}>
+                        {displayPayee(row)}
+                      </Typography>
                     </TableCell>
                     <TableCell sx={amountSx}>-{fmt(row.amount)}</TableCell>
                     <TableCell sx={amountSx}>-{fmt(row.cumulative)}</TableCell>
@@ -476,6 +527,8 @@ export default function Cashflow() {
         onClose={() => setEditItem(null)}
         onSave={handleSaveEdit}
       />
+
+      <ExpenseDetailDialog item={detailItem} onClose={() => setDetailItem(null)} />
 
       <Dialog open={!!deleteItem} onClose={() => setDeleteItem(null)} fullWidth maxWidth="xs">
         <DialogTitle sx={{ fontSize: 16 }}>支出を削除</DialogTitle>
