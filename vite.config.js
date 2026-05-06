@@ -45,34 +45,6 @@ function salaryWatchPlugin() {
 
 export default defineConfig({
   base: '/my_forward/',
-  build: {
-    rollupOptions: {
-      plugins: [
-        {
-          name: 'resolve-prop-types-secret',
-          resolveId(source, importer) {
-            if (
-              source === './lib/ReactPropTypesSecret' &&
-              importer &&
-              importer.includes('prop-types')
-            ) {
-              return '\0virtual:ReactPropTypesSecret'
-            }
-            return null
-          },
-          load(id) {
-            if (id === '\0virtual:ReactPropTypesSecret') {
-              return `
-var ReactPropTypesSecret = 'SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED';
-module.exports = ReactPropTypesSecret;
-`
-            }
-            return null
-          },
-        },
-      ],
-    },
-  },
   plugins: [
     react(),
     salaryWatchPlugin(),
