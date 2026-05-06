@@ -36,6 +36,10 @@ function createJsonExport(keys, filename) {
   return { blob, file, fileName }
 }
 
+function isAndroid() {
+  return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+}
+
 function downloadJson(keys, filename) {
   const { blob, fileName } = createJsonExport(keys, filename)
   const url = URL.createObjectURL(blob)
@@ -95,9 +99,14 @@ function importFile(file) {
 function DataRow({ label, exportFilename, filterKeys }) {
   const [message, setMessage] = useState('')
   const keys = filterKeys(getAllKeys())
+  const android = isAndroid()
 
-  const handleDownload = () => {
+  const handleExport = async () => {
     setMessage('')
+    if (android && await shareJson(keys, exportFilename)) {
+      setMessage('共有しました')
+      return
+    }
     if (downloadJson(keys, exportFilename)) setMessage('ダウンロードしました')
   }
 
@@ -112,9 +121,9 @@ function DataRow({ label, exportFilename, filterKeys }) {
         <Typography fontSize={14} fontWeight={500} sx={{ flex: '1 1 120px' }}>{label}</Typography>
         <Stack direction="row" gap={1} flexWrap="wrap" justifyContent="flex-end">
           <Button size="small" variant="outlined" startIcon={<DownloadIcon />}
-            onClick={handleDownload}
+            onClick={handleExport}
             sx={{ fontSize: 12 }}>
-            出力
+            {android ? '保存' : '出力'}
           </Button>
           <Button size="small" variant="outlined" startIcon={<ShareIcon />}
             onClick={handleShare}
@@ -137,9 +146,14 @@ function DataRow({ label, exportFilename, filterKeys }) {
 export default function DataSettings() {
   const activeKeys = getAllKeys().filter(isActiveKey)
   const [bulkMessage, setBulkMessage] = useState('')
+  const android = isAndroid()
 
-  const handleBulkDownload = () => {
+  const handleBulkExport = async () => {
     setBulkMessage('')
+    if (android && await shareJson(activeKeys, 'myforward_backup')) {
+      setBulkMessage('共有しました')
+      return
+    }
     if (downloadJson(activeKeys, 'myforward_backup')) setBulkMessage('ダウンロードしました')
   }
 
@@ -155,14 +169,16 @@ export default function DataSettings() {
       <Box sx={{ p: 2, bgcolor: '#e8f5e9', borderRadius: 2, mb: 2 }}>
         <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>全データ一括</Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          ダウンロードまたは共有で JSON ファイルとして保存できます。
+          {android
+            ? 'Androidでは保存先を選べる共有シートを優先して開きます。'
+            : 'ダウンロードまたは共有で JSON ファイルとして保存できます。'}
         </Typography>
         {bulkMessage && <Alert severity="success" sx={{ mb: 1, py: 0.5, fontSize: 12 }}>{bulkMessage}</Alert>}
         <Stack direction="row" gap={1} flexWrap="wrap">
           <Button variant="contained" startIcon={<DownloadIcon />}
             sx={{ bgcolor: '#43a047', '&:hover': { bgcolor: '#388e3c' }, flex: '1 1 150px' }}
-            onClick={handleBulkDownload}>
-            一括エクスポート
+            onClick={handleBulkExport}>
+            {android ? '保存先を選択' : '一括エクスポート'}
           </Button>
           <Button variant="outlined" startIcon={<ShareIcon />}
             sx={{ flex: '1 1 120px' }}
