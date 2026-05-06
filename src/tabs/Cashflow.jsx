@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, Card, CardContent, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Snackbar,
   Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   TextField, Typography,
@@ -16,13 +16,8 @@ import {
   getBillingYmForDate, loadFixed, saveFixed, loadVar, saveVar,
 } from '../utils/ccStorage'
 
-function defaultBillingMonth() {
+function defaultCalendarMonth() {
   const today = new Date()
-  const cutoff = CARDS.jcb?.cutoffDay ?? 0
-  if (cutoff > 0 && today.getDate() <= cutoff) {
-    const d = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-    return { year: d.getFullYear(), month: d.getMonth() + 1 }
-  }
   return { year: today.getFullYear(), month: today.getMonth() + 1 }
 }
 
@@ -40,6 +35,12 @@ function dateFromYmDay(ym, day) {
   const [year, month] = ym.split('-').map(Number)
   const lastDay = new Date(year, month, 0).getDate()
   return `${ym}-${String(Math.min(d, lastDay)).padStart(2, '0')}`
+}
+
+function addMonthYm(ym, delta) {
+  const [year, month] = ym.split('-').map(Number)
+  const d = new Date(year, month - 1 + delta, 1)
+  return ymStr(d.getFullYear(), d.getMonth() + 1)
 }
 
 function paymentSource(cardId) {
@@ -73,15 +74,17 @@ function withCumulative(list) {
 
 function loadExpenseRows(ym) {
   const rows = Object.values(CARDS).flatMap(card => {
-    const variableRows = loadVar(card.id, ym)
+    const candidateYms = [...new Set([addMonthYm(ym, -1), ym, addMonthYm(ym, 1)])]
+    const variableRows = candidateYms.flatMap(sourceYm => loadVar(card.id, sourceYm)
       .filter(item => item.sign !== 1)
+      .filter(item => item.date?.startsWith(ym))
       .map(item => ({
         ...item,
         type: 'var',
         cardId: card.id,
-        sourceYm: ym,
+        sourceYm,
         sourceLabel: paymentSource(card.id),
-      }))
+      })))
 
     const fixedRows = loadFixed(card.id)
       .filter(item => isActiveForYm(item, ym))
@@ -100,6 +103,68 @@ function loadExpenseRows(ym) {
   })
 
   return withCumulative(sortRows(rows))
+}
+
+function summarizeRows(rows, keyFn) {
+  return Object.entries(rows.reduce((acc, row) => {
+    const key = keyFn(row) || '未分類'
+    acc[key] = (acc[key] ?? 0) + row.amount
+    return acc
+  }, {}))
+    .map(([label, amount]) => ({ label, amount }))
+    .sort((a, b) => b.amount - a.amount)
+}
+
+function SummaryBars({ title, rows, color }) {
+  if (rows.length === 0) return null
+  const max = Math.max(...rows.map(row => row.amount), 1)
+
+  return (
+    <Box>
+      <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+        {title}
+      </Typography>
+      <Stack spacing={0.75}>
+        {rows.map(row => (
+          <Box key={row.label}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
+              <Typography variant="caption" sx={{ fontSize: 11, minWidth: 88, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {row.label}
+              </Typography>
+              <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: '#b23b3b', fontVariantNumeric: 'tabular-nums' }}>
+                -¥{fmt(row.amount)}
+              </Typography>
+            </Stack>
+            <Box sx={{ height: 7, bgcolor: '#eeeeee', borderRadius: 4, overflow: 'hidden', mt: 0.25 }}>
+              <Box sx={{ height: '100%', width: `${Math.max(3, row.amount / max * 100)}%`, bgcolor: color, borderRadius: 4 }} />
+            </Box>
+          </Box>
+        ))}
+      </Stack>
+    </Box>
+  )
+}
+
+function SummaryCard({ rows, total }) {
+  const categoryRows = summarizeRows(rows, row => row.category)
+  const sourceRows = summarizeRows(rows, row => row.sourceLabel)
+
+  if (rows.length === 0) return null
+
+  return (
+    <Card sx={{ mt: 1.5 }}>
+      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 1.25 }}>
+          <Typography variant="subtitle2" fontWeight={700}>集計</Typography>
+          <Typography variant="caption" sx={{ color: '#b23b3b', fontWeight: 700 }}>-¥{fmt(total)}</Typography>
+        </Stack>
+        <Stack spacing={2}>
+          <SummaryBars title="項目別" rows={categoryRows} color="#607d8b" />
+          <SummaryBars title="支払元別" rows={sourceRows} color="#2e7d32" />
+        </Stack>
+      </CardContent>
+    </Card>
+  )
 }
 
 function ExpenseEditDialog({ open, item, categories, onClose, onSave }) {
@@ -193,7 +258,7 @@ function ExpenseEditDialog({ open, item, categories, onClose, onSave }) {
 }
 
 export default function Cashflow() {
-  const initial = defaultBillingMonth()
+  const initial = defaultCalendarMonth()
   const [year, setYear] = useState(initial.year)
   const [month, setMonth] = useState(initial.month)
   const [version, setVersion] = useState(0)
@@ -318,45 +383,91 @@ export default function Cashflow() {
           この月の支出はありません
         </Typography>
       ) : (
-        <TableContainer component={Paper} variant="outlined" sx={{ mx: -2, width: 'calc(100% + 32px)', overflowX: 'auto' }}>
-          <Table size="small" sx={{ minWidth: 720 }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: '#f7f4ef' }}>
-                {['日付', '支払元', '項目', '内容', '金額', '累計'].map((label, index) => (
-                  <TableCell key={label} align={index >= 4 ? 'right' : 'left'} sx={{
-                    fontSize: 12, fontWeight: 700, py: 1, whiteSpace: 'nowrap', borderColor: '#e7e2da',
-                  }}>
-                    {label}
-                  </TableCell>
-                ))}
-                <TableCell sx={{ width: 64, py: 1, borderColor: '#e7e2da' }} />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.map(row => (
-                <TableRow key={`${row.type}-${row.cardId}-${row.id}`} hover>
-                  <TableCell sx={cellSx}>{dateLabel(row.date)}</TableCell>
-                  <TableCell sx={cellSx}>{row.sourceLabel}</TableCell>
-                  <TableCell sx={cellSx}>{row.category}</TableCell>
-                  <TableCell sx={{ ...cellSx, minWidth: 160, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {row.name}
-                  </TableCell>
-                  <TableCell sx={amountSx}>-{fmt(row.amount)}</TableCell>
-                  <TableCell sx={amountSx}>-{fmt(row.cumulative)}</TableCell>
-                  <TableCell align="right" sx={{ ...cellSx, px: 0.5 }}>
-                    <IconButton size="small" aria-label="編集" onClick={() => setEditItem(row)} sx={{ p: 0.5 }}>
-                      <EditIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-                    </IconButton>
-                    <IconButton size="small" aria-label="削除" onClick={() => setDeleteItem(row)} sx={{ p: 0.5 }}>
-                      <DeleteIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-                    </IconButton>
-                  </TableCell>
+        <>
+          <Box sx={{ display: { xs: 'block', sm: 'none' }, mx: -2, borderTop: '1px solid #eeeeee' }}>
+            {rows.map(row => (
+              <Box key={`${row.type}-${row.cardId}-${row.id}`} sx={{ px: 2, py: 1, borderBottom: '1px solid #eeeeee', bgcolor: '#fff' }}>
+                <Stack direction="row" alignItems="flex-start" gap={1}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Stack direction="row" alignItems="center" gap={0.5} sx={{ mb: 0.45, minWidth: 0 }}>
+                      <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: 'text.secondary', flexShrink: 0 }}>
+                        {dateLabel(row.date)}
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontSize: 10, px: 0.65, py: 0.15, borderRadius: 1, bgcolor: '#eceff1', color: '#37474f', flexShrink: 0 }}>
+                        {row.sourceLabel}
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontSize: 10, px: 0.65, py: 0.15, borderRadius: 1, bgcolor: '#f7f4ef', color: '#5d4037', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {row.category}
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {row.name}
+                    </Typography>
+                  </Box>
+
+                  <Stack alignItems="flex-end" sx={{ width: 112, flexShrink: 0 }}>
+                    <Typography variant="body2" sx={{ fontSize: 14, fontWeight: 700, color: '#b23b3b', fontVariantNumeric: 'tabular-nums' }}>
+                      -¥{fmt(row.amount)}
+                    </Typography>
+                    <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
+                      累計 -¥{fmt(row.cumulative)}
+                    </Typography>
+                    <Stack direction="row" sx={{ mt: 0.35 }}>
+                      <IconButton size="small" aria-label="編集" onClick={() => setEditItem(row)} sx={{ p: 0.45 }}>
+                        <EditIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                      </IconButton>
+                      <IconButton size="small" aria-label="削除" onClick={() => setDeleteItem(row)} sx={{ p: 0.45 }}>
+                        <DeleteIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                      </IconButton>
+                    </Stack>
+                  </Stack>
+                </Stack>
+              </Box>
+            ))}
+          </Box>
+
+          <TableContainer component={Paper} variant="outlined" sx={{ display: { xs: 'none', sm: 'block' }, mx: -2, width: 'calc(100% + 32px)', overflowX: 'auto' }}>
+            <Table size="small" sx={{ minWidth: 720 }}>
+              <TableHead>
+                <TableRow sx={{ bgcolor: '#f7f4ef' }}>
+                  {['日付', '支払元', '項目', '内容', '金額', '累計'].map((label, index) => (
+                    <TableCell key={label} align={index >= 4 ? 'right' : 'left'} sx={{
+                      fontSize: 12, fontWeight: 700, py: 1, whiteSpace: 'nowrap', borderColor: '#e7e2da',
+                    }}>
+                      {label}
+                    </TableCell>
+                  ))}
+                  <TableCell sx={{ width: 64, py: 1, borderColor: '#e7e2da' }} />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {rows.map(row => (
+                  <TableRow key={`${row.type}-${row.cardId}-${row.id}`} hover>
+                    <TableCell sx={cellSx}>{dateLabel(row.date)}</TableCell>
+                    <TableCell sx={cellSx}>{row.sourceLabel}</TableCell>
+                    <TableCell sx={cellSx}>{row.category}</TableCell>
+                    <TableCell sx={{ ...cellSx, minWidth: 160, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {row.name}
+                    </TableCell>
+                    <TableCell sx={amountSx}>-{fmt(row.amount)}</TableCell>
+                    <TableCell sx={amountSx}>-{fmt(row.cumulative)}</TableCell>
+                    <TableCell align="right" sx={{ ...cellSx, px: 0.5 }}>
+                      <IconButton size="small" aria-label="編集" onClick={() => setEditItem(row)} sx={{ p: 0.5 }}>
+                        <EditIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                      </IconButton>
+                      <IconButton size="small" aria-label="削除" onClick={() => setDeleteItem(row)} sx={{ p: 0.5 }}>
+                        <DeleteIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
       )}
+
+      <SummaryCard rows={rows} total={total} />
 
       <ExpenseEditDialog
         open={!!editItem}
