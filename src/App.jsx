@@ -22,7 +22,7 @@ import AppInfo from './settings/AppInfo'
 const TABS = [
   { label: 'クレカ', icon: <CreditCardIcon /> },
   { label: '家計',   icon: <HomeIcon /> },
-  { label: '入出金', icon: <ReceiptLongIcon /> },
+  { label: '支出一覧', icon: <ReceiptLongIcon /> },
   { label: '給与',   icon: <AccountBalanceWalletIcon /> },
 ]
 
