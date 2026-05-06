@@ -88,6 +88,7 @@ export default function Kakeibo() {
       <CategoryBreakdown
         fixedList={allFixed}
         varList={allVar}
+        cardId="all"
         ym={ym}
         onUpdate={() => setRefreshKey(k => k + 1)}
         prevFixedList={allFixedPrev}
