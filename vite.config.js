@@ -71,4 +71,25 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      plugins: [
+        {
+          name: 'resolve-prop-types-secret',
+          resolveId(source, importer) {
+            if (source === './lib/ReactPropTypesSecret' && importer?.includes('prop-types')) {
+              return '\0virtual:ReactPropTypesSecret'
+            }
+            return null
+          },
+          load(id) {
+            if (id === '\0virtual:ReactPropTypesSecret') {
+              return `var ReactPropTypesSecret = 'SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED';\nmodule.exports = ReactPropTypesSecret;\n`
+            }
+            return null
+          },
+        },
+      ],
+    },
+  },
 })

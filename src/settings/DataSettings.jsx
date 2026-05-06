@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Box, Typography, Button, Stack, Divider, Alert } from '@mui/material'
 import DownloadIcon from '@mui/icons-material/Download'
-import ShareIcon from '@mui/icons-material/Share'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 
 function isActiveKey(k) {
@@ -36,10 +35,6 @@ function createJsonExport(keys, filename) {
   return { blob, file, fileName }
 }
 
-function isAndroid() {
-  return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
-}
-
 function downloadJson(keys, filename) {
   const { blob, fileName } = createJsonExport(keys, filename)
   const url = URL.createObjectURL(blob)
@@ -51,34 +46,6 @@ function downloadJson(keys, filename) {
   document.body.removeChild(a)
   setTimeout(() => URL.revokeObjectURL(url), 100)
   return true
-}
-
-async function shareJson(keys, filename) {
-  const { file } = createJsonExport(keys, filename)
-  const canShareFile = typeof navigator !== 'undefined'
-    && typeof navigator.share === 'function'
-    && typeof navigator.canShare === 'function'
-    && file
-    && navigator.canShare({ files: [file] })
-
-  if (!canShareFile) {
-    alert('この端末またはブラウザではファイル共有に対応していません。ダウンロードを使用してください。')
-    return false
-  }
-
-  try {
-    await navigator.share({
-      files: [file],
-      title: 'MyForwardバックアップ',
-      text: 'MyForwardのバックアップデータです。',
-    })
-    return true
-  } catch (err) {
-    if (err?.name !== 'AbortError') {
-      alert('共有に失敗しました。ダウンロードを使用してください。')
-    }
-    return false
-  }
 }
 
 function importFile(file) {
@@ -99,20 +66,10 @@ function importFile(file) {
 function DataRow({ label, exportFilename, filterKeys }) {
   const [message, setMessage] = useState('')
   const keys = filterKeys(getAllKeys())
-  const android = isAndroid()
 
-  const handleExport = async () => {
+  const handleExport = () => {
     setMessage('')
-    if (android && await shareJson(keys, exportFilename)) {
-      setMessage('共有しました')
-      return
-    }
     if (downloadJson(keys, exportFilename)) setMessage('ダウンロードしました')
-  }
-
-  const handleShare = async () => {
-    setMessage('')
-    if (await shareJson(keys, exportFilename)) setMessage('共有しました')
   }
 
   return (
@@ -123,12 +80,7 @@ function DataRow({ label, exportFilename, filterKeys }) {
           <Button size="small" variant="outlined" startIcon={<DownloadIcon />}
             onClick={handleExport}
             sx={{ fontSize: 12 }}>
-            {android ? '保存' : '出力'}
-          </Button>
-          <Button size="small" variant="outlined" startIcon={<ShareIcon />}
-            onClick={handleShare}
-            sx={{ fontSize: 12 }}>
-            共有
+            出力
           </Button>
           <Button size="small" variant="outlined" startIcon={<UploadFileIcon />}
             component="label" sx={{ fontSize: 12 }}>
@@ -146,20 +98,10 @@ function DataRow({ label, exportFilename, filterKeys }) {
 export default function DataSettings() {
   const activeKeys = getAllKeys().filter(isActiveKey)
   const [bulkMessage, setBulkMessage] = useState('')
-  const android = isAndroid()
 
-  const handleBulkExport = async () => {
+  const handleBulkExport = () => {
     setBulkMessage('')
-    if (android && await shareJson(activeKeys, 'myforward_backup')) {
-      setBulkMessage('共有しました')
-      return
-    }
     if (downloadJson(activeKeys, 'myforward_backup')) setBulkMessage('ダウンロードしました')
-  }
-
-  const handleBulkShare = async () => {
-    setBulkMessage('')
-    if (await shareJson(activeKeys, 'myforward_backup')) setBulkMessage('共有しました')
   }
 
   return (
@@ -169,21 +111,14 @@ export default function DataSettings() {
       <Box sx={{ p: 2, bgcolor: '#e8f5e9', borderRadius: 2, mb: 2 }}>
         <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>全データ一括</Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          {android
-            ? 'Androidでは保存先を選べる共有シートを優先して開きます。'
-            : 'ダウンロードまたは共有で JSON ファイルとして保存できます。'}
+          ダウンロードで JSON ファイルとして保存できます。
         </Typography>
         {bulkMessage && <Alert severity="success" sx={{ mb: 1, py: 0.5, fontSize: 12 }}>{bulkMessage}</Alert>}
         <Stack direction="row" gap={1} flexWrap="wrap">
           <Button variant="contained" startIcon={<DownloadIcon />}
             sx={{ bgcolor: '#43a047', '&:hover': { bgcolor: '#388e3c' }, flex: '1 1 150px' }}
             onClick={handleBulkExport}>
-            {android ? '保存先を選択' : '一括エクスポート'}
-          </Button>
-          <Button variant="outlined" startIcon={<ShareIcon />}
-            sx={{ flex: '1 1 120px' }}
-            onClick={handleBulkShare}>
-            共有
+            一括エクスポート
           </Button>
           <Button variant="contained" startIcon={<UploadFileIcon />} component="label"
             sx={{ flex: '1 1 150px' }}>
