@@ -20,7 +20,7 @@ import SwipeableDrawer from '@mui/material/SwipeableDrawer'
 import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm } from '../utils/finance'
 import {
   CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
-  prevBusinessDay, sumLiving, getBillingYmForDate,
+  prevBusinessDay, nextBusinessDay, sumLiving, getBillingYmForDate,
   loadFixed, saveFixed, loadVar, saveVar,
   loadLimit, saveLimit, loadBilled, saveBilled,
 } from '../utils/ccStorage'
@@ -60,7 +60,7 @@ function nextCutoffDate(card, from = new Date()) {
 
 function nextCardCycleDates(card, from = new Date()) {
   const cutoffDate = nextCutoffDate(card, from)
-  const payDate = prevBusinessDay(new Date(cutoffDate.getFullYear(), cutoffDate.getMonth() + 1, card.paymentDay))
+  const payDate = nextBusinessDay(new Date(cutoffDate.getFullYear(), cutoffDate.getMonth() + 1, card.paymentDay))
   return { cutoffDate, payDate }
 }
 
@@ -1103,23 +1103,33 @@ export default function CreditCard() {
                   const today = new Date()
                   const todayStr = today.toISOString().slice(0, 10)
                   const todayBillingYm = getBillingYmForDate(todayStr, card.cutoffDay)
-                  const { cutoffDate, payDate } = nextCardCycleDates(card, today)
+                  if (todayBillingYm === ym) {
+                    const { cutoffDate, payDate } = nextCardCycleDates(card, today)
+                    return (
+                      <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+                        <Typography variant="caption" sx={{ opacity: .75 }}>
+                          締め日まで {countdownLabel(cutoffDate, today)}
+                        </Typography>
+                        <Typography variant="caption" sx={{ opacity: .75 }}>
+                          支払日まで {countdownLabel(payDate, today)}
+                        </Typography>
+                      </Stack>
+                    )
+                  }
+                  const [y, m] = ym.split('-').map(Number)
+                  const cutoffDate = card.cutoffDay === 0
+                    ? new Date(y, m, 0)
+                    : new Date(y, m - 1, card.cutoffDay)
+                  const payDate = nextBusinessDay(new Date(y, m, card.paymentDay))
                   return (
-                    <>
-                      {todayBillingYm === ym && (
-                        <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-                          <Typography variant="caption" sx={{ opacity: .75 }}>
-                            締め日まで {countdownLabel(cutoffDate, today)}
-                          </Typography>
-                          <Typography variant="caption" sx={{ opacity: .75 }}>
-                            支払日まで {countdownLabel(payDate, today)}
-                          </Typography>
-                        </Stack>
-                      )}
-                      <Typography variant="caption" sx={{ opacity: .4 }}>
-                        {fmtCycleDate(cutoffDate)}締め {fmtCycleDate(payDate)}払い
+                    <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+                      <Typography variant="caption" sx={{ opacity: .75 }}>
+                        締め日 {fmtCycleDate(cutoffDate)}
                       </Typography>
-                    </>
+                      <Typography variant="caption" sx={{ opacity: .75 }}>
+                        支払日 {fmtCycleDate(payDate)}
+                      </Typography>
+                    </Stack>
                   )
                 })()}
               </Stack>
