@@ -44,6 +44,11 @@ function salaryWatchPlugin() {
 }
 
 export default defineConfig({
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.js'],
+  },
   base: '/my_forward/',
   plugins: [
     react(),

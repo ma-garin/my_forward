@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Box, Typography, Button, Stack, Divider, Alert } from '@mui/material'
 import DownloadIcon from '@mui/icons-material/Download'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
+import DriveSyncPanel from '../components/DriveSyncPanel'
 
 function isActiveKey(k) {
   return k === 'salary_simulation'
@@ -107,6 +108,8 @@ export default function DataSettings() {
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>データ管理</Typography>
+
+      <DriveSyncPanel />
 
       <Box sx={{ p: 2, bgcolor: '#e8f5e9', borderRadius: 2, mb: 2 }}>
         <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>全データ一括</Typography>
