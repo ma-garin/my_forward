@@ -1101,17 +1101,21 @@ export default function CreditCard() {
                 </Typography>
                 {(() => {
                   const today = new Date()
+                  const todayStr = today.toISOString().slice(0, 10)
+                  const todayBillingYm = getBillingYmForDate(todayStr, card.cutoffDay)
                   const { cutoffDate, payDate } = nextCardCycleDates(card, today)
                   return (
                     <>
-                      <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-                        <Typography variant="caption" sx={{ opacity: .75 }}>
-                          締め日まで {countdownLabel(cutoffDate, today)}
-                        </Typography>
-                        <Typography variant="caption" sx={{ opacity: .75 }}>
-                          支払日まで {countdownLabel(payDate, today)}
-                        </Typography>
-                      </Stack>
+                      {todayBillingYm === ym && (
+                        <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+                          <Typography variant="caption" sx={{ opacity: .75 }}>
+                            締め日まで {countdownLabel(cutoffDate, today)}
+                          </Typography>
+                          <Typography variant="caption" sx={{ opacity: .75 }}>
+                            支払日まで {countdownLabel(payDate, today)}
+                          </Typography>
+                        </Stack>
+                      )}
                       <Typography variant="caption" sx={{ opacity: .4 }}>
                         {fmtCycleDate(cutoffDate)}締め {fmtCycleDate(payDate)}払い
                       </Typography>
