@@ -21,11 +21,6 @@ function addMonth(ym, n) {
 
 function currentYm() {
   const today = new Date()
-  const cutoff = CARDS.jcb?.cutoffDay ?? 0
-  if (cutoff > 0 && today.getDate() <= cutoff) {
-    const d = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-    return ymStr(d.getFullYear(), d.getMonth() + 1)
-  }
   return ymStr(today.getFullYear(), today.getMonth() + 1)
 }
 
@@ -38,19 +33,20 @@ export default function Kakeibo() {
   const changeMonth = (n) => setYm(prev => addMonth(prev, n))
 
   const [year, month] = ym.split('-').map(Number)
+  const billingYm = addMonth(ym, -1)
 
-  const jcbFixed   = loadFixed('jcb').filter(x => isActiveForYm(x, ym))
-  const jcbVar     = loadVar('jcb', ym)
-  const smbcFixed  = loadFixed('smbc').filter(x => isActiveForYm(x, ym))
-  const smbcVar    = loadVar('smbc', ym)
+  const jcbFixed   = loadFixed('jcb').filter(x => isActiveForYm(x, billingYm))
+  const jcbVar     = loadVar('jcb', billingYm)
+  const smbcFixed  = loadFixed('smbc').filter(x => isActiveForYm(x, billingYm))
+  const smbcVar    = loadVar('smbc', billingYm)
   const allFixed   = [...tag(jcbFixed, 'jcb'), ...tag(smbcFixed, 'smbc')]
   const allVar     = [...tag(jcbVar, 'jcb'), ...tag(smbcVar, 'smbc')]
 
-  const prevYm         = addMonth(ym, -1)
-  const jcbFixedPrev   = loadFixed('jcb').filter(x => isActiveForYm(x, prevYm))
-  const jcbVarPrev     = loadVar('jcb', prevYm)
-  const smbcFixedPrev  = loadFixed('smbc').filter(x => isActiveForYm(x, prevYm))
-  const smbcVarPrev    = loadVar('smbc', prevYm)
+  const prevBillingYm  = addMonth(billingYm, -1)
+  const jcbFixedPrev   = loadFixed('jcb').filter(x => isActiveForYm(x, prevBillingYm))
+  const jcbVarPrev     = loadVar('jcb', prevBillingYm)
+  const smbcFixedPrev  = loadFixed('smbc').filter(x => isActiveForYm(x, prevBillingYm))
+  const smbcVarPrev    = loadVar('smbc', prevBillingYm)
   const allFixedPrev   = [...tag(jcbFixedPrev, 'jcb'), ...tag(smbcFixedPrev, 'smbc')]
   const allVarPrev     = [...tag(jcbVarPrev, 'jcb'), ...tag(smbcVarPrev, 'smbc')]
 
@@ -73,10 +69,10 @@ export default function Kakeibo() {
       <IncomeSummaryCard fixedList={allFixed} varList={allVar} ym={ym} />
 
       {/* 2枚合計サマリー */}
-      <CombinedSummary ym={ym} jcbLimit={jcbLimit} smbcLimit={smbcLimit} />
+      <CombinedSummary ym={billingYm} jcbLimit={jcbLimit} smbcLimit={smbcLimit} />
 
       {/* 生活費カード */}
-      <LivingExpenseCard ym={ym} />
+      <LivingExpenseCard ym={billingYm} />
 
       {/* 消費分類（全カード） */}
       <SpendTypeChart fixedList={allFixed} varList={allVar} />
@@ -89,7 +85,7 @@ export default function Kakeibo() {
         fixedList={allFixed}
         varList={allVar}
         cardId="all"
-        ym={ym}
+        ym={billingYm}
         onUpdate={() => setRefreshKey(k => k + 1)}
         prevFixedList={allFixedPrev}
         prevVarList={allVarPrev}
