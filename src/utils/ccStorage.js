@@ -40,7 +40,7 @@ export const LIVING_CATEGORIES = ['生活費', '食費', '日用品']
 
 export function prevBusinessDay(date) {
   const d = new Date(date)
-  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1)
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1)
   return d
 }
 
