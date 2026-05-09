@@ -21,16 +21,26 @@ function getAllKeys() {
   return keys
 }
 
-function downloadJson(keys, filename) {
+function createJsonExport(keys, filename) {
   const data = {}
   keys.forEach(k => {
     try { data[k] = JSON.parse(localStorage.getItem(k)) } catch {}
   })
+  const fileName = `${filename}_${new Date().toISOString().slice(0, 10)}.json`
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const file = typeof File === 'function'
+    ? new File([blob], fileName, { type: 'application/json' })
+    : null
+
+  return { blob, file, fileName }
+}
+
+function downloadJson(keys, filename) {
+  const { blob, fileName } = createJsonExport(keys, filename)
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${filename}_${new Date().toISOString().slice(0, 10)}.json`
+  a.download = fileName
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
@@ -54,16 +64,21 @@ function importFile(file) {
 }
 
 function DataRow({ label, exportFilename, filterKeys }) {
-  const [saved, setSaved] = useState(false)
+  const [message, setMessage] = useState('')
   const keys = filterKeys(getAllKeys())
+
+  const handleExport = () => {
+    setMessage('')
+    if (downloadJson(keys, exportFilename)) setMessage('ダウンロードしました')
+  }
 
   return (
     <Box sx={{ py: 1 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Typography fontSize={14} fontWeight={500}>{label}</Typography>
-        <Stack direction="row" gap={1}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} flexWrap="wrap">
+        <Typography fontSize={14} fontWeight={500} sx={{ flex: '1 1 120px' }}>{label}</Typography>
+        <Stack direction="row" gap={1} flexWrap="wrap" justifyContent="flex-end">
           <Button size="small" variant="outlined" startIcon={<DownloadIcon />}
-            onClick={() => { setSaved(false); if (downloadJson(keys, exportFilename)) setSaved(true) }}
+            onClick={handleExport}
             sx={{ fontSize: 12 }}>
             出力
           </Button>
@@ -75,14 +90,19 @@ function DataRow({ label, exportFilename, filterKeys }) {
           </Button>
         </Stack>
       </Stack>
-      {saved && <Alert severity="success" sx={{ py: 0.25, mt: 0.5, fontSize: 12 }}>ダウンロードしました</Alert>}
+      {message && <Alert severity="success" sx={{ py: 0.25, mt: 0.5, fontSize: 12 }}>{message}</Alert>}
     </Box>
   )
 }
 
 export default function DataSettings() {
   const activeKeys = getAllKeys().filter(isActiveKey)
-  const [bulkSaved, setBulkSaved] = useState(false)
+  const [bulkMessage, setBulkMessage] = useState('')
+
+  const handleBulkExport = () => {
+    setBulkMessage('')
+    if (downloadJson(activeKeys, 'myforward_backup')) setBulkMessage('ダウンロードしました')
+  }
 
   return (
     <Box sx={{ p: 2 }}>
@@ -91,16 +111,17 @@ export default function DataSettings() {
       <Box sx={{ p: 2, bgcolor: '#e8f5e9', borderRadius: 2, mb: 2 }}>
         <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>全データ一括</Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          ダウンロードフォルダに JSON ファイルとして保存されます。
+          ダウンロードで JSON ファイルとして保存できます。
         </Typography>
-        {bulkSaved && <Alert severity="success" sx={{ mb: 1, py: 0.5, fontSize: 12 }}>ダウンロードしました</Alert>}
-        <Stack direction="row" gap={1}>
-          <Button variant="contained" startIcon={<DownloadIcon />} fullWidth
-            sx={{ bgcolor: '#43a047', '&:hover': { bgcolor: '#388e3c' } }}
-            onClick={() => { setBulkSaved(false); if (downloadJson(activeKeys, 'myforward_backup')) setBulkSaved(true) }}>
+        {bulkMessage && <Alert severity="success" sx={{ mb: 1, py: 0.5, fontSize: 12 }}>{bulkMessage}</Alert>}
+        <Stack direction="row" gap={1} flexWrap="wrap">
+          <Button variant="contained" startIcon={<DownloadIcon />}
+            sx={{ bgcolor: '#43a047', '&:hover': { bgcolor: '#388e3c' }, flex: '1 1 150px' }}
+            onClick={handleBulkExport}>
             一括エクスポート
           </Button>
-          <Button variant="contained" startIcon={<UploadFileIcon />} fullWidth component="label">
+          <Button variant="contained" startIcon={<UploadFileIcon />} component="label"
+            sx={{ flex: '1 1 150px' }}>
             一括インポート
             <input type="file" accept="*/*" hidden
               onChange={(e) => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = '' }} />

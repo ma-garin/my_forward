@@ -39,13 +39,39 @@ function paymentLabel(card) {
   return `翌月${card.paymentDay}日払い`
 }
 
-function cycleDates(card, ym) {
-  const [year, month] = ym.split('-').map(Number)
-  const cutoffDate = card.cutoffDay === 0
-    ? new Date(year, month, 0)
-    : new Date(year, month - 1, card.cutoffDay)
-  const payDate = prevBusinessDay(new Date(year, month, card.paymentDay))
+function startOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function nextCutoffDate(card, from = new Date()) {
+  const today = startOfDay(from)
+  const year = today.getFullYear()
+  const month = today.getMonth()
+  let candidate = card.cutoffDay === 0
+    ? new Date(year, month + 1, 0)
+    : new Date(year, month, card.cutoffDay)
+  if (candidate < today) {
+    candidate = card.cutoffDay === 0
+      ? new Date(year, month + 2, 0)
+      : new Date(year, month + 1, card.cutoffDay)
+  }
+  return candidate
+}
+
+function nextCardCycleDates(card, from = new Date()) {
+  const cutoffDate = nextCutoffDate(card, from)
+  const payDate = prevBusinessDay(new Date(cutoffDate.getFullYear(), cutoffDate.getMonth() + 1, card.paymentDay))
   return { cutoffDate, payDate }
+}
+
+function daysUntil(date, from = new Date()) {
+  const MS_PER_DAY = 24 * 60 * 60 * 1000
+  return Math.round((startOfDay(date) - startOfDay(from)) / MS_PER_DAY)
+}
+
+function countdownLabel(date, from = new Date()) {
+  const days = daysUntil(date, from)
+  return days === 0 ? '今日' : `あと${days}日`
 }
 
 function fmtCycleDate(date) {
@@ -1074,11 +1100,22 @@ export default function CreditCard() {
                   {cutoffLabel(card)} {paymentLabel(card)}
                 </Typography>
                 {(() => {
-                  const { cutoffDate, payDate } = cycleDates(card, ym)
+                  const today = new Date()
+                  const { cutoffDate, payDate } = nextCardCycleDates(card, today)
                   return (
-                    <Typography variant="caption" sx={{ opacity: .4 }}>
-                      {fmtCycleDate(cutoffDate)}締め {fmtCycleDate(payDate)}払い
-                    </Typography>
+                    <>
+                      <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+                        <Typography variant="caption" sx={{ opacity: .75 }}>
+                          締め日まで {countdownLabel(cutoffDate, today)}
+                        </Typography>
+                        <Typography variant="caption" sx={{ opacity: .75 }}>
+                          支払日まで {countdownLabel(payDate, today)}
+                        </Typography>
+                      </Stack>
+                      <Typography variant="caption" sx={{ opacity: .4 }}>
+                        {fmtCycleDate(cutoffDate)}締め {fmtCycleDate(payDate)}払い
+                      </Typography>
+                    </>
                   )
                 })()}
               </Stack>
