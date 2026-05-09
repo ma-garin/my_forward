@@ -45,8 +45,11 @@ export function prevBusinessDay(date) {
 }
 
 export function nextPayDay(from = new Date()) {
-  let candidate = new Date(from.getFullYear(), from.getMonth(), 25)
-  if (candidate <= from) candidate = new Date(from.getFullYear(), from.getMonth() + 1, 25)
+  const cards = loadCards()
+  const smbc  = cards.find(c => c.id === 'smbc')
+  const day   = smbc?.paymentDay ?? 26
+  let candidate = new Date(from.getFullYear(), from.getMonth(), day)
+  if (candidate <= from) candidate = new Date(from.getFullYear(), from.getMonth() + 1, day)
   return prevBusinessDay(candidate)
 }
 
