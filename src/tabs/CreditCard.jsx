@@ -1138,6 +1138,7 @@ export default function CreditCard() {
                 <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>月間上限</Typography>
                 <AmountField
                   dark
+                  allowZero
                   value={limitInput}
                   onChange={(raw) => { setLimitInputs(prev => ({ ...prev, [cardId]: raw })); saveLimit(cardId, raw) }}
                   placeholder="設定なし"
