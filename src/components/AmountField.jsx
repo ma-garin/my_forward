@@ -93,12 +93,13 @@ export function CalcPad({ value, onChange, onConfirm, disabled }) {
 
 // ─── 金額入力フィールド ─────────────────────────────────────
 
-export default function AmountField({ value, onChange, large = false, dark = false, label, placeholder = '0', autoFocus = false, inputSx = {} }) {
+export default function AmountField({ value, onChange, large = false, dark = false, label, placeholder = '0', autoFocus = false, inputSx = {}, allowZero = false }) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
 
   const handleOpen = () => {
-    setDraft(String(parseAmount(value) || ''))
+    const n = parseAmount(value)
+    setDraft(allowZero ? String(n) : String(n || ''))
     setOpen(true)
   }
   const handleConfirm = () => {
@@ -156,7 +157,7 @@ export default function AmountField({ value, onChange, large = false, dark = fal
             {parseAmount(draft) > 0 ? fmt(parseAmount(draft)) : '0'}
           </Typography>
         </Box>
-        <CalcPad value={draft} onChange={setDraft} onConfirm={handleConfirm} disabled={parseAmount(draft) <= 0} />
+        <CalcPad value={draft} onChange={setDraft} onConfirm={handleConfirm} disabled={!allowZero && parseAmount(draft) <= 0} />
       </SwipeableDrawer>
     </Box>
   )
