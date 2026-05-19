@@ -74,22 +74,23 @@ export default function LivingExpenseCard({ ym }) {
   // ── 週履歴 ────────────────────────────────────────────────
   const recentWeeks = getRecentWeeks(4)
 
-  // ── サイクル（JCB: 前月16日〜当月15日）──────────────────
-  const prevYm       = addMonth(ym, -1)
-  const [prevY, prevM] = prevYm.split('-').map(Number)
-  const cycleFromStr = `${prevYm}-16`
-  const cycleToStr   = `${vy}-${String(vm).padStart(2, '0')}-15`
+  // ── サイクル（JCB: ym の 16日〜翌月15日）────────────────
+  // ym はすでに請求月（Kakeibo から billingYm が渡される）
+  const nextYm       = addMonth(ym, 1)
+  const [nextY, nextM] = nextYm.split('-').map(Number)
+  const cycleFromStr = `${ym}-16`
+  const cycleToStr   = `${nextYm}-15`
   const cycleList    = [
     ...getBillingMonthsForRange(cycleFromStr, cycleToStr, jcbCutoff).flatMap(m => loadVar('jcb', m)),
     ...getBillingMonthsForRange(cycleFromStr, cycleToStr, smbcCutoff).flatMap(m => loadVar('smbc', m)),
   ]
   const cycleUsed    = sumLiving(cycleList, cycleFromStr, cycleToStr)
   const cycleCatMap  = sumLivingByCategory(cycleList, cycleFromStr, cycleToStr)
-  const fridays      = countFridaysUntil(new Date(prevY, prevM - 1, cutoff), new Date(vy, vm - 1, cutoff))
+  const fridays      = countFridaysUntil(new Date(vy, vm - 1, cutoff), new Date(nextY, nextM - 1, cutoff))
   const monthlyBudget = fridays * weeklyBudget
   const cycleRemain  = monthlyBudget - cycleUsed
   const cyclePct     = monthlyBudget > 0 ? cycleUsed / monthlyBudget * 100 : 0
-  const cycleLabel   = `${prevM}月サイクル（${prevM}/16〜${vm}/15）`
+  const cycleLabel   = `${vm}月サイクル（${vm}/16〜${nextM}/15）`
 
   const handleSave = () => {
     const v = parseInt(editVal.replace(/,/g, ''), 10)
@@ -112,10 +113,12 @@ export default function LivingExpenseCard({ ym }) {
 
         {/* タブ */}
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{
-          minHeight: 28, mb: 1.5,
-          '& .MuiTab-root': { color: 'rgba(255,255,255,.45)', minHeight: 28, fontSize: 11, py: 0, px: 1.5, textTransform: 'none' },
-          '& .Mui-selected': { color: '#fff' },
-          '& .MuiTabs-indicator': { bgcolor: '#a5d6a7' },
+          minHeight: 32, mb: 1.5,
+          bgcolor: 'rgba(0,0,0,.25)', borderRadius: 2,
+          '& .MuiTabs-flexContainer': { gap: 0 },
+          '& .MuiTab-root': { color: 'rgba(255,255,255,.65)', minHeight: 32, fontSize: 12, py: 0, px: 2, textTransform: 'none', fontWeight: 500 },
+          '& .Mui-selected': { color: '#fff', fontWeight: 700 },
+          '& .MuiTabs-indicator': { bgcolor: '#a5d6a7', height: 2.5 },
         }}>
           <Tab label="今週" />
           <Tab label="週履歴" />
