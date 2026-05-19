@@ -17,6 +17,12 @@ export const UNIT_PRICE_RAW = 0
 
 export const SALARY_MONTHLY_KEY = 'salary_simulation_monthly'
 export const LEGACY_SALARY_KEY = 'salary_simulation'
+export const BONUS_CYCLE_KEY = 'salary_bonus_cycle_settings'
+
+const DEFAULT_BONUS_CYCLE_SETTINGS = {
+  summer: 'previous',
+  winter: 'previous',
+}
 
 export function addMonth(ym, n) {
   const [y, m] = ym.split('-').map(Number)
@@ -34,7 +40,45 @@ export function currentBillingYm(cutoffDay = 15) {
 
 export function isBonusMonth(ym) {
   const month = Number(ym?.slice(5, 7))
-  return month === 6 || month === 12
+  return month === 5 || month === 6 || month === 11 || month === 12
+}
+
+export function loadBonusCycleSettings() {
+  try {
+    const raw = localStorage.getItem(BONUS_CYCLE_KEY)
+    const saved = raw ? JSON.parse(raw) : {}
+    return { ...DEFAULT_BONUS_CYCLE_SETTINGS, ...saved }
+  } catch {
+    return { ...DEFAULT_BONUS_CYCLE_SETTINGS }
+  }
+}
+
+export function saveBonusCycleSettings(settings) {
+  localStorage.setItem(BONUS_CYCLE_KEY, JSON.stringify({
+    ...DEFAULT_BONUS_CYCLE_SETTINGS,
+    ...settings,
+  }))
+}
+
+export function getBonusCycleInfo(ym, settings = loadBonusCycleSettings()) {
+  const [year, month] = ym.split('-').map(Number)
+  if (month !== 5 && month !== 6 && month !== 11 && month !== 12) return null
+
+  const season = month === 5 || month === 6 ? 'summer' : 'winter'
+  const previousMonth = season === 'summer' ? 5 : 11
+  const currentMonth = season === 'summer' ? 6 : 12
+  const mode = settings[season] === 'current' ? 'current' : 'previous'
+  const previousYm = ymStr(year, previousMonth)
+  const currentYm = ymStr(year, currentMonth)
+
+  return {
+    season,
+    label: season === 'summer' ? '夏賞与' : '冬賞与',
+    mode,
+    previousYm,
+    currentYm,
+    targetYm: mode === 'current' ? currentYm : previousYm,
+  }
 }
 
 // ─── 給与計算ロジック（SalarySimulationと共有）──────────────
@@ -230,9 +274,15 @@ export function calcSalaryTakeHomeFromData(data) {
 }
 
 export function getSalaryBonusTakeHome(ym = currentBillingYm()) {
-  if (!isBonusMonth(ym)) return 0
-  const v = parseInt(String(loadSalaryMonth(ym).bonusTakeHome).replace(/,/g, ''), 10)
-  return isNaN(v) ? 0 : v
+  const info = getBonusCycleInfo(ym)
+  if (!info || info.targetYm !== ym) return 0
+
+  const otherYm = info.targetYm === info.previousYm ? info.currentYm : info.previousYm
+  const primary = parseInt(String(loadSalaryMonth(info.targetYm).bonusTakeHome).replace(/,/g, ''), 10)
+  if (!isNaN(primary) && primary > 0) return primary
+
+  const fallback = parseInt(String(loadSalaryMonth(otherYm).bonusTakeHome).replace(/,/g, ''), 10)
+  return isNaN(fallback) ? 0 : fallback
 }
 
 // ─── クレジットカードストレージ ─────────────────────────────

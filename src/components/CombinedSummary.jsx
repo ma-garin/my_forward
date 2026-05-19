@@ -12,13 +12,13 @@ import {
 } from '../utils/ccStorage'
 import AmountField from './AmountField'
 
-export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
+export default function CombinedSummary({ ym, salaryYm = ym, jcbLimit = 0, smbcLimit = 0 }) {
   const jcb      = getCCTotal('jcb',  ym)
   const smbc     = getCCTotal('smbc', ym)
   const combined      = jcb.total + smbc.total
   const combinedLimit = jcbLimit + smbcLimit
 
-  const [salaryInput, setSalaryInput] = useState(() => loadSalaryOverride(ym))
+  const [salaryInput, setSalaryInput] = useState(() => loadSalaryOverride(salaryYm))
   const [fixedItems,  setFixedItems]  = useState(loadSummaryFixed)
   const [livingUnit,  setLivingUnit]  = useState(loadLivingUnit)
 
@@ -29,10 +29,10 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
   const [livingEdit,  setLivingEdit]  = useState(null)
 
   useEffect(() => {
-    setSalaryInput(loadSalaryOverride(ym))
-  }, [ym])
+    setSalaryInput(loadSalaryOverride(salaryYm))
+  }, [salaryYm])
 
-  const simSalary = getSimulatedIncome(ym)
+  const simSalary = getSimulatedIncome(salaryYm)
   const salary    = parseFloat(salaryInput) || 0
   const hasSalary = salary > 0
 
@@ -111,14 +111,14 @@ export default function CombinedSummary({ ym, jcbLimit = 0, smbcLimit = 0 }) {
             <AmountField
               dark
               value={salaryInput}
-              onChange={(raw) => { setSalaryInput(raw); saveSalaryOverride(raw, ym) }}
+              onChange={(raw) => { setSalaryInput(raw); saveSalaryOverride(raw, salaryYm) }}
               placeholder="手取り額"
               inputSx={{ '& .MuiInputBase-root': { height: 32 } }}
             />
           </Box>
           {simSalary > 0 && (
             <Button size="small"
-              onClick={() => { const v = String(simSalary); setSalaryInput(v); saveSalaryOverride(v, ym) }}
+              onClick={() => { const v = String(simSalary); setSalaryInput(v); saveSalaryOverride(v, salaryYm) }}
               sx={{ fontSize: 10, minWidth: 0, px: 1, py: 0.25, color: 'rgba(255,255,255,.7)',
                     border: '1px solid rgba(255,255,255,.3)', borderRadius: 1, whiteSpace: 'nowrap' }}>
               反映

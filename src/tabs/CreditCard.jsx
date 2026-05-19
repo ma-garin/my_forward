@@ -688,9 +688,13 @@ function YearlySummary({ year, cardId }) {
 
 // ─── 支出入力（フルスクリーン）────────────────────────────────
 
+function defaultExpenseCategory(categories) {
+  return categories.includes('食費') ? '食費' : categories[0] ?? '食費'
+}
+
 function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, currentCardId, onEditCategories }) {
   const [amount,   setAmount]   = useState('')
-  const [category, setCategory] = useState(categories[0] ?? '食費')
+  const [category, setCategory] = useState(() => defaultExpenseCategory(categories))
   const [date,     setDate]     = useState(defaultDate)
   const [payee,    setPayee]    = useState('')
   const [name,     setName]     = useState('')
@@ -712,7 +716,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
   useEffect(() => {
     if (open) {
       setAmount(''); setPayee(''); setName('')
-      setCategory(categories[0] ?? '食費')
+      setCategory(defaultExpenseCategory(categories))
       setSpendType('消費')
       setDate(defaultDate); setCardId(currentCardId)
       window.history.pushState({ addExpenseOpen: true }, '')
