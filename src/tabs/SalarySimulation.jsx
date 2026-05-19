@@ -3,6 +3,7 @@ import {
   Box, Card, CardContent, Typography, TextField,
   Divider, Stack, Button, Chip, InputAdornment,
   IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
+  FormControl, InputLabel, Select, MenuItem,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import CheckIcon from '@mui/icons-material/Check'
@@ -16,11 +17,17 @@ import {
   overtimeUnitPrice, overtimeUnitPriceFloor, calcTotalPay,
   deriveRowSim, newId, fmt,
   addMonth, currentBillingYm, isBonusMonth, loadSalaryMonth, saveSalaryMonth,
+  loadBonusCycleSettings, saveBonusCycleSettings, getBonusCycleInfo,
 } from '../utils/finance'
 import AmountField, { parseAmount } from '../components/AmountField'
 
 function save(ym, fixed, overtime, customUnit = '', payItems = [], dedItems = [], bonusTakeHome = '') {
   saveSalaryMonth(ym, { fixed, overtime, customUnit, payItems, dedItems, bonusTakeHome })
+}
+
+function ymLabel(ym) {
+  const [year, month] = ym.split('-')
+  return `${year}年${Number(month)}月度`
 }
 
 // ─── 計算ロジック ────────────────────────────────────────────
@@ -326,10 +333,12 @@ export default function SalarySimulation() {
   const [payItems, setPayItems]     = useState(initial.data.payItems)
   const [dedItems, setDedItems]     = useState(initial.data.dedItems)
   const [bonusTakeHome, setBonusTakeHome] = useState(initial.data.bonusTakeHome)
+  const [bonusCycleSettings, setBonusCycleSettings] = useState(loadBonusCycleSettings)
   const [addDlg, setAddDlg]         = useState(null) // 'pay' | 'ded' | null
 
   const [year, month] = ym.split('-').map(Number)
   const bonusMonth = isBonusMonth(ym)
+  const bonusCycleInfo = getBonusCycleInfo(ym, bonusCycleSettings)
 
   const persistCurrent = useCallback(() => {
     save(ym, fixed, overtime, customUnit, payItems, dedItems, bonusTakeHome)
@@ -424,6 +433,13 @@ export default function SalarySimulation() {
     }
   }
 
+  const handleBonusCycleChange = (mode) => {
+    if (!bonusCycleInfo) return
+    const next = { ...bonusCycleSettings, [bonusCycleInfo.season]: mode }
+    setBonusCycleSettings(next)
+    saveBonusCycleSettings(next)
+  }
+
   return (
     <Box sx={{ px: 2, pt: 2, pb: 10 }}>
 
@@ -464,6 +480,7 @@ export default function SalarySimulation() {
 
       {bonusMonth && (
         <SectionCard title="賞与">
+          <Stack spacing={1.5}>
           <Stack direction="row" alignItems="center" gap={1}>
             <Typography variant="caption" color="text.secondary" sx={{ minWidth: 72 }}>賞与手取り</Typography>
             <Box sx={{ width: 150 }}>
@@ -475,6 +492,20 @@ export default function SalarySimulation() {
                 }}
               />
             </Box>
+          </Stack>
+          {bonusCycleInfo && (
+            <FormControl size="small" fullWidth>
+              <InputLabel>家計への反映先</InputLabel>
+              <Select
+                value={bonusCycleInfo.mode}
+                label="家計への反映先"
+                onChange={(e) => handleBonusCycleChange(e.target.value)}
+              >
+                <MenuItem value="previous">{ymLabel(bonusCycleInfo.previousYm)}に反映</MenuItem>
+                <MenuItem value="current">{ymLabel(bonusCycleInfo.currentYm)}に反映</MenuItem>
+              </Select>
+            </FormControl>
+          )}
           </Stack>
         </SectionCard>
       )}
