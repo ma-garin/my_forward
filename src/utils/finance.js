@@ -34,7 +34,7 @@ export function currentBillingYm(cutoffDay = 15) {
 
 export function isBonusMonth(ym) {
   const month = Number(ym?.slice(5, 7))
-  return month === 6 || month === 12
+  return month === 5 || month === 11
 }
 
 // ─── 給与計算ロジック（SalarySimulationと共有）──────────────
