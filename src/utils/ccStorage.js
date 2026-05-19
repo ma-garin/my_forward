@@ -116,6 +116,16 @@ export function sumLiving(list, fromStr, toStr) {
     .reduce((s, x) => s + x.amount, 0)
 }
 
+export function sumLivingByCategory(list, fromStr, toStr) {
+  const result = {}
+  LIVING_CATEGORIES.forEach(c => { result[c] = 0 })
+  list
+    .filter(x => LIVING_CATEGORIES.includes(x.category) && x.sign !== 1 && x.date)
+    .filter(x => (!fromStr || x.date >= fromStr) && (!toStr || x.date <= toStr))
+    .forEach(x => { result[x.category] = (result[x.category] ?? 0) + x.amount })
+  return result
+}
+
 // 日付文字列(YYYY-MM-DD)とカードの締め日から請求月(YYYY-MM)を返す
 export function getBillingYmForDate(dateStr, cutoffDay) {
   const [y, m, d] = dateStr.split('-').map(Number)
