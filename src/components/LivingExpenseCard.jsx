@@ -112,10 +112,12 @@ export default function LivingExpenseCard({ ym }) {
 
         {/* タブ */}
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{
-          minHeight: 28, mb: 1.5,
-          '& .MuiTab-root': { color: 'rgba(255,255,255,.45)', minHeight: 28, fontSize: 11, py: 0, px: 1.5, textTransform: 'none' },
-          '& .Mui-selected': { color: '#fff' },
-          '& .MuiTabs-indicator': { bgcolor: '#a5d6a7' },
+          minHeight: 32, mb: 1.5,
+          bgcolor: 'rgba(0,0,0,.25)', borderRadius: 2,
+          '& .MuiTabs-flexContainer': { gap: 0 },
+          '& .MuiTab-root': { color: 'rgba(255,255,255,.65)', minHeight: 32, fontSize: 12, py: 0, px: 2, textTransform: 'none', fontWeight: 500 },
+          '& .Mui-selected': { color: '#fff', fontWeight: 700 },
+          '& .MuiTabs-indicator': { bgcolor: '#a5d6a7', height: 2.5 },
         }}>
           <Tab label="今週" />
           <Tab label="週履歴" />
