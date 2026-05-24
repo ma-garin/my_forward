@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Box, Card, CardContent, Typography, Stack, Divider, Button, Collapse,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Tabs, Tab,
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField,
 } from '@mui/material'
 import { fmt } from '../utils/finance'
 import {
@@ -111,33 +111,36 @@ export default function LivingExpenseCard({ ym }) {
           </Button>
         </Stack>
 
-        {/* タブ */}
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{
-          minHeight: 32, mb: 1.5,
-          bgcolor: 'rgba(0,0,0,.25)', borderRadius: 2,
-          '& .MuiTabs-flexContainer': { gap: 0 },
-          '& .MuiTab-root': { color: 'rgba(255,255,255,.65)', minHeight: 32, fontSize: 12, py: 0, px: 2, textTransform: 'none', fontWeight: 500 },
-          '& .Mui-selected': { color: '#fff', fontWeight: 700 },
-          '& .MuiTabs-indicator': { bgcolor: '#a5d6a7', height: 2.5 },
-        }}>
-          <Tab label="今週" />
-          <Tab label="週履歴" />
-          <Tab label="サイクル" />
-        </Tabs>
+        {/* セグメントボタン（タブ代替） */}
+        <Stack direction="row" sx={{ bgcolor: 'rgba(0,0,0,.35)', borderRadius: 2, p: '3px', gap: '3px', mb: 1.5 }}>
+          {['今週', '週履歴', 'サイクル'].map((lbl, i) => (
+            <Button key={i} onClick={() => setTab(i)} disableRipple sx={{
+              flex: 1, py: 0.5, fontSize: 12, lineHeight: 1.4, minHeight: 0,
+              fontWeight: tab === i ? 700 : 500,
+              color: tab === i ? '#1b5e20' : 'rgba(255,255,255,.85)',
+              bgcolor: tab === i ? '#fff' : 'transparent',
+              borderRadius: 1.5,
+              textTransform: 'none',
+              '&:hover': { bgcolor: tab === i ? '#fff' : 'rgba(255,255,255,.12)' },
+            }}>{lbl}</Button>
+          ))}
+        </Stack>
 
         {/* Tab 0: 今週 */}
         {tab === 0 && (
           <Box>
+            <Typography variant="caption" sx={{ fontSize: 11, opacity: .75, display: 'block', mb: 0.75 }}>
+              生活費　週（{label.replace(' 〜 ', '-')}）
+            </Typography>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
               <MiniBar pct={weekPct} />
-              <Typography variant="caption" sx={{ fontSize: 10, opacity: .5, flexShrink: 0 }}>{label}</Typography>
-            </Stack>
-            <Stack direction="row" justifyContent="space-between">
-              <Typography variant="caption" sx={{ opacity: .6, fontSize: 10 }}>¥{fmt(weekUsed)} ／ ¥{fmt(weeklyBudget)}</Typography>
-              <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, color: weekRemain >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
-                {weekRemain >= 0 ? `残り ¥${fmt(weekRemain)}` : `¥${fmt(-weekRemain)} オーバー`}
+              <Typography variant="caption" sx={{ fontSize: 10, fontWeight: 600, flexShrink: 0, color: weekRemain >= 0 ? '#a5d6a7' : '#ef9a9a' }}>
+                {weekRemain >= 0 ? `残り ¥${fmt(weekRemain)}` : `¥${fmt(-weekRemain)} 超過`}
               </Typography>
             </Stack>
+            <Typography variant="caption" sx={{ opacity: .55, fontSize: 10, display: 'block', mb: 0.5 }}>
+              ¥{fmt(weekUsed)} ／ ¥{fmt(weeklyBudget)}
+            </Typography>
             <CatBreakdown catMap={weekCatMap} total={weekUsed} />
           </Box>
         )}
