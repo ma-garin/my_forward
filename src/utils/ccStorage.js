@@ -265,3 +265,18 @@ export function saveLivingOverride(cardId, ym, v) {
   if (v == null) localStorage.removeItem(`cc_living_override_${cardId}_${ym}`)
   else localStorage.setItem(`cc_living_override_${cardId}_${ym}`, String(v))
 }
+
+const otherIncomeKey = 'cc_other_income_by_ym'
+export function loadOtherIncome(ym) {
+  try {
+    const map = JSON.parse(localStorage.getItem(otherIncomeKey) || '{}')
+    const v = parseFloat(map[ym] ?? '')
+    return isNaN(v) ? '' : String(v)
+  } catch { return '' }
+}
+export function saveOtherIncome(v, ym) {
+  try {
+    const map = JSON.parse(localStorage.getItem(otherIncomeKey) || '{}')
+    localStorage.setItem(otherIncomeKey, JSON.stringify({ ...map, [ym]: v }))
+  } catch {}
+}
