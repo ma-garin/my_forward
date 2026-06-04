@@ -369,10 +369,9 @@ export default function SalarySimulation() {
 
   const customPayTotal = payItems.reduce((s, x) => s + x.amount, 0)
   const customDedTotal = dedItems.reduce((s, x) => s + x.amount, 0)
-  const bonusAmount = bonusMonth ? (parseInt(String(bonusTakeHome).replace(/,/g, ''), 10) || 0) : 0
   const baseRow = rowC ?? rowF
   const salaryTakeHome = baseRow.takeHome + customPayTotal - customDedTotal
-  const displayTakeHome = salaryTakeHome + bonusAmount
+  const displayTakeHome = salaryTakeHome
   const displayTotalPay = baseRow.totalPay + customPayTotal
   const displayTotalDed = baseRow.totalDed + customDedTotal
 
@@ -465,50 +464,8 @@ export default function SalarySimulation() {
           <Typography variant="caption" sx={{ opacity: .55, fontSize: 10, mt: 0.25 }}>
             総支給 ¥{fmt(displayTotalPay)}
           </Typography>
-          {bonusMonth && bonusAmount > 0 && (
-            <Stack direction="row" gap={1.5} sx={{ mt: 0.75 }}>
-              <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>
-                給与 ¥{fmt(salaryTakeHome)}
-              </Typography>
-              <Typography variant="caption" sx={{ opacity: .75, fontSize: 10, color: '#ffcc80' }}>
-                賞与 ¥{fmt(bonusAmount)}
-              </Typography>
-            </Stack>
-          )}
         </CardContent>
       </Card>
-
-      {bonusMonth && (
-        <SectionCard title="賞与">
-          <Stack spacing={1.5}>
-          <Stack direction="row" alignItems="center" gap={1}>
-            <Typography variant="caption" color="text.secondary" sx={{ minWidth: 72 }}>賞与手取り</Typography>
-            <Box sx={{ width: 150 }}>
-              <AmountField
-                value={String(bonusTakeHome)}
-                onChange={(raw) => {
-                  setBonusTakeHome(raw)
-                  save(ym, fixed, overtime, customUnit, payItems, dedItems, raw)
-                }}
-              />
-            </Box>
-          </Stack>
-          {bonusCycleInfo && (
-            <FormControl size="small" fullWidth>
-              <InputLabel>家計への反映先</InputLabel>
-              <Select
-                value={bonusCycleInfo.mode}
-                label="家計への反映先"
-                onChange={(e) => handleBonusCycleChange(e.target.value)}
-              >
-                <MenuItem value="previous">{ymLabel(bonusCycleInfo.previousYm)}に反映</MenuItem>
-                <MenuItem value="current">{ymLabel(bonusCycleInfo.currentYm)}に反映</MenuItem>
-              </Select>
-            </FormControl>
-          )}
-          </Stack>
-        </SectionCard>
-      )}
 
       {/* 残業時間 */}
       <SectionCard title="残業時間">

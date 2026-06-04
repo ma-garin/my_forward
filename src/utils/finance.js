@@ -366,7 +366,7 @@ export function getSimulatedTakeHome(ym = currentBillingYm()) {
 }
 
 export function getSimulatedIncome(ym = currentBillingYm()) {
-  return getSimulatedTakeHome(ym) + getSalaryBonusTakeHome(ym)
+  return getSimulatedTakeHome(ym)
 }
 
 
