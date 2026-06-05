@@ -9,10 +9,11 @@ import {
   loadSummaryFixed, saveSummaryFixed,
   loadLivingUnit, saveLivingUnit,
   countFridaysUntil, nextPayDay,
+  loadOtherIncome,
 } from '../utils/ccStorage'
 import AmountField from './AmountField'
 
-export default function CombinedSummary({ ym, salaryYm = ym, jcbLimit = 0, smbcLimit = 0 }) {
+export default function CombinedSummary({ ym, salaryYm = ym, otherIncomeYm, jcbLimit = 0, smbcLimit = 0 }) {
   const jcb      = getCCTotal('jcb',  ym)
   const smbc     = getCCTotal('smbc', ym)
   const combined      = jcb.total + smbc.total
@@ -32,9 +33,11 @@ export default function CombinedSummary({ ym, salaryYm = ym, jcbLimit = 0, smbcL
     setSalaryInput(loadSalaryOverride(salaryYm))
   }, [salaryYm])
 
-  const simSalary = getSimulatedIncome(salaryYm)
-  const salary    = parseFloat(salaryInput) || 0
-  const hasSalary = salary > 0
+  const simSalary   = getSimulatedIncome(salaryYm)
+  const salary      = parseFloat(salaryInput) || 0
+  const otherIncome = parseFloat(loadOtherIncome(otherIncomeYm ?? salaryYm)) || 0
+  const totalIncome = salary + otherIncome
+  const hasSalary   = salary > 0
 
   const today   = new Date()
   const payDay  = nextPayDay(today)
@@ -42,8 +45,8 @@ export default function CombinedSummary({ ym, salaryYm = ym, jcbLimit = 0, smbcL
   const livingCost      = fridays * livingUnit
   const fixedItemsTotal = fixedItems.reduce((s, i) => s + i.amount, 0)
   const fixedTotal      = fixedItemsTotal + livingCost
-  const planBalance     = salary - fixedTotal - combinedLimit
-  const actualBalance   = salary - fixedTotal - combined
+  const planBalance     = totalIncome - fixedTotal - combinedLimit
+  const actualBalance   = totalIncome - fixedTotal - combined
 
   function openAdd()        { setDlgLabel(''); setDlgAmount(''); setDlg({ mode: 'add' }) }
   function openEdit(item)   { setDlgLabel(item.label); setDlgAmount(String(item.amount)); setDlg({ mode: 'edit', id: item.id }) }
@@ -136,7 +139,7 @@ export default function CombinedSummary({ ym, salaryYm = ym, jcbLimit = 0, smbcL
             </Stack>
 
             {[
-              { label: '給与',       plan: salary,         actual: salary },
+              { label: otherIncome > 0 ? `給与+その他` : '給与', plan: totalIncome, actual: totalIncome },
               { label: '固定費',     plan: fixedTotal,     actual: fixedTotal,   sign: '−' },
               { label: 'カード使用', plan: combinedLimit,  actual: combined,     sign: '−', planNote: '月間上限', actualNote: '実績' },
             ].map(({ label, plan, actual, sign, planNote, actualNote }) => (
