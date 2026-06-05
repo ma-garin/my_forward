@@ -6,8 +6,8 @@ import { loadSummaryFixed, loadLivingUnit, countFridaysUntil, nextPayDay,
          loadOtherIncome, saveOtherIncome } from '../utils/ccStorage'
 import AmountField from './AmountField'
 
-export default function IncomeSummaryCard({ fixedList, varList, ym }) {
-  const salaryYm = ym  // Kakeibo passes withdrawal month; salary uses same key
+export default function IncomeSummaryCard({ fixedList, varList, ym, salaryYm: salaryYmProp }) {
+  const salaryYm = salaryYmProp ?? ym
   const salary   = getSimulatedIncome(salaryYm)
 
   const [otherIncome, setOtherIncome] = useState(() => loadOtherIncome(salaryYm))

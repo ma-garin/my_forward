@@ -66,7 +66,7 @@ export default function Kakeibo() {
       </Stack>
 
       {/* 収支サマリー */}
-      <IncomeSummaryCard fixedList={allFixed} varList={allVar} ym={billingYm} />
+      <IncomeSummaryCard fixedList={allFixed} varList={allVar} ym={ym} salaryYm={billingYm} />
 
       {/* 2枚合計サマリー */}
       <CombinedSummary ym={billingYm} salaryYm={billingYm} jcbLimit={jcbLimit} smbcLimit={smbcLimit} />
