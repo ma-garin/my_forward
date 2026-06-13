@@ -280,18 +280,3 @@ export function saveOtherIncome(v, ym) {
     localStorage.setItem(otherIncomeKey, JSON.stringify({ ...map, [ym]: v }))
   } catch {}
 }
-
-const otherIncomeKey = 'cc_other_income_by_ym'
-export function loadOtherIncome(ym) {
-  try {
-    const map = JSON.parse(localStorage.getItem(otherIncomeKey) || '{}')
-    const v = parseFloat(map[ym] ?? '')
-    return isNaN(v) ? '' : String(v)
-  } catch { return '' }
-}
-export function saveOtherIncome(v, ym) {
-  try {
-    const map = JSON.parse(localStorage.getItem(otherIncomeKey) || '{}')
-    localStorage.setItem(otherIncomeKey, JSON.stringify({ ...map, [ym]: v }))
-  } catch {}
-}
