@@ -228,7 +228,7 @@ function DrumRoll({ items, value, onChange }) {
     if (!el) return
     programmatic.current = true
     el.scrollTo({ top: idx * DRUM_ITEM_H, behavior: 'smooth' })
-    const t = setTimeout(() => { programmatic.current = false }, 400)
+    const t = setTimeout(() => { programmatic.current = false }, 600)
     return () => clearTimeout(t)
   }, [idx])
 
