@@ -6,6 +6,7 @@ import CombinedSummary from '../components/CombinedSummary'
 import LivingExpenseCard from '../components/LivingExpenseCard'
 import IncomeSummaryCard from '../components/IncomeSummaryCard'
 import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/CategoryViews'
+import MonthlyTrendCard from '../components/MonthlyTrendCard'
 import { loadFixed, loadVar, CARDS } from '../utils/ccStorage'
 import { isActiveForYm } from '../utils/finance'
 
@@ -73,6 +74,9 @@ export default function Kakeibo() {
 
       {/* 生活費カード */}
       <LivingExpenseCard ym={billingYm} />
+
+      {/* 支出トレンド */}
+      <MonthlyTrendCard currentBillingYm={billingYm} />
 
       {/* 消費分類（全カード） */}
       <SpendTypeChart fixedList={allFixed} varList={allVar} />
