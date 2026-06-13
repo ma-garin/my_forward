@@ -333,12 +333,11 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
   const [textFocused, setTextFocused] = useState(false)
   const dateInputRef = useRef(null)
 
-  // キーボード表示時にDrawerをvisual viewport内に収める
   const [maxH, setMaxH] = useState('90vh')
   useEffect(() => {
     const vv = window.visualViewport
     if (!vv) return
-    const onResize = () => setMaxH(vv.height)
+    const onResize = () => setMaxH(vv.height ?? window.innerHeight)
     vv.addEventListener('resize', onResize)
     return () => vv.removeEventListener('resize', onResize)
   }, [])
@@ -358,6 +357,7 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
     const a = parseAmount(amount)
     if (a <= 0) return
     if (type === 'transfer') {
+      if (fromCard === toCard) return
       onSave({ transfer: true, fromCard, toCard, item: { name: memo.trim() || '振替', amount: a, category: 'その他', date } })
     } else {
       onSave({
@@ -914,15 +914,16 @@ export default function CreditCard() {
     setBilledIds(loadBilled(id, ym))
   }
 
-  const changeMonth = (delta) => {
+  const changeMonth = useCallback((delta) => {
     let y = year, m = month + delta
     if (m > 12) { y++; m = 1 }
     if (m < 1)  { y--; m = 12 }
-    setYear(y); setMonth(m)
     const newYm = ymStr(y, m)
+    setYear(y)
+    setMonth(m)
     setVarList(loadVar(cardId, newYm))
     setBilledIds(loadBilled(cardId, newYm))
-  }
+  }, [year, month, cardId])
 
   const toggleBilled = (itemId) => {
     const next = billedIds.includes(itemId)
