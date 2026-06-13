@@ -7,7 +7,8 @@ import {
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import { fmt, loadCategories } from '../utils/finance'
-import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS, saveFixed, saveVar, loadFixed, loadVar, CARDS } from '../utils/ccStorage'
+import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS, saveFixed, saveVar, loadFixed, loadVar, CARDS, loadCategoryBudgets, saveCategoryBudgets } from '../utils/ccStorage'
+import AmountField from './AmountField'
 
 function DonutChart({ data, size = 160 }) {
   const total = data.reduce((s, d) => s + d.value, 0)
@@ -102,6 +103,8 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
   const [detailView, setDetailView] = useState('list') // 'list' | 'edit'
   const [editTarget, setEditTarget] = useState(null)
   const [editForm, setEditForm] = useState({})
+  const [budgets, setBudgets] = useState(loadCategoryBudgets)
+  const [budgetDlg, setBudgetDlg] = useState(null)
 
   const { all, entries, grandTotal, prevMap } = useMemo(() => {
     const all = [...fixedList, ...varList]
@@ -191,6 +194,10 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
             const prevTotal = prevMap[cat] ?? 0
             const hasPrev = prevFixedList.length > 0 || prevVarList.length > 0
             const diff = hasPrev ? total - prevTotal : null
+            const budget = budgets[cat]
+            const budgetPct = budget ? Math.min(Math.round(total / budget * 100), 100) : null
+            const budgetRaw = budget ? Math.round(total / budget * 100) : null
+            const barColor = budgetRaw >= 90 ? '#ef9a9a' : budgetRaw >= 70 ? '#ffcc02' : '#a5d6a7'
             return (
               <Box
                 key={cat}
@@ -210,7 +217,7 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
                     <Typography variant="caption" sx={{ fontSize: 12, color: '#546e7a' }}>{cat}</Typography>
                   </Stack>
                   <Stack direction="row" alignItems="center" gap={1}>
-                    {diff !== null && diff !== 0 && (
+                    {!budget && diff !== null && diff !== 0 && (
                       <Typography variant="caption" sx={{ fontSize: 10, color: diff > 0 ? '#c62828' : '#2e7d32', fontWeight: 600 }}>
                         {diff > 0 ? '+' : ''}¥{fmt(Math.abs(diff))}
                       </Typography>
@@ -219,8 +226,34 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
                       <Typography variant="caption" sx={{ fontSize: 11, color: 'text.secondary' }}>{pct}%</Typography>
                       <Typography variant="body2" fontWeight={600}>¥{fmt(total)}</Typography>
                     </Stack>
+                    <Typography
+                      variant="caption"
+                      onClick={e => { e.stopPropagation(); setBudgetDlg({ cat, value: budget ? String(budget) : '' }) }}
+                      sx={{
+                        fontSize: 10,
+                        color: budget ? '#546e7a' : 'text.disabled',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        px: 0.5,
+                        py: 0.25,
+                        borderRadius: 1,
+                        '&:hover': { bgcolor: 'action.hover' },
+                      }}
+                    >
+                      {budget ? `¥${fmt(budget)}` : '予算設定'}
+                    </Typography>
                   </Stack>
                 </Stack>
+                {budget && (
+                  <Stack direction="row" alignItems="center" gap={1} sx={{ pb: 0.75 }}>
+                    <Box sx={{ flex: 1, height: 5, bgcolor: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
+                      <Box sx={{ height: '100%', width: `${budgetPct}%`, bgcolor: barColor, borderRadius: 2 }} />
+                    </Box>
+                    <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary', flexShrink: 0 }}>
+                      {budgetRaw}%
+                    </Typography>
+                  </Stack>
+                )}
               </Box>
             )
           })}
@@ -328,6 +361,35 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
               <Button onClick={saveEdit} variant="contained" disabled={!editForm.name || !editForm.amount}>保存</Button>
             </>
           )}
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!budgetDlg} onClose={() => setBudgetDlg(null)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ pb: 1, fontSize: 15 }}>{budgetDlg?.cat} の月間予算</DialogTitle>
+        <DialogContent sx={{ pt: '8px !important' }}>
+          <AmountField
+            value={budgetDlg?.value ?? ''}
+            onChange={v => setBudgetDlg(d => ({ ...d, value: v }))}
+            label="月間予算（円）"
+            autoFocus
+          />
+        </DialogContent>
+        <DialogActions>
+          {budgets[budgetDlg?.cat] && (
+            <Button color="error" size="small" onClick={() => {
+              const next = { ...budgets }; delete next[budgetDlg.cat]
+              setBudgets(next); saveCategoryBudgets(next); setBudgetDlg(null)
+            }}>削除</Button>
+          )}
+          <Button onClick={() => setBudgetDlg(null)} size="small">キャンセル</Button>
+          <Button variant="contained" size="small" onClick={() => {
+            const amt = parseInt(budgetDlg?.value, 10)
+            if (!isNaN(amt) && amt > 0) {
+              const next = { ...budgets, [budgetDlg.cat]: amt }
+              setBudgets(next); saveCategoryBudgets(next)
+            }
+            setBudgetDlg(null)
+          }}>保存</Button>
         </DialogActions>
       </Dialog>
     </>
