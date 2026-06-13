@@ -280,3 +280,10 @@ export function saveOtherIncome(v, ym) {
     localStorage.setItem(otherIncomeKey, JSON.stringify({ ...map, [ym]: v }))
   } catch {}
 }
+
+export function loadCategoryBudgets() {
+  try { return JSON.parse(localStorage.getItem('cc_category_budgets') || '{}') } catch { return {} }
+}
+export function saveCategoryBudgets(map) {
+  try { localStorage.setItem('cc_category_budgets', JSON.stringify(map)) } catch {}
+}
