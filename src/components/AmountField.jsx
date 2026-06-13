@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Box, Typography, TextField, Button, InputAdornment } from '@mui/material'
+import { Box, Typography, TextField, Button, InputAdornment, Drawer } from '@mui/material'
 import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined'
-import SwipeableDrawer from '@mui/material/SwipeableDrawer'
 import { fmt } from '../utils/finance'
 
 export function fmtInput(raw) {
@@ -58,7 +57,15 @@ export function CalcPad({ value, onChange, onConfirm, disabled }) {
     }
   }
 
-  const pressConfirm = () => { pressEquals(); onConfirm() }
+  const pressConfirm = () => {
+    let finalVal = value
+    if (stored !== null && op) {
+      finalVal = String(calc(stored, parseAmount(value), op))
+      onChange(finalVal)
+      setStored(null); setOp(null); setFresh(false)
+    }
+    onConfirm(finalVal)
+  }
 
   const BASE = { minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0, py: 1.6, color: '#fff', border: 'none' }
   const bg   = (c) => ({ bgcolor: c, '&:hover': { bgcolor: c, filter: 'brightness(1.1)' }, '&:active': { filter: 'brightness(0.85)' } })
@@ -102,8 +109,8 @@ export default function AmountField({ value, onChange, large = false, dark = fal
     setDraft(allowZero ? String(n) : String(n || ''))
     setOpen(true)
   }
-  const handleConfirm = () => {
-    onChange(draft.replace(/[^0-9]/g, ''))
+  const handleConfirm = (val) => {
+    onChange((val ?? draft).replace(/[^0-9]/g, ''))
     setOpen(false)
   }
 
@@ -139,12 +146,10 @@ export default function AmountField({ value, onChange, large = false, dark = fal
         sx={{ ...(large ? { '& .MuiInputBase-root': { height: 64 } } : {}), ...darkSx, ...inputSx }}
       />
 
-      <SwipeableDrawer
+      <Drawer
         anchor="bottom"
         open={open}
         onClose={() => setOpen(false)}
-        onOpen={() => {}}
-        disableSwipeToOpen
         disableScrollLock
         sx={{ zIndex: 1500 }}
         PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
@@ -158,7 +163,7 @@ export default function AmountField({ value, onChange, large = false, dark = fal
           </Typography>
         </Box>
         <CalcPad value={draft} onChange={setDraft} onConfirm={handleConfirm} disabled={!allowZero && parseAmount(draft) <= 0} />
-      </SwipeableDrawer>
+      </Drawer>
     </Box>
   )
 }
