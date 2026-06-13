@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Box, Typography, TextField, Button, InputAdornment } from '@mui/material'
+import { Box, Typography, TextField, Button, InputAdornment, Drawer, Stack } from '@mui/material'
 import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined'
-import SwipeableDrawer from '@mui/material/SwipeableDrawer'
 import { fmt } from '../utils/finance'
 
 export function fmtInput(raw) {
@@ -58,7 +57,15 @@ export function CalcPad({ value, onChange, onConfirm, disabled }) {
     }
   }
 
-  const pressConfirm = () => { pressEquals(); onConfirm() }
+  const pressConfirm = () => {
+    let finalVal = value
+    if (stored !== null && op) {
+      finalVal = String(calc(stored, parseAmount(value), op))
+      onChange(finalVal)
+      setStored(null); setOp(null); setFresh(false)
+    }
+    onConfirm(finalVal)
+  }
 
   const BASE = { minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0, py: 1.6, color: '#fff', border: 'none' }
   const bg   = (c) => ({ bgcolor: c, '&:hover': { bgcolor: c, filter: 'brightness(1.1)' }, '&:active': { filter: 'brightness(0.85)' } })
@@ -98,12 +105,13 @@ export default function AmountField({ value, onChange, large = false, dark = fal
   const [draft, setDraft] = useState('')
 
   const handleOpen = () => {
+    document.activeElement?.blur()
     const n = parseAmount(value)
     setDraft(allowZero ? String(n) : String(n || ''))
     setOpen(true)
   }
-  const handleConfirm = () => {
-    onChange(draft.replace(/[^0-9]/g, ''))
+  const handleConfirm = (val) => {
+    onChange((val ?? draft).replace(/[^0-9]/g, ''))
     setOpen(false)
   }
 
@@ -139,18 +147,26 @@ export default function AmountField({ value, onChange, large = false, dark = fal
         sx={{ ...(large ? { '& .MuiInputBase-root': { height: 64 } } : {}), ...darkSx, ...inputSx }}
       />
 
-      <SwipeableDrawer
+      <Drawer
         anchor="bottom"
         open={open}
         onClose={() => setOpen(false)}
-        onOpen={() => {}}
-        disableSwipeToOpen
         disableScrollLock
         sx={{ zIndex: 1500 }}
         PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
       >
-        <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto', mb: 1.5 }} />
-        {label && <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>{label}</Typography>}
+        <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
+          <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto' }} />
+        </Stack>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5, minHeight: 24 }}>
+          {label
+            ? <Typography variant="caption" color="text.secondary">{label}</Typography>
+            : <Box />}
+          <Button size="small" onClick={() => handleConfirm(undefined)}
+            sx={{ fontSize: 13, fontWeight: 600, minWidth: 0, px: 1, py: 0, color: 'primary.main', textTransform: 'none' }}>
+            完了
+          </Button>
+        </Stack>
         <Box sx={{ bgcolor: '#333', borderRadius: '8px 8px 0 0', px: 2, py: 1.5, display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
           <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
           <Typography sx={{ color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums', minHeight: 44 }}>
@@ -158,7 +174,7 @@ export default function AmountField({ value, onChange, large = false, dark = fal
           </Typography>
         </Box>
         <CalcPad value={draft} onChange={setDraft} onConfirm={handleConfirm} disabled={!allowZero && parseAmount(draft) <= 0} />
-      </SwipeableDrawer>
+      </Drawer>
     </Box>
   )
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Box, Card, CardContent, Typography, Stack, Divider,
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -46,14 +46,18 @@ function DonutChart({ data, size = 160 }) {
 }
 
 export function CategoryChart({ fixedList, varList }) {
-  const all = [...fixedList, ...varList]
+  const { all, entries, data } = useMemo(() => {
+    const all = [...fixedList, ...varList]
+    const map = {}
+    all.forEach((x) => { map[x.category] = (map[x.category] ?? 0) + x.amount })
+    const entries = Object.entries(map).sort((a, b) => b[1] - a[1])
+    const data = entries.map(([label, value]) => ({ label, value }))
+    return { all, entries, data }
+  }, [fixedList, varList])
+
   if (all.length === 0) return null
 
-  const map = {}
-  all.forEach((x) => { map[x.category] = (map[x.category] ?? 0) + x.amount })
-  const total   = Object.values(map).reduce((s, v) => s + v, 0)
-  const entries = Object.entries(map).sort((a, b) => b[1] - a[1])
-  const data    = entries.map(([label, value]) => ({ label, value }))
+  const total = data.reduce((s, d) => s + d.value, 0)
 
   return (
     <Card sx={{ mb: 1.5 }}>
@@ -99,16 +103,18 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
   const [editTarget, setEditTarget] = useState(null)
   const [editForm, setEditForm] = useState({})
 
-  const all = [...fixedList, ...varList]
+  const { all, entries, grandTotal, prevMap } = useMemo(() => {
+    const all = [...fixedList, ...varList]
+    const map = {}
+    all.forEach((x) => { map[x.category] = (map[x.category] ?? 0) + x.amount })
+    const grandTotal = Object.values(map).reduce((s, v) => s + v, 0)
+    const entries = Object.entries(map).sort((a, b) => b[1] - a[1])
+    const prevMap = {}
+    ;[...prevFixedList, ...prevVarList].forEach((x) => { prevMap[x.category] = (prevMap[x.category] ?? 0) + x.amount })
+    return { all, entries, grandTotal, prevMap }
+  }, [fixedList, varList, prevFixedList, prevVarList])
+
   if (all.length === 0) return null
-
-  const map = {}
-  all.forEach((x) => { map[x.category] = (map[x.category] ?? 0) + x.amount })
-  const grandTotal = Object.values(map).reduce((s, v) => s + v, 0)
-  const entries    = Object.entries(map).sort((a, b) => b[1] - a[1])
-
-  const prevMap = {}
-  ;[...prevFixedList, ...prevVarList].forEach((x) => { prevMap[x.category] = (prevMap[x.category] ?? 0) + x.amount })
 
   const catItems = selectedCat ? [
     ...fixedList.filter(x => x.category === selectedCat).map(x => ({ ...x, _type: 'fixed' })),
@@ -329,17 +335,19 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
 }
 
 export function SpendTypeChart({ fixedList, varList }) {
-  const all = [...fixedList, ...varList].filter(x => x.sign !== 1)
+  const { all, totals, grandTotal } = useMemo(() => {
+    const all = [...fixedList, ...varList].filter(x => x.sign !== 1)
+    const totals = {}
+    SPEND_TYPES.forEach(t => { totals[t] = 0 })
+    all.forEach(x => {
+      const t = x.spendType ?? '消費'
+      totals[t] = (totals[t] ?? 0) + x.amount
+    })
+    const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0)
+    return { all, totals, grandTotal }
+  }, [fixedList, varList])
+
   if (all.length === 0) return null
-
-  const totals = {}
-  SPEND_TYPES.forEach(t => { totals[t] = 0 })
-  all.forEach(x => {
-    const t = x.spendType ?? '消費'
-    totals[t] = (totals[t] ?? 0) + x.amount
-  })
-
-  const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0)
   if (grandTotal === 0) return null
 
   return (

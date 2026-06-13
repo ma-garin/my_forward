@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { Box, AppBar, Toolbar, Typography, BottomNavigation, BottomNavigationAction, Paper, IconButton, Drawer } from '@mui/material'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
@@ -36,8 +36,18 @@ const SETTINGS_TITLES = {
 
 export default function App() {
   const [activeTab,    setActiveTab]    = useState(0)
+  const [refreshKeys,  setRefreshKeys]  = useState([0, 0, 0, 0])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsPage, setSettingsPage] = useState(null)
+
+  const handleTabChange = useCallback((_, v) => {
+    setActiveTab(v)
+    setRefreshKeys(prev => {
+      const next = [...prev]
+      next[v] = next[v] + 1
+      return next
+    })
+  }, [])
 
   const openSettings = () => { setSettingsPage(null); setSettingsOpen(true) }
   const closeSettings = () => setSettingsOpen(false)
@@ -63,15 +73,15 @@ export default function App() {
 
         {/* Content */}
         <Box sx={{ flex: 1, overflowY: 'auto', pb: 'calc(56px + env(safe-area-inset-bottom))' }}>
-          {activeTab === 0 && <CreditCard />}
-          {activeTab === 1 && <Kakeibo />}
-          {activeTab === 2 && <Cashflow />}
-          {activeTab === 3 && <SalarySimulation />}
+          {activeTab === 0 && <CreditCard key={refreshKeys[0]} />}
+          {activeTab === 1 && <Kakeibo key={refreshKeys[1]} />}
+          {activeTab === 2 && <Cashflow key={refreshKeys[2]} />}
+          {activeTab === 3 && <SalarySimulation key={refreshKeys[3]} />}
         </Box>
 
         {/* Bottom Navigation */}
         <Paper sx={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 600, zIndex: 100, pb: 'env(safe-area-inset-bottom)' }} elevation={3}>
-          <BottomNavigation value={activeTab} onChange={(_, v) => setActiveTab(v)} showLabels sx={{ bgcolor: 'background.paper' }}>
+          <BottomNavigation value={activeTab} onChange={handleTabChange} showLabels sx={{ bgcolor: 'background.paper' }}>
             {TABS.map((tab) => (
               <BottomNavigationAction key={tab.label} label={tab.label} icon={tab.icon} sx={{ fontSize: 11 }} />
             ))}
