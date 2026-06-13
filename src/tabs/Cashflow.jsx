@@ -227,7 +227,7 @@ function ExpenseEditDialog({ open, item, categories, onClose, onSave }) {
     setPayee(item.payee ?? '')
     setName(item.name ?? '')
     setAmount(String(item.amount ?? ''))
-  }, [item, categories])
+  }, [item])
 
   if (!item) return null
 
@@ -308,7 +308,13 @@ export default function Cashflow() {
   const [deleteItem, setDeleteItem] = useState(null)
   const [detailItem, setDetailItem] = useState(null)
   const [snack, setSnack] = useState({ open: false, severity: 'success', message: '' })
-  const [categories] = useState(loadCategories)
+  const [categories, setCategories] = useState(loadCategories)
+
+  useEffect(() => {
+    const handler = (e) => { if (!e.key || e.key === 'cc_categories') setCategories(loadCategories()) }
+    window.addEventListener('storage', handler)
+    return () => window.removeEventListener('storage', handler)
+  }, [])
 
   const ym = ymStr(year, month)
   const rows = useMemo(() => loadExpenseRows(ym), [ym, version])
