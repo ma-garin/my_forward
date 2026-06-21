@@ -60,7 +60,7 @@ export default function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTota
   const HDR = { fontSize: 10, fontWeight: 700, color: 'text.disabled', letterSpacing: .5, textAlign: 'right' }
   const VAL = { fontSize: 13, fontWeight: 500, textAlign: 'right' }
 
-  const Row = ({ sign, label, plan, actual, subtotal, subLabel }) => (
+  const Row = ({ sign, label, plan, actual, subtotal }) => (
     <Stack direction="row" alignItems="center"
       sx={{
         py: 0.65, px: subtotal ? 1 : 0,

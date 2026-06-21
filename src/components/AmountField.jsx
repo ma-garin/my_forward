@@ -1,17 +1,7 @@
 import { useState } from 'react'
 import { Box, Typography, TextField, Button, InputAdornment, Drawer, Stack } from '@mui/material'
 import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined'
-import { fmt } from '../utils/finance'
-
-export function fmtInput(raw) {
-  const n = parseInt(String(raw ?? '').replace(/,/g, ''), 10)
-  return isNaN(n) ? '' : n.toLocaleString('ja-JP')
-}
-
-export function parseAmount(raw) {
-  const n = parseInt(String(raw ?? '').replace(/,/g, ''), 10)
-  return isNaN(n) ? 0 : n
-}
+import { fmt, fmtInput, parseAmount } from '../utils/finance'
 
 // ─── 電卓パッド ─────────────────────────────────────────────
 
@@ -100,7 +90,7 @@ export function CalcPad({ value, onChange, onConfirm, disabled }) {
 
 // ─── 金額入力フィールド ─────────────────────────────────────
 
-export default function AmountField({ value, onChange, large = false, dark = false, label, placeholder = '0', autoFocus = false, inputSx = {}, allowZero = false }) {
+export default function AmountField({ value, onChange, large = false, dark = false, label, placeholder = '0', inputSx = {}, allowZero = false }) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
 

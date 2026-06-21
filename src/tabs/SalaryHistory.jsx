@@ -389,9 +389,6 @@ export default function SalaryHistory() {
     return { ...s, bonusTotal, months: salaries.length }
   }, [salaries, bonuses])
 
-  const barData = useMemo(() =>
-    salaries.map(r => ({ label: `${r.month}月`, totalPay: r.totalPay, totalDed: r.totalDed, takeHome: r.takeHome }))
-  , [salaries])
 
   const statItems = [
     { label: '年間手取り合計', value: `¥${fmt(summary.takeHome)}`,  color: '#1e88e5' },
@@ -612,7 +609,7 @@ export default function SalaryHistory() {
           const jan = allSalary.find(r => r.year === y && r.month === 1 && r.type === 'salary')
           return { label: `${y}`, value: jan?.basePay ?? null, year: y }
         })
-        const rows = YEARS.slice().reverse().map((y, i, arr) => {
+        const rows = YEARS.slice().reverse().map((y) => {
           const cur  = allSalary.find(r => r.year === y   && r.month === 1 && r.type === 'salary')
           const prev = allSalary.find(r => r.year === y-1 && r.month === 1 && r.type === 'salary')
           return { year: y, base: cur?.basePay, prevBase: prev?.basePay }
