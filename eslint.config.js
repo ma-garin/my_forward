@@ -24,6 +24,10 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // localStorage アクセスの失敗は意図的に握りつぶしている
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      // 日本語 UI テキスト中の全角スペース（U+3000）は意図的に使用している
+      'no-irregular-whitespace': ['error', { skipJSXText: true }],
     },
   },
 ])

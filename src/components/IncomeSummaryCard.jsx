@@ -100,7 +100,7 @@ export default function IncomeSummaryCard({ fixedList, varList, ym, salaryYm: sa
       <Dialog open={dlgOpen} onClose={() => setDlgOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle sx={{ pb: 1, fontSize: 15 }}>その他収入</DialogTitle>
         <DialogContent sx={{ pt: '8px !important' }}>
-          <AmountField value={dlgVal} onChange={setDlgVal} label="金額（円）" allowZero autoFocus />
+          <AmountField value={dlgVal} onChange={setDlgVal} label="金額（円）" allowZero />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDlgOpen(false)} size="small">キャンセル</Button>

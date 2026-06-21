@@ -204,7 +204,7 @@ export default function LivingExpenseCard({ ym }) {
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle sx={{ pb: 1, fontSize: 15 }}>週予算を編集</DialogTitle>
         <DialogContent sx={{ pt: '8px !important', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <AmountField value={editVal} onChange={setEditVal} label="週予算（円）" autoFocus />
+          <AmountField value={editVal} onChange={setEditVal} label="週予算（円）" />
           <Divider><Typography variant="caption" color="text.secondary">または月予算から逆算</Typography></Divider>
           <Box>
             <TextField

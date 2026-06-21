@@ -421,3 +421,15 @@ export function newId() {
 export function fmt(n) {
   return Number(n).toLocaleString('ja-JP')
 }
+
+// 入力中の金額文字列をカンマ区切りに整形（不正値は空文字）
+export function fmtInput(raw) {
+  const n = parseInt(String(raw ?? '').replace(/,/g, ''), 10)
+  return isNaN(n) ? '' : n.toLocaleString('ja-JP')
+}
+
+// 金額文字列を数値に変換（不正値は 0）
+export function parseAmount(raw) {
+  const n = parseInt(String(raw ?? '').replace(/,/g, ''), 10)
+  return isNaN(n) ? 0 : n
+}
