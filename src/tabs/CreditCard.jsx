@@ -26,7 +26,7 @@ import {
 } from '../utils/ccStorage'
 import AmountField, { CalcPad, parseAmount } from '../components/AmountField'
 import { VarExpenseTable, DailyBarChart } from '../components/CCExpenseViews'
-import { CategoryChart, CategoryBreakdown } from '../components/CategoryViews'
+import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/CategoryViews'
 import LivingExpenseCard from '../components/LivingExpenseCard'
 import CombinedSummary from '../components/CombinedSummary'
 import BudgetBreakdown from '../components/BudgetBreakdown'
@@ -1009,6 +1009,17 @@ export default function CreditCard() {
   const varTotal   = varList.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
   const grandTotal = fixedTotal + varTotal
 
+  // カテゴリ別集計の先月比用（同一カードの前月分）
+  const prevYm = ymStr(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1)
+  const prevFilteredFixed = fixedList.filter((x) => isActiveForYm(x, prevYm))
+  const prevVarListForCat = loadVar(cardId, prevYm)
+
+  // カテゴリ別集計の編集後にストレージから再読み込み
+  const refreshLists = () => {
+    setFixedList(loadFixed(cardId))
+    setVarList(loadVar(cardId, ym))
+  }
+
   return (
     <Box sx={{ px: 2, pt: 2, pb: 10 }}>
 
@@ -1239,6 +1250,23 @@ export default function CreditCard() {
           </CardContent>
         </Collapse>
       </Card>
+
+      {/* 消費分類（当カード） */}
+      <SpendTypeChart fixedList={filteredFixed} varList={varList} />
+
+      {/* カテゴリ別グラフ（当カード） */}
+      <CategoryChart fixedList={filteredFixed} varList={varList} />
+
+      {/* カテゴリ別集計（当カード） */}
+      <CategoryBreakdown
+        fixedList={filteredFixed}
+        varList={varList}
+        cardId={cardId}
+        ym={ym}
+        onUpdate={refreshLists}
+        prevFixedList={prevFilteredFixed}
+        prevVarList={prevVarListForCat}
+      />
 
       {/* 年間サマリー */}
       <YearlySummary year={year} cardId={cardId} />
