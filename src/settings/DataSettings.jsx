@@ -24,7 +24,7 @@ function getAllKeys() {
 function createJsonExport(keys, filename) {
   const data = {}
   keys.forEach(k => {
-    try { data[k] = JSON.parse(localStorage.getItem(k)) } catch {}
+    try { data[k] = JSON.parse(localStorage.getItem(k)) } catch { /* JSON でない値はスキップ */ }
   })
   const fileName = `${filename}_${new Date().toISOString().slice(0, 10)}.json`
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })

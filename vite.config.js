@@ -4,7 +4,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { execSync } from 'child_process'
 import { existsSync, watch } from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SALARY_DIR = path.resolve(__dirname, '../salary')
 const PARSE_SCRIPT = path.resolve(__dirname, 'scripts/parse_salary.py')
 
