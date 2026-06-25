@@ -5,6 +5,7 @@ import { fmt, getSimulatedIncome } from '../utils/finance'
 import { loadSummaryFixed, loadLivingUnit, countFridaysUntil, nextPayDay,
          loadOtherIncome, saveOtherIncome } from '../utils/ccStorage'
 import AmountField from './AmountField'
+import SectionHeader from './SectionHeader'
 
 export default function IncomeSummaryCard({ fixedList, varList, ym, salaryYm: salaryYmProp }) {
   const salaryYm = salaryYmProp ?? ym
@@ -46,11 +47,7 @@ export default function IncomeSummaryCard({ fixedList, varList, ym, salaryYm: sa
   return (
     <>
       <Card sx={{ mb: 1.5 }}>
-        <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-            収支サマリー
-          </Typography>
-        </Box>
+        <SectionHeader title="収支サマリー" />
         <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
           <Stack direction="row" spacing={0} divider={<Divider orientation="vertical" flexItem />}>
             <Stack alignItems="center" sx={{ flex: 1 }}>

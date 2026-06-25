@@ -143,7 +143,7 @@ function SummaryBars({ title, rows, total }) {
               </Stack>
               <Stack direction="row" alignItems="baseline" gap={0.5} sx={{ flexShrink: 0 }}>
                 <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary' }}>{percentage}%</Typography>
-                <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: '#b23b3b', fontVariantNumeric: 'tabular-nums' }}>
+                <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: 'error.main', fontVariantNumeric: 'tabular-nums' }}>
                   -¥{fmt(row.amount)}
                 </Typography>
               </Stack>
@@ -169,7 +169,7 @@ function SummaryCard({ rows, total }) {
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 1.25 }}>
           <Typography variant="subtitle2" fontWeight={700}>集計</Typography>
-          <Typography variant="caption" sx={{ color: '#b23b3b', fontWeight: 700 }}>-¥{fmt(total)}</Typography>
+          <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 700 }}>-¥{fmt(total)}</Typography>
         </Stack>
         <Stack spacing={2}>
           <SummaryBars title="項目別" rows={categoryRows} total={total} />
@@ -322,6 +322,10 @@ export default function Cashflow() {
     setMonth(next.month)
   }
 
+  const currentCal = defaultCalendarMonth()
+  const isCurrentMonth = year === currentCal.year && month === currentCal.month
+  const goToCurrentMonth = () => { setYear(currentCal.year); setMonth(currentCal.month) }
+
   const handleSaveVar = (source, data) => {
     const targetYm = getBillingYmForDate(data.date, data.cardId)
     const oldList = loadVar(source.cardId, source.sourceYm)
@@ -398,7 +402,7 @@ export default function Cashflow() {
   }
 
   const cellSx = { fontSize: 12, py: 0.9, borderColor: '#eeeeee', whiteSpace: 'nowrap' }
-  const amountSx = { ...cellSx, textAlign: 'right', color: '#b23b3b', fontVariantNumeric: 'tabular-nums' }
+  const amountSx = { ...cellSx, textAlign: 'right', color: 'error.main', fontVariantNumeric: 'tabular-nums' }
 
   return (
     <Box sx={{ p: 2 }}>
@@ -408,7 +412,14 @@ export default function Cashflow() {
         </IconButton>
         <Box sx={{ textAlign: 'center' }}>
           <Typography variant="subtitle1" fontWeight={700}>{year}年{month}月</Typography>
-          <Typography variant="caption" color="text.secondary">JCB/VISA 支出明細</Typography>
+          {isCurrentMonth ? (
+            <Typography variant="caption" color="text.secondary">JCB/VISA 支出明細</Typography>
+          ) : (
+            <Button size="small" onClick={goToCurrentMonth}
+              sx={{ fontSize: 11, minWidth: 0, px: 1, py: 0, textTransform: 'none', lineHeight: 1.3 }}>
+              今月へ戻る
+            </Button>
+          )}
         </Box>
         <IconButton size="small" aria-label="翌月" onClick={() => moveMonth(1)}>
           <ChevronRightIcon />
@@ -441,7 +452,7 @@ export default function Cashflow() {
                       <Typography variant="caption" sx={{ fontSize: 10, px: 0.65, py: 0.15, borderRadius: 1, bgcolor: '#eceff1', color: '#37474f', flexShrink: 0 }}>
                         {row.sourceLabel}
                       </Typography>
-                      <Typography variant="caption" sx={{ fontSize: 10, px: 0.65, py: 0.15, borderRadius: 1, bgcolor: '#f7f4ef', color: '#5d4037', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Typography variant="caption" sx={{ fontSize: 10, px: 0.65, py: 0.15, borderRadius: 1, bgcolor: '#eceff1', color: '#37474f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {row.category}
                       </Typography>
                     </Stack>
@@ -459,7 +470,7 @@ export default function Cashflow() {
                   </Box>
 
                   <Stack alignItems="flex-end" sx={{ width: 112, flexShrink: 0 }}>
-                    <Typography variant="body2" sx={{ fontSize: 14, fontWeight: 700, color: '#b23b3b', fontVariantNumeric: 'tabular-nums' }}>
+                    <Typography variant="body2" sx={{ fontSize: 14, fontWeight: 700, color: 'error.main', fontVariantNumeric: 'tabular-nums' }}>
                       -¥{fmt(row.amount)}
                     </Typography>
                     <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
@@ -482,15 +493,15 @@ export default function Cashflow() {
           <TableContainer component={Paper} variant="outlined" sx={{ display: { xs: 'none', sm: 'block' }, mx: -2, width: 'calc(100% + 32px)', overflowX: 'auto' }}>
             <Table size="small" sx={{ minWidth: 720 }}>
               <TableHead>
-                <TableRow sx={{ bgcolor: '#f7f4ef' }}>
+                <TableRow sx={{ bgcolor: '#f5f5f5' }}>
                   {['日付', '支払元', '項目', '支払先', '金額', '累計'].map((label, index) => (
                     <TableCell key={label} align={index >= 4 ? 'right' : 'left'} sx={{
-                      fontSize: 12, fontWeight: 700, py: 1, whiteSpace: 'nowrap', borderColor: '#e7e2da',
+                      fontSize: 12, fontWeight: 700, py: 1, whiteSpace: 'nowrap', borderColor: '#e0e0e0',
                     }}>
                       {label}
                     </TableCell>
                   ))}
-                  <TableCell sx={{ width: 64, py: 1, borderColor: '#e7e2da' }} />
+                  <TableCell sx={{ width: 64, py: 1, borderColor: '#e0e0e0' }} />
                 </TableRow>
               </TableHead>
               <TableBody>

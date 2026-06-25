@@ -19,8 +19,19 @@ const theme = createTheme({
       primary: '#263238',
       secondary: '#546e7a',
     },
+    // ─── セマンティックカラー（収入/支出/警告） ───
+    // 金額表示やステータス色はハードコードせず、これらのトークンを参照する
+    success: {
+      main: '#2e7d32',       // 収入・プラス・予算内
+      light: '#a5d6a7',
+    },
+    warning: {
+      main: '#f9a825',       // 予算注意（70〜90%）
+      light: '#ffe082',
+    },
     error: {
-      main: '#b71c1c',
+      main: '#c62828',       // 支出・マイナス・予算超過
+      light: '#ef9a9a',
     },
   },
   typography: {

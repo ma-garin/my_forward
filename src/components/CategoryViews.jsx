@@ -9,6 +9,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import { fmt, loadCategories } from '../utils/finance'
 import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS, saveFixed, saveVar, loadFixed, loadVar, CARDS, loadCategoryBudgets, saveCategoryBudgets } from '../utils/ccStorage'
 import AmountField from './AmountField'
+import SectionHeader from './SectionHeader'
 
 function DonutChart({ data, size = 160 }) {
   const total = data.reduce((s, d) => s + d.value, 0)
@@ -63,11 +64,7 @@ export function CategoryChart({ fixedList, varList }) {
 
   return (
     <Card sx={{ mb: 1.5 }}>
-      <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-          カテゴリ別グラフ
-        </Typography>
-      </Box>
+      <SectionHeader title="カテゴリ別グラフ" />
       <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 2 } }}>
         <Stack direction="row" alignItems="center" spacing={2}>
           <DonutChart data={data} size={140} />
@@ -79,11 +76,11 @@ export function CategoryChart({ fixedList, varList }) {
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Stack direction="row" alignItems="center" gap={0.75}>
                       <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
-                      <Typography variant="caption" sx={{ fontSize: 10 }} noWrap>{cat}</Typography>
+                      <Typography variant="caption" sx={{ fontSize: 11 }} noWrap>{cat}</Typography>
                     </Stack>
                     <Stack direction="row" alignItems="baseline" gap={0.5}>
-                      <Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary' }}>{pct}%</Typography>
-                      <Typography variant="caption" fontWeight={700} sx={{ fontSize: 10 }}>¥{fmt(val)}</Typography>
+                      <Typography variant="caption" sx={{ fontSize: 11, color: 'text.secondary' }}>{pct}%</Typography>
+                      <Typography variant="caption" fontWeight={700} sx={{ fontSize: 11 }}>¥{fmt(val)}</Typography>
                     </Stack>
                   </Stack>
                   <Box sx={{ height: 6, bgcolor: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
@@ -183,11 +180,7 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
   return (
     <>
       <Card sx={{ mb: 1.5 }}>
-        <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-            カテゴリ別集計
-          </Typography>
-        </Box>
+        <SectionHeader title="カテゴリ別集計" />
         <CardContent sx={{ px: 2, py: 1, '&:last-child': { pb: 1.5 } }}>
           {entries.map(([cat, total], i) => {
             const pct   = grandTotal > 0 ? Math.round(total / grandTotal * 100) : 0
@@ -415,11 +408,7 @@ export function SpendTypeChart({ fixedList, varList }) {
 
   return (
     <Card sx={{ mb: 1.5 }}>
-      <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-          消費分類
-        </Typography>
-      </Box>
+      <SectionHeader title="消費分類" />
       <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 2 } }}>
         {/* 積み上げバー */}
         <Box sx={{ height: 12, borderRadius: 2, overflow: 'hidden', display: 'flex', mb: 1.5 }}>

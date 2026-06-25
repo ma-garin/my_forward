@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Box, Typography, Stack, IconButton } from '@mui/material'
+import { Box, Typography, Stack, IconButton, Button } from '@mui/material'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import CombinedSummary from '../components/CombinedSummary'
@@ -58,13 +58,21 @@ export default function Kakeibo() {
     <Box sx={{ px: 2, pt: 2, pb: 10 }}>
 
       {/* 月ナビゲーション */}
-      <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
-        <IconButton size="small" aria-label="前の月" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
-        <Typography variant="subtitle2" fontWeight={600} sx={{ minWidth: 80, textAlign: 'center' }}>
-          {year}年{month}月
-        </Typography>
-        <IconButton size="small" aria-label="次の月" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
-      </Stack>
+      <Box sx={{ position: 'relative', mb: 1.5 }}>
+        <Stack direction="row" alignItems="center" justifyContent="center">
+          <IconButton size="small" aria-label="前の月" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
+          <Typography variant="subtitle2" fontWeight={600} sx={{ minWidth: 80, textAlign: 'center' }}>
+            {year}年{month}月
+          </Typography>
+          <IconButton size="small" aria-label="次の月" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
+        </Stack>
+        {ym !== currentYm() && (
+          <Button size="small" onClick={() => setYm(currentYm())}
+            sx={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', fontSize: 11, minWidth: 0, px: 1, textTransform: 'none' }}>
+            今月
+          </Button>
+        )}
+      </Box>
 
       {/* 収支サマリー */}
       <IncomeSummaryCard fixedList={allFixed} varList={allVar} ym={ym} salaryYm={billingYm} />
