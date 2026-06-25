@@ -15,7 +15,6 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import SettingsIcon from '@mui/icons-material/Settings'
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm, parseAmount } from '../utils/finance'
 import {
   CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
@@ -29,6 +28,7 @@ import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/
 import LivingExpenseCard from '../components/LivingExpenseCard'
 import CombinedSummary from '../components/CombinedSummary'
 import BudgetBreakdown from '../components/BudgetBreakdown'
+import SectionHeader from '../components/SectionHeader'
 
 function cutoffLabel(card) {
   return card.cutoffDay === 0 ? '月末締め' : `${card.cutoffDay}日締め`
@@ -423,14 +423,11 @@ function YearlySummary({ year, cardId }) {
 
   return (
     <Card sx={{ mb: 1.5 }}>
-      <Box onClick={() => setOpen(v => !v)}
-        sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}>
-        <Stack direction="row" alignItems="center" gap={1}>
-          <ExpandMoreIcon sx={{ fontSize: 16, color: '#fff', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>年間サマリー {year}年</Typography>
-        </Stack>
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.7)', fontSize: 10 }}>合計 ¥{fmt(yearTotal)}</Typography>
-      </Box>
+      <SectionHeader
+        title={`年間サマリー ${year}年`}
+        collapsible open={open} onToggle={() => setOpen((v) => !v)}
+        right={<Typography variant="caption" sx={{ color: 'rgba(255,255,255,.7)', fontSize: 11 }}>合計 ¥{fmt(yearTotal)}</Typography>}
+      />
       <Collapse in={open}>
         <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
           {data.map(({ m, fixedTotal, varTotal, total }) => (
@@ -695,6 +692,15 @@ export default function CreditCard() {
     setBilledIds(loadBilled(cardId, newYm))
   }, [year, month, cardId])
 
+  const isCurrentMonth = year === defaultYear && month === defaultMonth
+  const goToCurrentMonth = useCallback(() => {
+    const newYm = ymStr(defaultYear, defaultMonth)
+    setYear(defaultYear)
+    setMonth(defaultMonth)
+    setVarList(loadVar(cardId, newYm))
+    setBilledIds(loadBilled(cardId, newYm))
+  }, [defaultYear, defaultMonth, cardId])
+
   const toggleBilled = (itemId) => {
     const next = billedIds.includes(itemId)
       ? billedIds.filter(id => id !== itemId)
@@ -794,13 +800,21 @@ export default function CreditCard() {
     <Box sx={{ px: 2, pt: 2, pb: 10 }}>
 
       {/* 月ナビゲーション */}
-      <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
-        <IconButton size="small" aria-label="前の月" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
-        <Typography variant="subtitle2" fontWeight={600} sx={{ minWidth: 80, textAlign: 'center' }}>
-          {year}年{month}月
-        </Typography>
-        <IconButton size="small" aria-label="次の月" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
-      </Stack>
+      <Box sx={{ position: 'relative', mb: 1.5 }}>
+        <Stack direction="row" alignItems="center" justifyContent="center">
+          <IconButton size="small" aria-label="前の月" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
+          <Typography variant="subtitle2" fontWeight={600} sx={{ minWidth: 80, textAlign: 'center' }}>
+            {year}年{month}月
+          </Typography>
+          <IconButton size="small" aria-label="次の月" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
+        </Stack>
+        {!isCurrentMonth && (
+          <Button size="small" onClick={goToCurrentMonth}
+            sx={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', fontSize: 11, minWidth: 0, px: 1, textTransform: 'none' }}>
+            今月
+          </Button>
+        )}
+      </Box>
 
       {/* カード選択 */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
@@ -944,24 +958,34 @@ export default function CreditCard() {
         onLimitChange={(v) => { setLimitInputs(prev => ({ ...prev, [cardId]: v })); saveLimit(cardId, v) }}
       />
 
+      {/* 空状態ガイド（このカード・この月にデータが無いとき） */}
+      {filteredFixed.length === 0 && varList.length === 0 && (
+        <Card sx={{ mb: 1.5, bgcolor: '#f5f7f8', border: '1px dashed', borderColor: 'divider' }}>
+          <CardContent sx={{ px: 2, py: 2, textAlign: 'center', '&:last-child': { pb: 2 } }}>
+            <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
+              {card.shortName} の {month}月分はまだ記録がありません
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.6 }}>
+              右下の <Box component="span" sx={{ display: 'inline-flex', verticalAlign: 'middle', mx: 0.25, width: 18, height: 18, borderRadius: '50%', bgcolor: 'primary.main', color: '#fff', alignItems: 'center', justifyContent: 'center' }}><AddIcon sx={{ fontSize: 13 }} /></Box> ボタンで支出を追加できます。<br />
+              毎月の固定費は下の「固定費」から登録します。
+            </Typography>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 固定費テーブル */}
       <Card sx={{ mb: 1.5 }}>
-        <Box
-          onClick={() => setFixedOpen((v) => !v)}
-          sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}
-        >
-          <Stack direction="row" alignItems="center" gap={1}>
-            <ExpandMoreIcon sx={{ fontSize: 16, color: '#fff', transform: fixedOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
-            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>固定費</Typography>
-            <Chip label="毎月" size="small" sx={{ height: 16, fontSize: 9, bgcolor: 'rgba(255,255,255,.2)', color: '#fff' }} />
-          </Stack>
-          <Stack direction="row" alignItems="center" gap={1}>
-            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.8)', fontWeight: 600 }}>¥{fmt(fixedTotal)}</Typography>
+        <SectionHeader
+          title="固定費"
+          collapsible open={fixedOpen} onToggle={() => setFixedOpen((v) => !v)}
+          badge={<Chip label="毎月" size="small" sx={{ height: 16, fontSize: 10, bgcolor: 'rgba(255,255,255,.2)', color: '#fff' }} />}
+          right={<Typography variant="caption" sx={{ color: 'rgba(255,255,255,.85)', fontWeight: 600 }}>¥{fmt(fixedTotal)}</Typography>}
+          action={
             <IconButton size="small" aria-label="固定費を追加" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'fixed' }) }} sx={{ p: 0.75, color: '#fff' }}>
               <AddIcon sx={{ fontSize: 18 }} />
             </IconButton>
-          </Stack>
-        </Box>
+          }
+        />
         <Collapse in={fixedOpen}>
           <CardContent sx={{ px: 0, py: 0, '&:last-child': { pb: 0 } }}>
             <FixedExpenseTable
@@ -984,29 +1008,26 @@ export default function CreditCard() {
           const prevVarTotal = prevVarList.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
           const varDiff = varTotal - prevVarTotal
           return (
-        <Box
-          onClick={() => setVarOpen((v) => !v)}
-          sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}
-        >
-          <Stack direction="row" alignItems="center" gap={1}>
-            <ExpandMoreIcon sx={{ fontSize: 16, color: '#fff', transform: varOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
-            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>変動費</Typography>
-            <Chip label={`${year}年${month}月`} size="small" sx={{ height: 16, fontSize: 9, bgcolor: 'rgba(255,255,255,.2)', color: '#fff' }} />
-          </Stack>
-          <Stack direction="row" alignItems="center" gap={1}>
+        <SectionHeader
+          title="変動費"
+          collapsible open={varOpen} onToggle={() => setVarOpen((v) => !v)}
+          badge={<Chip label={`${year}年${month}月`} size="small" sx={{ height: 16, fontSize: 10, bgcolor: 'rgba(255,255,255,.2)', color: '#fff' }} />}
+          right={
             <Stack alignItems="flex-end">
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.8)', fontWeight: 600 }}>¥{fmt(varTotal)}</Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.85)', fontWeight: 600 }}>¥{fmt(varTotal)}</Typography>
               {prevVarTotal > 0 && (
-                <Typography variant="caption" sx={{ fontSize: 9, color: varDiff > 0 ? '#ef9a9a' : '#a5d6a7' }}>
+                <Typography variant="caption" sx={{ fontSize: 10, color: varDiff > 0 ? 'error.light' : 'success.light' }}>
                   先月比 {varDiff >= 0 ? '+' : '−'}¥{fmt(Math.abs(varDiff))}
                 </Typography>
               )}
             </Stack>
+          }
+          action={
             <IconButton size="small" aria-label="変動費を追加" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'var' }) }} sx={{ p: 0.75, color: '#fff' }}>
               <AddIcon sx={{ fontSize: 18 }} />
             </IconButton>
-          </Stack>
-        </Box>
+          }
+        />
           )
         })()}
         <Collapse in={varOpen}>
