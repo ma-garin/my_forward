@@ -29,7 +29,7 @@ const tag = (list, cardId) => list.map(x => ({ ...x, _cardId: cardId }))
 
 export default function Kakeibo() {
   const [ym, setYm] = useState(currentYm)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [, setRefreshKey] = useState(0)
 
   const changeMonth = (n) => setYm(prev => addMonth(prev, n))
 

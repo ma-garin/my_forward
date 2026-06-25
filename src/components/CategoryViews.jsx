@@ -18,14 +18,15 @@ function DonutChart({ data, size = 160 }) {
   const R  = size * 0.46
   const ri = size * 0.26
   const GAP = 0.025
-  let angle = -Math.PI / 2
+  const fulls = data.map((d) => (d.value / total) * 2 * Math.PI)
 
   const slices = data.map((d, i) => {
-    const full  = (d.value / total) * 2 * Math.PI
+    const full  = fulls[i]
     const theta = Math.max(full - GAP, 0.001)
+    // スライス開始角は手前までの角度の累積（再代入を避けて純粋に算出）
+    const angle = -Math.PI / 2 + fulls.slice(0, i).reduce((s, f) => s + f, 0)
     const a1 = angle + GAP / 2
     const a2 = a1 + theta
-    angle += full
     const large = theta > Math.PI ? 1 : 0
     const p = (a) => [cx + R  * Math.cos(a), cy + R  * Math.sin(a)]
     const q = (a) => [cx + ri * Math.cos(a), cy + ri * Math.sin(a)]

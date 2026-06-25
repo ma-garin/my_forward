@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Alert, Box, Button, Card, CardContent, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Snackbar,
@@ -9,8 +9,8 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
-import AmountField, { parseAmount } from '../components/AmountField'
-import { fmt, isActiveForYm, loadCategories, ymStr } from '../utils/finance'
+import AmountField from '../components/AmountField'
+import { fmt, isActiveForYm, loadCategories, ymStr, parseAmount } from '../utils/finance'
 import {
   CARDS, CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
   getBillingYmForDate, loadFixed, saveFixed, loadVar, saveVar,
@@ -209,25 +209,15 @@ function ExpenseDetailDialog({ item, onClose }) {
   )
 }
 
+// 親側で key={item?.id} を指定し、item ごとに再マウントして初期化する
 function ExpenseEditDialog({ open, item, categories, onClose, onSave }) {
-  const [date, setDate] = useState('')
-  const [cardId, setCardId] = useState('jcb')
-  const [category, setCategory] = useState('')
-  const [spendType, setSpendType] = useState('消費')
-  const [payee, setPayee] = useState('')
-  const [name, setName] = useState('')
-  const [amount, setAmount] = useState('')
-
-  useEffect(() => {
-    if (!item) return
-    setDate(item.date ?? '')
-    setCardId(item.cardId ?? 'jcb')
-    setCategory(item.category ?? categories[0] ?? 'その他')
-    setSpendType(item.spendType ?? '消費')
-    setPayee(item.payee ?? '')
-    setName(item.name ?? '')
-    setAmount(String(item.amount ?? ''))
-  }, [item])
+  const [date, setDate] = useState(item?.date ?? '')
+  const [cardId, setCardId] = useState(item?.cardId ?? 'jcb')
+  const [category, setCategory] = useState(item?.category ?? categories[0] ?? 'その他')
+  const [spendType, setSpendType] = useState(item?.spendType ?? '消費')
+  const [payee, setPayee] = useState(item?.payee ?? '')
+  const [name, setName] = useState(item?.name ?? '')
+  const [amount, setAmount] = useState(String(item?.amount ?? ''))
 
   if (!item) return null
 
@@ -303,7 +293,7 @@ export default function Cashflow() {
   const initial = defaultCalendarMonth()
   const [year, setYear] = useState(initial.year)
   const [month, setMonth] = useState(initial.month)
-  const [version, setVersion] = useState(0)
+  const [, setVersion] = useState(0)
   const [editItem, setEditItem] = useState(null)
   const [deleteItem, setDeleteItem] = useState(null)
   const [detailItem, setDetailItem] = useState(null)
@@ -317,7 +307,8 @@ export default function Cashflow() {
   }, [])
 
   const ym = ymStr(year, month)
-  const rows = useMemo(() => loadExpenseRows(ym), [ym, version])
+  // setVersion の更新で再レンダーされ、最新の localStorage が読み直される
+  const rows = loadExpenseRows(ym)
   const total = rows.reduce((sum, item) => sum + item.amount, 0)
   const fixedTotal = rows.filter(item => item.type === 'fixed').reduce((sum, item) => sum + item.amount, 0)
   const variableTotal = rows.filter(item => item.type === 'var').reduce((sum, item) => sum + item.amount, 0)
@@ -545,6 +536,7 @@ export default function Cashflow() {
       <SummaryCard rows={rows} total={total} />
 
       <ExpenseEditDialog
+        key={editItem?.id}
         open={!!editItem}
         item={editItem}
         categories={categories}

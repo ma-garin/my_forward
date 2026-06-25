@@ -130,7 +130,7 @@ export default function LivingExpenseCard({ ym }) {
         {tab === 0 && (
           <Box>
             <Typography variant="caption" sx={{ fontSize: 11, opacity: .75, display: 'block', mb: 0.75 }}>
-              生活費　週（{label.replace(' 〜 ', '-')}）
+              生活費{'　'}週（{label.replace(' 〜 ', '-')}）
             </Typography>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
               <MiniBar pct={weekPct} />

@@ -56,7 +56,7 @@ export function nextPayDay(from = new Date()) {
     const saved = JSON.parse(localStorage.getItem('cc_cards') || '[]')
     const smbc  = saved.find(c => c.id === 'smbc')
     if (smbc?.paymentDay) day = smbc.paymentDay
-  } catch {}
+  } catch { /* 保存値が壊れている場合はデフォルト払い日を使用 */ }
   let candidate = new Date(from.getFullYear(), from.getMonth(), day)
   if (candidate <= from) candidate = new Date(from.getFullYear(), from.getMonth() + 1, day)
   return nextBusinessDay(candidate)
@@ -278,12 +278,12 @@ export function saveOtherIncome(v, ym) {
   try {
     const map = JSON.parse(localStorage.getItem(otherIncomeKey) || '{}')
     localStorage.setItem(otherIncomeKey, JSON.stringify({ ...map, [ym]: v }))
-  } catch {}
+  } catch(e) { console.warn('saveOtherIncome failed', e) }
 }
 
 export function loadCategoryBudgets() {
   try { return JSON.parse(localStorage.getItem('cc_category_budgets') || '{}') } catch { return {} }
 }
 export function saveCategoryBudgets(map) {
-  try { localStorage.setItem('cc_category_budgets', JSON.stringify(map)) } catch {}
+  try { localStorage.setItem('cc_category_budgets', JSON.stringify(map)) } catch(e) { console.warn('saveCategoryBudgets failed', e) }
 }

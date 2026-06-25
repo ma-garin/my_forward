@@ -14,20 +14,14 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import {
   DEFAULT_FIXED, UNIT_PRICE_RAW,
-  overtimeUnitPrice, overtimeUnitPriceFloor, calcTotalPay,
-  deriveRowSim, newId, fmt,
-  addMonth, currentBillingYm, isBonusMonth, loadSalaryMonth, saveSalaryMonth,
-  loadBonusCycleSettings, saveBonusCycleSettings, getBonusCycleInfo,
+  overtimeUnitPrice, overtimeUnitPriceFloor,
+  deriveRowSim, newId, fmt, parseAmount,
+  addMonth, currentBillingYm, loadSalaryMonth, saveSalaryMonth,
 } from '../utils/finance'
-import AmountField, { parseAmount } from '../components/AmountField'
+import AmountField from '../components/AmountField'
 
 function save(ym, fixed, overtime, customUnit = '', payItems = [], dedItems = [], bonusTakeHome = '') {
   saveSalaryMonth(ym, { fixed, overtime, customUnit, payItems, dedItems, bonusTakeHome })
-}
-
-function ymLabel(ym) {
-  const [year, month] = ym.split('-')
-  return `${year}年${Number(month)}月度`
 }
 
 // ─── 計算ロジック ────────────────────────────────────────────
@@ -333,12 +327,9 @@ export default function SalarySimulation() {
   const [payItems, setPayItems]     = useState(initial.data.payItems)
   const [dedItems, setDedItems]     = useState(initial.data.dedItems)
   const [bonusTakeHome, setBonusTakeHome] = useState(initial.data.bonusTakeHome)
-  const [bonusCycleSettings, setBonusCycleSettings] = useState(loadBonusCycleSettings)
   const [addDlg, setAddDlg]         = useState(null) // 'pay' | 'ded' | null
 
   const [year, month] = ym.split('-').map(Number)
-  const bonusMonth = isBonusMonth(ym)
-  const bonusCycleInfo = getBonusCycleInfo(ym, bonusCycleSettings)
 
   const persistCurrent = useCallback(() => {
     save(ym, fixed, overtime, customUnit, payItems, dedItems, bonusTakeHome)
@@ -362,7 +353,7 @@ export default function SalarySimulation() {
   }
 
   const parsedCustomUnit = customUnit === '' ? null : (parseInt(customUnit, 10) || null)
-  const { unitR, unitF, unitC, otF, otC } = calcAllOvertime(fixed, overtime, parsedCustomUnit)
+  const { unitF, unitC, otF, otC } = calcAllOvertime(fixed, overtime, parsedCustomUnit)
 
   const rowF = deriveRowLocal(fixed, otF)
   const rowC = otC != null ? deriveRowLocal(fixed, otC) : null
@@ -430,13 +421,6 @@ export default function SalarySimulation() {
       const next = [...dedItems, item]
       setDedItems(next); save(ym, fixed, overtime, customUnit, payItems, next, bonusTakeHome)
     }
-  }
-
-  const handleBonusCycleChange = (mode) => {
-    if (!bonusCycleInfo) return
-    const next = { ...bonusCycleSettings, [bonusCycleInfo.season]: mode }
-    setBonusCycleSettings(next)
-    saveBonusCycleSettings(next)
   }
 
   return (

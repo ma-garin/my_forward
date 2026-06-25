@@ -102,7 +102,7 @@ export default function CardSettings() {
               <Box>
                 <Typography fontWeight={600} fontSize={14}>{card.name}</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {card.cutoffDay === 0 ? '月末締め' : `${card.cutoffDay}日締め`}　翌月{card.paymentDay}日払い
+                  {card.cutoffDay === 0 ? '月末締め' : `${card.cutoffDay}日締め`}{'　'}翌月{card.paymentDay}日払い
                 </Typography>
               </Box>
               <Stack direction="row">
