@@ -157,6 +157,7 @@ export const appleTheme = createTheme({
           alignItems: 'flex-end',
         },
         paper: {
+          position: 'relative',
           margin: 8,
           width: 'calc(100% - 16px)',
           maxWidth: '520px',
@@ -166,11 +167,32 @@ export const appleTheme = createTheme({
           WebkitBackdropFilter: GLASS_BLUR,
           boxShadow: '0 20px 60px rgba(0,0,0,0.30)',
           border: '1px solid rgba(255,255,255,0.6)',
+          // iOS シートのグラバーハンドル
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 8,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 36,
+            height: 5,
+            borderRadius: 3,
+            backgroundColor: 'rgba(60,60,67,0.3)',
+            zIndex: 2,
+          },
           [noBlur]: {
             backgroundColor: '#ffffff',
             backdropFilter: 'none',
             WebkitBackdropFilter: 'none',
           },
+        },
+      },
+    },
+    MuiDialogTitle: {
+      styleOverrides: {
+        root: {
+          paddingTop: 22,
+          fontWeight: 700,
         },
       },
     },

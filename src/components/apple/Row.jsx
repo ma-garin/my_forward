@@ -2,6 +2,7 @@ import { Box, Stack, Typography } from '@mui/material'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { motion, useReducedMotion } from 'motion/react'
 import { ios } from './tokens'
+import SwipeRow from './SwipeRow'
 
 /**
  * iOS リスト行。左ラベル / 右バリュー / 任意 chevron。
@@ -18,10 +19,10 @@ import { ios } from './tokens'
  *  - dense:   行高を詰める
  *  - sx:      passthrough
  */
-export default function Row({ label, sub, value, leading, chevron, onClick, last = false, dense = false, sx }) {
+export default function Row({ label, sub, value, leading, chevron, onClick, onDelete, last = false, dense = false, sx }) {
   const reduce = useReducedMotion()
   const tappable = !!onClick
-  return (
+  const inner = (
     <Box
       {...(tappable && !reduce ? { component: motion.div, whileTap: { scale: 0.985 } } : {})}
       onClick={onClick}
@@ -71,4 +72,7 @@ export default function Row({ label, sub, value, leading, chevron, onClick, last
       {chevron && <ChevronRightIcon sx={{ fontSize: 20, color: ios.tertiary, flexShrink: 0, ml: -0.5 }} />}
     </Box>
   )
+
+  if (onDelete) return <SwipeRow onDelete={onDelete}>{inner}</SwipeRow>
+  return inner
 }

@@ -223,11 +223,11 @@ export default function CombinedSummary({ ym, salaryYm = ym, otherIncomeYm, jcbL
               <Row
                 key={item.id}
                 label={item.label}
+                onDelete={() => askDelete(item)}
                 value={
                   <Stack direction="row" alignItems="center" gap={0.25}>
                     <Typography sx={{ fontSize: 15, color: ios.secondary, fontVariantNumeric: 'tabular-nums' }}>¥{fmt(item.amount)}</Typography>
                     <IconButton size="small" aria-label="編集" onClick={() => openEdit(item)} sx={{ p: 0.5, color: ios.tertiary }}><EditIcon sx={{ fontSize: 15 }} /></IconButton>
-                    <IconButton size="small" aria-label="削除" onClick={() => askDelete(item)} sx={{ p: 0.5, color: ios.tertiary }}><DeleteIcon sx={{ fontSize: 15 }} /></IconButton>
                   </Stack>
                 }
               />
@@ -251,11 +251,11 @@ export default function CombinedSummary({ ym, salaryYm = ym, otherIncomeYm, jcbL
             ) : (
               <Row
                 label={`生活費（${fridays}週 × ${fmt(livingUnit)}）`}
+                onDelete={() => setDeleteDlg({ id: '__living__', label: '生活費' })}
                 value={
                   <Stack direction="row" alignItems="center" gap={0.25}>
                     <Typography sx={{ fontSize: 15, color: ios.secondary, fontVariantNumeric: 'tabular-nums' }}>¥{fmt(livingCost)}</Typography>
                     <IconButton size="small" aria-label="生活費を編集" onClick={() => setLivingEdit(String(livingUnit))} sx={{ p: 0.5, color: ios.tertiary }}><EditIcon sx={{ fontSize: 15 }} /></IconButton>
-                    <IconButton size="small" aria-label="生活費を削除" onClick={() => setDeleteDlg({ id: '__living__', label: '生活費' })} sx={{ p: 0.5, color: ios.tertiary }}><DeleteIcon sx={{ fontSize: 15 }} /></IconButton>
                   </Stack>
                 }
               />
