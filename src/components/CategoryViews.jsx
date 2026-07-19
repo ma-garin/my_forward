@@ -6,6 +6,7 @@ import {
   Chip, IconButton,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
+import CardHeaderBar from './CardHeaderBar'
 import { fmt, loadCategories } from '../utils/finance'
 import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS, saveFixed, saveVar, loadFixed, loadVar, CARDS, loadCategoryBudgets, saveCategoryBudgets } from '../utils/ccStorage'
 import AmountField from './AmountField'
@@ -62,11 +63,7 @@ export function CategoryChart({ fixedList, varList }) {
 
   return (
     <Card sx={{ mb: 1.5 }}>
-      <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-          カテゴリ別グラフ
-        </Typography>
-      </Box>
+      <CardHeaderBar title="カテゴリ別グラフ" />
       <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 2 } }}>
         <Stack direction="row" alignItems="center" spacing={2}>
           <DonutChart data={data} size={140} />
@@ -182,11 +179,7 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
   return (
     <>
       <Card sx={{ mb: 1.5 }}>
-        <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-            カテゴリ別集計
-          </Typography>
-        </Box>
+        <CardHeaderBar title="カテゴリ別集計" />
         <CardContent sx={{ px: 2, py: 1, '&:last-child': { pb: 1.5 } }}>
           {entries.map(([cat, total], i) => {
             const pct   = grandTotal > 0 ? Math.round(total / grandTotal * 100) : 0
@@ -414,11 +407,7 @@ export function SpendTypeChart({ fixedList, varList }) {
 
   return (
     <Card sx={{ mb: 1.5 }}>
-      <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-          消費分類
-        </Typography>
-      </Box>
+      <CardHeaderBar title="消費分類" />
       <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 2 } }}>
         {/* 積み上げバー */}
         <Box sx={{ height: 12, borderRadius: 2, overflow: 'hidden', display: 'flex', mb: 1.5 }}>

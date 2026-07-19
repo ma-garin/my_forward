@@ -7,6 +7,7 @@ import {
   CircularProgress, Alert,
 } from '@mui/material'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
+import CardHeaderBar from '../components/CardHeaderBar'
 
 // ─── localStorage ─────────────────────────────────────────
 const BASE_KEY     = 'salary_base_data'
@@ -111,12 +112,7 @@ function BarChart({ data, keys, colors, height = 160, labels }) {
 function SectionCard({ title, children, action }) {
   return (
     <Card sx={{ mb: 1.5 }}>
-      <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-          {title}
-        </Typography>
-        {action}
-      </Box>
+      <CardHeaderBar title={title} right={action} />
       <CardContent sx={{ px: 2, py: 1, '&:last-child': { pb: 1.5 } }}>
         {children}
       </CardContent>
@@ -525,15 +521,14 @@ export default function SalaryHistory() {
 
       {/* ③ 月別明細 */}
       <Card sx={{ mb: 1.5 }}>
-        <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>月別明細</Typography>
+        <CardHeaderBar title="月別明細" right={
           <ToggleButtonGroup size="small" value={monthlyView} exclusive onChange={(_, v) => v && setMonthlyView(v)}
             sx={{ '& .MuiToggleButton-root': { py: 0, px: 1, fontSize: 11, color: 'rgba(255,255,255,.8)', borderColor: 'rgba(255,255,255,.3)' },
                   '& .Mui-selected': { bgcolor: 'rgba(255,255,255,.2) !important', color: '#fff !important' } }}>
             <ToggleButton value="summary">サマリ</ToggleButton>
             <ToggleButton value="detail">詳細</ToggleButton>
           </ToggleButtonGroup>
-        </Box>
+        } />
         <CardContent sx={{ px: 0, py: 0, '&:last-child': { pb: 0 } }}>
           <MonthlyTable salaries={salaries} mode={monthlyView} />
         </CardContent>
