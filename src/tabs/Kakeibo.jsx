@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Box, Typography, Stack, IconButton } from '@mui/material'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -36,23 +36,33 @@ export default function Kakeibo() {
   const [year, month] = ym.split('-').map(Number)
   const billingYm = addMonth(ym, -1)
 
-  const jcbFixed   = loadFixed('jcb').filter(x => isActiveForYm(x, billingYm))
-  const jcbVar     = loadVar('jcb', billingYm)
-  const smbcFixed  = loadFixed('smbc').filter(x => isActiveForYm(x, billingYm))
-  const smbcVar    = loadVar('smbc', billingYm)
-  const allFixed   = [...tag(jcbFixed, 'jcb'), ...tag(smbcFixed, 'smbc')]
-  const allVar     = [...tag(jcbVar, 'jcb'), ...tag(smbcVar, 'smbc')]
+  // localStorage 読み込み・タグ付けは billingYm / refreshKey が変わったときだけ再計算。
+  // 子コンポーネントの state 変化による親の再レンダーで 8 回の parse+filter が
+  // 毎回走るのを防ぐ。参照が安定し下流チャートの内部 useMemo もヒットする。
+  const {
+    allFixed, allVar, allFixedPrev, allVarPrev, jcbLimit, smbcLimit,
+  } = useMemo(() => {
+    const jcbFixed  = loadFixed('jcb').filter(x => isActiveForYm(x, billingYm))
+    const jcbVar    = loadVar('jcb', billingYm)
+    const smbcFixed = loadFixed('smbc').filter(x => isActiveForYm(x, billingYm))
+    const smbcVar   = loadVar('smbc', billingYm)
 
-  const prevBillingYm  = addMonth(billingYm, -1)
-  const jcbFixedPrev   = loadFixed('jcb').filter(x => isActiveForYm(x, prevBillingYm))
-  const jcbVarPrev     = loadVar('jcb', prevBillingYm)
-  const smbcFixedPrev  = loadFixed('smbc').filter(x => isActiveForYm(x, prevBillingYm))
-  const smbcVarPrev    = loadVar('smbc', prevBillingYm)
-  const allFixedPrev   = [...tag(jcbFixedPrev, 'jcb'), ...tag(smbcFixedPrev, 'smbc')]
-  const allVarPrev     = [...tag(jcbVarPrev, 'jcb'), ...tag(smbcVarPrev, 'smbc')]
+    const prevBillingYm = addMonth(billingYm, -1)
+    const jcbFixedPrev  = loadFixed('jcb').filter(x => isActiveForYm(x, prevBillingYm))
+    const jcbVarPrev    = loadVar('jcb', prevBillingYm)
+    const smbcFixedPrev = loadFixed('smbc').filter(x => isActiveForYm(x, prevBillingYm))
+    const smbcVarPrev   = loadVar('smbc', prevBillingYm)
 
-  const jcbLimit  = parseFloat(localStorage.getItem('cc_limit_jcb') || '') || 0
-  const smbcLimit = parseFloat(localStorage.getItem('cc_limit_smbc') || '') || 0
+    return {
+      allFixed:     [...tag(jcbFixed, 'jcb'), ...tag(smbcFixed, 'smbc')],
+      allVar:       [...tag(jcbVar, 'jcb'), ...tag(smbcVar, 'smbc')],
+      allFixedPrev: [...tag(jcbFixedPrev, 'jcb'), ...tag(smbcFixedPrev, 'smbc')],
+      allVarPrev:   [...tag(jcbVarPrev, 'jcb'), ...tag(smbcVarPrev, 'smbc')],
+      jcbLimit:     parseFloat(localStorage.getItem('cc_limit_jcb') || '') || 0,
+      smbcLimit:    parseFloat(localStorage.getItem('cc_limit_smbc') || '') || 0,
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [billingYm, refreshKey])
 
   return (
     <Box sx={{ px: 2, pt: 2, pb: 10 }}>

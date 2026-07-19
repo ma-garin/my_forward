@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, memo } from 'react'
 import { Box, Card, CardContent, Typography, Stack, Divider, IconButton, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
@@ -18,10 +18,14 @@ import Row from './apple/Row'
 import HeroValue from './apple/HeroValue'
 import { ios } from './apple/tokens'
 
-export default function CombinedSummary({ ym, salaryYm = ym, otherIncomeYm, jcbLimit = 0, smbcLimit = 0 }) {
-  const jcb      = getCCTotal('jcb',  ym)
-  const smbc     = getCCTotal('smbc', ym)
-  const combined      = jcb.total + smbc.total
+function CombinedSummaryBase({ ym, salaryYm = ym, otherIncomeYm, jcbLimit = 0, smbcLimit = 0 }) {
+  // ダイアログ・給与入力などの state 変化による再レンダーで
+  // getCCTotal（各カード 2 回 parse）が毎回走るのを防ぐ。
+  const { jcb, smbc, combined } = useMemo(() => {
+    const jcb  = getCCTotal('jcb',  ym)
+    const smbc = getCCTotal('smbc', ym)
+    return { jcb, smbc, combined: jcb.total + smbc.total }
+  }, [ym])
   const combinedLimit = jcbLimit + smbcLimit
 
   const [salaryInput, setSalaryInput] = useState(() => loadSalaryOverride(salaryYm))
@@ -38,9 +42,12 @@ export default function CombinedSummary({ ym, salaryYm = ym, otherIncomeYm, jcbL
     setSalaryInput(loadSalaryOverride(salaryYm))
   }, [salaryYm])
 
-  const simSalary   = getSimulatedIncome(salaryYm)
+  const simSalary   = useMemo(() => getSimulatedIncome(salaryYm), [salaryYm])
   const salary      = parseFloat(salaryInput) || 0
-  const otherIncome = parseFloat(loadOtherIncome(otherIncomeYm ?? salaryYm)) || 0
+  const otherIncome = useMemo(
+    () => parseFloat(loadOtherIncome(otherIncomeYm ?? salaryYm)) || 0,
+    [otherIncomeYm, salaryYm],
+  )
   const totalIncome = salary + otherIncome
   const hasSalary   = salary > 0
 
@@ -431,3 +438,7 @@ export default function CombinedSummary({ ym, salaryYm = ym, otherIncomeYm, jcbL
     </>
   )
 }
+
+// props（ym / salaryYm / limit など）はすべて primitive のため、
+// 親の再レンダーで値が変わらなければ再レンダーをスキップできる。
+export default memo(CombinedSummaryBase)
