@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, memo } from 'react'
 import {
   Box, Card, CardContent, Typography, Stack, Divider,
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -47,7 +47,7 @@ function DonutChart({ data, size = 160 }) {
   )
 }
 
-export function CategoryChart({ fixedList, varList }) {
+function CategoryChartBase({ fixedList, varList }) {
   const { all, entries, data } = useMemo(() => {
     const all = [...fixedList, ...varList]
     const map = {}
@@ -95,7 +95,7 @@ export function CategoryChart({ fixedList, varList }) {
   )
 }
 
-export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, prevFixedList = [], prevVarList = [] }) {
+function CategoryBreakdownBase({ fixedList, varList, cardId, ym, onUpdate, prevFixedList = [], prevVarList = [] }) {
   const [selectedCat, setSelectedCat] = useState(null)
   const [detailView, setDetailView] = useState('list') // 'list' | 'edit'
   const [editTarget, setEditTarget] = useState(null)
@@ -389,7 +389,7 @@ export function CategoryBreakdown({ fixedList, varList, cardId, ym, onUpdate, pr
   )
 }
 
-export function SpendTypeChart({ fixedList, varList }) {
+function SpendTypeChartBase({ fixedList, varList }) {
   const { all, totals, grandTotal } = useMemo(() => {
     const all = [...fixedList, ...varList].filter(x => x.sign !== 1)
     const totals = {}
@@ -446,3 +446,9 @@ export function SpendTypeChart({ fixedList, varList }) {
     </Card>
   )
 }
+
+// props（fixedList/varList など）の参照が変わらなければ再レンダーをスキップ。
+// 親（Kakeibo / CreditCard）で配列を useMemo 化しているため memo が有効に働く。
+export const CategoryChart = memo(CategoryChartBase)
+export const CategoryBreakdown = memo(CategoryBreakdownBase)
+export const SpendTypeChart = memo(SpendTypeChartBase)

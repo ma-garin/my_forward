@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import {
   Box, Card, CardContent, Typography, Stack, Chip, Divider,
   IconButton, Button, TextField, Dialog, DialogTitle, DialogContent,
@@ -645,17 +645,21 @@ function YearlySummary({ year, cardId }) {
   const [open, setOpen] = useState(false)
   const { mode } = useThemeMode()
   const apple = mode === 'apple'
-  const data = Array.from({ length: 12 }, (_, i) => {
-    const m = i + 1
-    const ym = ymStr(year, m)
-    const fl = loadFixed(cardId).filter(x => isActiveForYm(x, ym))
-    const fixedTotal = fl.reduce((s, x) => s + x.amount, 0)
-    const vl = loadVar(cardId, ym)
-    const varTotal = vl.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
-    return { m, fixedTotal, varTotal, total: fixedTotal + varTotal }
-  })
-  const maxTotal = Math.max(...data.map(d => d.total), 1)
-  const yearTotal = data.reduce((s, d) => s + d.total, 0)
+  // 固定費リストは 12 ヶ月ループの外で 1 回だけロード（月ごとに再 parse しない）。
+  const { data, maxTotal, yearTotal } = useMemo(() => {
+    const fixedAll = loadFixed(cardId)
+    const data = Array.from({ length: 12 }, (_, i) => {
+      const m = i + 1
+      const ym = ymStr(year, m)
+      const fixedTotal = fixedAll.filter(x => isActiveForYm(x, ym)).reduce((s, x) => s + x.amount, 0)
+      const vl = loadVar(cardId, ym)
+      const varTotal = vl.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
+      return { m, fixedTotal, varTotal, total: fixedTotal + varTotal }
+    })
+    const maxTotal = Math.max(...data.map(d => d.total), 1)
+    const yearTotal = data.reduce((s, d) => s + d.total, 0)
+    return { data, maxTotal, yearTotal }
+  }, [year, cardId])
 
   return (
     <Card sx={{ mb: 1.5 }}>
@@ -1028,15 +1032,19 @@ export default function CreditCard() {
   const hdrChipSx    = apple ? { height: 18, fontSize: 10, bgcolor: 'rgba(118,118,128,0.12)', color: ios.secondary } : { height: 16, fontSize: 9, bgcolor: 'rgba(255,255,255,.2)', color: '#fff' }
   const hdrAddColor  = apple ? ios.accent : '#fff'
 
-  const filteredFixed = fixedList.filter((x) => isActiveForYm(x, ym))
-  const fixedTotal = filteredFixed.reduce((s, x) => s + x.amount, 0)
-  const varTotal   = varList.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
-  const grandTotal = fixedTotal + varTotal
+  const { filteredFixed, fixedTotal, varTotal, grandTotal } = useMemo(() => {
+    const filteredFixed = fixedList.filter((x) => isActiveForYm(x, ym))
+    const fixedTotal = filteredFixed.reduce((s, x) => s + x.amount, 0)
+    const varTotal   = varList.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
+    return { filteredFixed, fixedTotal, varTotal, grandTotal: fixedTotal + varTotal }
+  }, [fixedList, varList, ym])
 
   // カテゴリ別集計の先月比用（同一カードの前月分）
   const prevYm = ymStr(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1)
-  const prevFilteredFixed = fixedList.filter((x) => isActiveForYm(x, prevYm))
-  const prevVarListForCat = loadVar(cardId, prevYm)
+  const { prevFilteredFixed, prevVarListForCat } = useMemo(() => ({
+    prevFilteredFixed: fixedList.filter((x) => isActiveForYm(x, prevYm)),
+    prevVarListForCat: loadVar(cardId, prevYm),
+  }), [fixedList, cardId, prevYm])
 
   // カテゴリ別集計の編集後にストレージから再読み込み
   const refreshLists = () => {
@@ -1304,10 +1312,8 @@ export default function CreditCard() {
       {/* 変動費 */}
       <Card sx={{ mb: 1.5 }}>
         {(() => {
-          const prevM = month === 1 ? 12 : month - 1
-          const prevY = month === 1 ? year - 1 : year
-          const prevVarList = loadVar(cardId, ymStr(prevY, prevM))
-          const prevVarTotal = prevVarList.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
+          // 前月変動費は上部でメモ化済みの prevVarListForCat（同一 prevYm）を再利用
+          const prevVarTotal = prevVarListForCat.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
           const varDiff = varTotal - prevVarTotal
           return (
         <Box
