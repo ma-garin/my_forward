@@ -15,6 +15,10 @@ import {
   CARDS, CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
   getBillingYmForDate, loadFixed, saveFixed, loadVar, saveVar,
 } from '../utils/ccStorage'
+import { useThemeMode } from '../ThemeModeContext'
+import Section from '../components/apple/Section'
+import HeroValue from '../components/apple/HeroValue'
+import { ios } from '../components/apple/tokens'
 
 function defaultCalendarMonth() {
   const today = new Date()
@@ -319,6 +323,8 @@ export default function Cashflow() {
   const ym = ymStr(year, month)
   const rows = useMemo(() => loadExpenseRows(ym), [ym, version])
   const total = rows.reduce((sum, item) => sum + item.amount, 0)
+  const { mode } = useThemeMode()
+  const apple = mode === 'apple'
   const fixedTotal = rows.filter(item => item.type === 'fixed').reduce((sum, item) => sum + item.amount, 0)
   const variableTotal = rows.filter(item => item.type === 'var').reduce((sum, item) => sum + item.amount, 0)
 
@@ -424,13 +430,24 @@ export default function Cashflow() {
         </IconButton>
       </Stack>
 
-      <Box sx={{ bgcolor: '#263238', color: '#fff', borderRadius: 2, px: 2, py: 1.25, mb: 1.5 }}>
-        <Typography variant="caption" sx={{ opacity: 0.75 }}>月合計</Typography>
-        <Typography variant="h6" fontWeight={700}>-¥{fmt(total)}</Typography>
-        <Typography variant="caption" sx={{ display: 'block', mt: 0.35, opacity: 0.78 }}>
-          固定費: -¥{fmt(fixedTotal)} ({pct(fixedTotal, total)}%) / 変動費: -¥{fmt(variableTotal)} ({pct(variableTotal, total)}%)
-        </Typography>
-      </Box>
+      {apple ? (
+        <Section>
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <HeroValue label="月合計" prefix="-¥" value={fmt(total)} color={ios.red} size={30} />
+            <Typography sx={{ fontSize: 12.5, color: ios.secondary, mt: 0.5 }}>
+              固定費: -¥{fmt(fixedTotal)} ({pct(fixedTotal, total)}%) / 変動費: -¥{fmt(variableTotal)} ({pct(variableTotal, total)}%)
+            </Typography>
+          </Box>
+        </Section>
+      ) : (
+        <Box sx={{ bgcolor: '#263238', color: '#fff', borderRadius: 2, px: 2, py: 1.25, mb: 1.5 }}>
+          <Typography variant="caption" sx={{ opacity: 0.75 }}>月合計</Typography>
+          <Typography variant="h6" fontWeight={700}>-¥{fmt(total)}</Typography>
+          <Typography variant="caption" sx={{ display: 'block', mt: 0.35, opacity: 0.78 }}>
+            固定費: -¥{fmt(fixedTotal)} ({pct(fixedTotal, total)}%) / 変動費: -¥{fmt(variableTotal)} ({pct(variableTotal, total)}%)
+          </Typography>
+        </Box>
+      )}
 
       {rows.length === 0 ? (
         <Typography variant="caption" color="text.disabled" sx={{ display: 'block', py: 2, textAlign: 'center' }}>

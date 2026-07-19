@@ -4,9 +4,11 @@ import CreditCardIcon from '@mui/icons-material/CreditCard'
 import HistoryIcon from '@mui/icons-material/History'
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 
 const ITEMS = [
+  { key: 'appearance',    label: '外観',       sub: 'デザインテーマ（現行 / Apple風）', icon: <PaletteOutlinedIcon /> },
   { key: 'salary',        label: '給与設定',   sub: '基本給・支給項目・控除項目',    icon: <AccountBalanceWalletIcon /> },
   { key: 'card',          label: 'カード設定',  sub: '保有カード・締め日・支払い日',   icon: <CreditCardIcon /> },
   { key: 'salaryHistory', label: '給与履歴',    sub: '給与明細の履歴・推移グラフ',    icon: <HistoryIcon /> },

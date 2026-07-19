@@ -10,6 +10,11 @@ import {
   countFridaysUntil, getBillingMonthsForRange,
 } from '../utils/ccStorage'
 import AmountField from './AmountField'
+import { useThemeMode } from '../ThemeModeContext'
+import Section from './apple/Section'
+import Segmented from './apple/Segmented'
+import Meter from './apple/Meter'
+import { ios, CAT_IOS, statusColor } from './apple/tokens'
 
 function addMonth(ym, n) {
   const [y, m] = ym.split('-').map(Number)
@@ -19,7 +24,10 @@ function addMonth(ym, n) {
 
 const CAT_COLORS = { '食費': '#a5d6a7', '日用品': '#80cbc4', '生活費': '#80deea' }
 
-function MiniBar({ pct, color }) {
+function MiniBar({ pct, color, apple }) {
+  if (apple) {
+    return <Box sx={{ flex: 1 }}><Meter pct={pct} color={pct >= 80 ? statusColor(pct >= 100 ? 95 : 75) : color} height={5} /></Box>
+  }
   const fill = pct >= 100 ? '#ef9a9a' : pct >= 80 ? '#ffe082' : (color ?? 'rgba(255,255,255,.6)')
   return (
     <Box sx={{ height: 4, bgcolor: 'rgba(255,255,255,.18)', borderRadius: 2, overflow: 'hidden', flex: 1 }}>
@@ -28,17 +36,17 @@ function MiniBar({ pct, color }) {
   )
 }
 
-function CatBreakdown({ catMap, total }) {
+function CatBreakdown({ catMap, total, apple }) {
   return (
     <Box sx={{ mt: 1 }}>
       {LIVING_CATEGORIES.map(cat => {
         const amount = catMap[cat] ?? 0
         const pct = total > 0 ? amount / total * 100 : 0
         return (
-          <Stack key={cat} direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-            <Typography variant="caption" sx={{ fontSize: 10, opacity: .75, width: 40, flexShrink: 0 }}>{cat}</Typography>
-            <MiniBar pct={pct} color={CAT_COLORS[cat]} />
-            <Typography variant="caption" sx={{ fontSize: 10, opacity: .85, width: 52, textAlign: 'right', flexShrink: 0 }}>
+          <Stack key={cat} direction="row" alignItems="center" spacing={1} sx={{ mb: apple ? 0.75 : 0.5 }}>
+            <Typography variant="caption" sx={{ fontSize: apple ? 13 : 10, opacity: apple ? 1 : .75, color: apple ? ios.secondary : undefined, width: apple ? 48 : 40, flexShrink: 0 }}>{cat}</Typography>
+            <MiniBar pct={pct} color={apple ? (CAT_IOS[cat] ?? ios.accent) : CAT_COLORS[cat]} apple={apple} />
+            <Typography variant="caption" sx={{ fontSize: apple ? 13 : 10, opacity: apple ? 1 : .85, color: apple ? ios.label : undefined, width: 56, textAlign: 'right', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
               ¥{fmt(amount)}
             </Typography>
           </Stack>
@@ -98,7 +106,126 @@ export default function LivingExpenseCard({ ym }) {
     setEditOpen(false)
   }
 
+  const { mode } = useThemeMode()
+  const apple = mode === 'apple'
+
+  // 週予算編集ダイアログ（両モード共通）
+  const editDialog = (
+    <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
+      <DialogTitle sx={{ pb: 1, fontSize: 15 }}>週予算を編集</DialogTitle>
+      <DialogContent sx={{ pt: '8px !important', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <AmountField value={editVal} onChange={setEditVal} label="週予算（円）" autoFocus />
+        <Divider><Typography variant="caption" color="text.secondary">または月予算から逆算</Typography></Divider>
+        <Box>
+          <TextField
+            label={`月予算（÷ ${fridays}週 で割算）`}
+            size="small" fullWidth type="number" inputProps={{ min: 0 }}
+            onChange={(e) => {
+              const monthly = parseInt(e.target.value, 10)
+              if (!isNaN(monthly) && monthly > 0 && fridays > 0) setEditVal(String(Math.round(monthly / fridays)))
+            }}
+            helperText="入力すると週予算欄に自動反映されます"
+          />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setEditOpen(false)} size="small">キャンセル</Button>
+        <Button onClick={handleSave} variant="contained" size="small">保存</Button>
+      </DialogActions>
+    </Dialog>
+  )
+
+  // ─── Apple（iOS 設定アプリ風）────────────────────────────
+  if (apple) {
+    const remainColor = (r) => (r >= 0 ? ios.green : ios.red)
+    return (
+      <>
+        <Section
+          header={
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <span>生活費</span>
+              <Box component="button" type="button" onClick={() => { setEditVal(String(weeklyBudget)); setEditOpen(true) }}
+                sx={{ border: 'none', bgcolor: 'transparent', color: ios.accent, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', p: 0 }}>
+                週予算 ¥{fmt(weeklyBudget)} を編集
+              </Box>
+            </Stack>
+          }
+        >
+          <Box sx={{ p: 1.75 }}>
+            <Segmented
+              options={['今週', '週履歴', 'サイクル']}
+              value={['今週', '週履歴', 'サイクル'][tab]}
+              onChange={(v) => setTab(['今週', '週履歴', 'サイクル'].indexOf(v))}
+            />
+
+            {tab === 0 && (
+              <Box sx={{ mt: 1.75 }}>
+                <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ mb: 0.75 }}>
+                  <Typography sx={{ fontSize: 13, color: ios.secondary }}>週（{label.replace(' 〜 ', '–')}）</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: remainColor(weekRemain) }}>
+                    {weekRemain >= 0 ? `残り ¥${fmt(weekRemain)}` : `¥${fmt(-weekRemain)} 超過`}
+                  </Typography>
+                </Stack>
+                <Meter pct={weekPct} height={7} />
+                <Typography sx={{ fontSize: 12.5, color: ios.secondary, mt: 0.75 }}>¥{fmt(weekUsed)} ／ ¥{fmt(weeklyBudget)}</Typography>
+                <CatBreakdown catMap={weekCatMap} total={weekUsed} apple />
+              </Box>
+            )}
+
+            {tab === 1 && (
+              <Box sx={{ mt: 1.5 }}>
+                {recentWeeks.map((w, i) => {
+                  const wList = [
+                    ...getBillingMonthsForRange(w.from, w.to, jcbCutoff).flatMap(m => loadVar('jcb', m)),
+                    ...getBillingMonthsForRange(w.from, w.to, smbcCutoff).flatMap(m => loadVar('smbc', m)),
+                  ]
+                  const used   = sumLiving(wList, w.from, w.to)
+                  const catMap = sumLivingByCategory(wList, w.from, w.to)
+                  const pct    = weeklyBudget > 0 ? used / weeklyBudget * 100 : 0
+                  const isOpen = expandedWeek === i
+                  return (
+                    <Box key={w.from} sx={{ mb: 1 }}>
+                      <Stack direction="row" alignItems="center" spacing={1}
+                        onClick={() => setExpandedWeek(isOpen ? null : i)} sx={{ cursor: 'pointer' }}>
+                        <Typography sx={{ fontSize: 12.5, color: i === 0 ? ios.label : ios.secondary, width: 72, flexShrink: 0 }}>{w.label}</Typography>
+                        <MiniBar pct={pct} apple />
+                        <Typography sx={{ fontSize: 13, width: 56, textAlign: 'right', flexShrink: 0, fontWeight: i === 0 ? 600 : 400, color: pct >= 100 ? ios.red : ios.label, fontVariantNumeric: 'tabular-nums' }}>¥{fmt(used)}</Typography>
+                      </Stack>
+                      <Collapse in={isOpen}>
+                        <Box sx={{ pl: '84px' }}><CatBreakdown catMap={catMap} total={used} apple /></Box>
+                      </Collapse>
+                    </Box>
+                  )
+                })}
+                <Typography sx={{ fontSize: 12, color: ios.tertiary, mt: 1 }}>週予算 ¥{fmt(weeklyBudget)}</Typography>
+              </Box>
+            )}
+
+            {tab === 2 && (
+              <Box sx={{ mt: 1.75 }}>
+                <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ mb: 0.75 }}>
+                  <Typography sx={{ fontSize: 13, color: ios.secondary }}>{cycleLabel}</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: remainColor(cycleRemain) }}>
+                    {cycleRemain >= 0 ? `残り ¥${fmt(cycleRemain)}` : `¥${fmt(-cycleRemain)} 超過`}
+                  </Typography>
+                </Stack>
+                <Meter pct={cyclePct} height={7} />
+                <Typography sx={{ fontSize: 12.5, color: ios.secondary, mt: 0.75 }}>
+                  ¥{fmt(cycleUsed)} ／ ¥{fmt(monthlyBudget)}（¥{fmt(weeklyBudget)}×{fridays}週）
+                </Typography>
+                <CatBreakdown catMap={cycleCatMap} total={cycleUsed} apple />
+              </Box>
+            )}
+          </Box>
+        </Section>
+        {editDialog}
+      </>
+    )
+  }
+
+  // ─── Classic（現行）─────────────────────────────────────
   return (
+    <>
     <Card sx={{ mb: 2, bgcolor: '#1b5e20', color: '#fff' }}>
       <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
 
@@ -200,29 +327,8 @@ export default function LivingExpenseCard({ ym }) {
         )}
 
       </CardContent>
-
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle sx={{ pb: 1, fontSize: 15 }}>週予算を編集</DialogTitle>
-        <DialogContent sx={{ pt: '8px !important', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <AmountField value={editVal} onChange={setEditVal} label="週予算（円）" autoFocus />
-          <Divider><Typography variant="caption" color="text.secondary">または月予算から逆算</Typography></Divider>
-          <Box>
-            <TextField
-              label={`月予算（÷ ${fridays}週 で割算）`}
-              size="small" fullWidth type="number" inputProps={{ min: 0 }}
-              onChange={(e) => {
-                const monthly = parseInt(e.target.value, 10)
-                if (!isNaN(monthly) && monthly > 0 && fridays > 0) setEditVal(String(Math.round(monthly / fridays)))
-              }}
-              helperText="入力すると週予算欄に自動反映されます"
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditOpen(false)} size="small">キャンセル</Button>
-          <Button onClick={handleSave} variant="contained" size="small">保存</Button>
-        </DialogActions>
-      </Dialog>
     </Card>
+    {editDialog}
+    </>
   )
 }

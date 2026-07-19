@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Box, Card, CardContent, Typography, Stack } from '@mui/material'
 import { loadFixed, loadVar } from '../utils/ccStorage'
 import { isActiveForYm, fmt } from '../utils/finance'
+import CardHeaderBar from './CardHeaderBar'
 
 function addMonth(ym, n) {
   const [y, m] = ym.split('-').map(Number)
@@ -34,11 +35,7 @@ export default function MonthlyTrendCard({ currentBillingYm }) {
 
   return (
     <Card sx={{ mb: 1.5 }}>
-      <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
-        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
-          支出トレンド（6ヶ月）
-        </Typography>
-      </Box>
+      <CardHeaderBar title="支出トレンド（6ヶ月）" />
       <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 2 } }}>
         <Stack direction="row" alignItems="flex-end" spacing={0.5} sx={{ height: 100 }}>
           {data.map(({ ym, month, total }) => {

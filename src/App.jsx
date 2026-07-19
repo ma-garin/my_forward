@@ -1,13 +1,15 @@
 import { useState, useCallback } from 'react'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { Box, AppBar, Toolbar, Typography, BottomNavigation, BottomNavigationAction, Paper, IconButton, Drawer } from '@mui/material'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
 import CreditCardIcon from '@mui/icons-material/CreditCard'
 import HomeIcon from '@mui/icons-material/Home'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
 import SettingsIcon from '@mui/icons-material/Settings'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import theme from './theme'
+import { classicTheme, appleTheme } from './theme'
+import { ThemeModeProvider, useThemeMode } from './ThemeModeContext'
 import SalarySimulation from './tabs/SalarySimulation'
 import CreditCard from './tabs/CreditCard'
 import Kakeibo from './tabs/Kakeibo'
@@ -18,6 +20,7 @@ import SalarySettings from './settings/SalarySettings'
 import CardSettings from './settings/CardSettings'
 import DataSettings from './settings/DataSettings'
 import AppInfo from './settings/AppInfo'
+import AppearanceSettings from './settings/AppearanceSettings'
 
 const TABS = [
   { label: 'クレカ', icon: <CreditCardIcon /> },
@@ -32,9 +35,34 @@ const SETTINGS_TITLES = {
   data:          'データ管理',
   salaryHistory: '給与履歴',
   appInfo:       'アプリ情報',
+  appearance:    '外観',
 }
 
 export default function App() {
+  return (
+    <ThemeModeProvider>
+      <AppInner />
+    </ThemeModeProvider>
+  )
+}
+
+function renderTab(activeTab, refreshKeys) {
+  switch (activeTab) {
+    case 0: return <CreditCard key={refreshKeys[0]} />
+    case 1: return <Kakeibo key={refreshKeys[1]} />
+    case 2: return <Cashflow key={refreshKeys[2]} />
+    case 3: return <SalarySimulation key={refreshKeys[3]} />
+    default: return null
+  }
+}
+
+function AppInner() {
+  const { mode } = useThemeMode()
+  const reduceMotion = useReducedMotion()
+  const apple = mode === 'apple'
+  const animate = apple && !reduceMotion
+  const activeTheme = apple ? appleTheme : classicTheme
+
   const [activeTab,    setActiveTab]    = useState(0)
   const [refreshKeys,  setRefreshKeys]  = useState([0, 0, 0, 0])
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -54,8 +82,27 @@ export default function App() {
   const navigateTo = (page) => setSettingsPage(page)
   const goBack = () => setSettingsPage(null)
 
+  // ボトムナビ: apple 時は半透明ガラス（コンテンツが下を透けてスクロールする）
+  const bottomNavPaperSx = apple
+    ? {
+        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+        width: '100%', maxWidth: 600, zIndex: 100, pb: 'env(safe-area-inset-bottom)',
+        bgcolor: 'rgba(255,255,255,0.72)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        borderTop: '1px solid rgba(255,255,255,0.5)',
+        boxShadow: '0 -0.5px 0 rgba(0,0,0,0.08)',
+        '@media (prefers-reduced-transparency: reduce)': {
+          bgcolor: 'background.paper', backdropFilter: 'none', WebkitBackdropFilter: 'none',
+        },
+      }
+    : {
+        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+        width: '100%', maxWidth: 600, zIndex: 100, pb: 'env(safe-area-inset-bottom)',
+      }
+
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={activeTheme}>
       <CssBaseline />
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100svh', maxWidth: 600, mx: 'auto', bgcolor: 'background.default' }}>
 
@@ -73,15 +120,26 @@ export default function App() {
 
         {/* Content */}
         <Box sx={{ flex: 1, overflowY: 'auto', pb: 'calc(56px + env(safe-area-inset-bottom))' }}>
-          {activeTab === 0 && <CreditCard key={refreshKeys[0]} />}
-          {activeTab === 1 && <Kakeibo key={refreshKeys[1]} />}
-          {activeTab === 2 && <Cashflow key={refreshKeys[2]} />}
-          {activeTab === 3 && <SalarySimulation key={refreshKeys[3]} />}
+          {animate ? (
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ type: 'spring', bounce: 0, duration: 0.35 }}
+              >
+                {renderTab(activeTab, refreshKeys)}
+              </motion.div>
+            </AnimatePresence>
+          ) : (
+            renderTab(activeTab, refreshKeys)
+          )}
         </Box>
 
         {/* Bottom Navigation */}
-        <Paper sx={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 600, zIndex: 100, pb: 'env(safe-area-inset-bottom)' }} elevation={3}>
-          <BottomNavigation value={activeTab} onChange={handleTabChange} showLabels sx={{ bgcolor: 'background.paper' }}>
+        <Paper sx={bottomNavPaperSx} elevation={apple ? 0 : 3}>
+          <BottomNavigation value={activeTab} onChange={handleTabChange} showLabels sx={{ bgcolor: 'transparent' }}>
             {TABS.map((tab) => (
               <BottomNavigationAction key={tab.label} label={tab.label} icon={tab.icon} sx={{ fontSize: 11 }} />
             ))}
@@ -112,6 +170,7 @@ export default function App() {
             {settingsPage === 'data'          && <DataSettings />}
             {settingsPage === 'salaryHistory' && <SalaryHistory />}
             {settingsPage === 'appInfo'       && <AppInfo />}
+            {settingsPage === 'appearance'    && <AppearanceSettings />}
           </Box>
         </Drawer>
       </Box>
