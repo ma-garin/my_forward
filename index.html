@@ -3,14 +3,87 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="資産管理" />
+    <meta name="theme-color" content="#263238" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
     <title>資産管理</title>
+    <style>
+      /* 起動スプラッシュ（JS/CSS バンドル読込中の白フラッシュを防ぐ）。
+         インライン化して最初のペイントで即表示する。 */
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: #F2F2F7;
+        transition: opacity 0.4s ease;
+      }
+      #splash.splash-hide { opacity: 0; pointer-events: none; }
+      #splash .mark {
+        width: 84px;
+        height: 84px;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 12px 30px rgba(38, 50, 56, 0.22);
+        animation: splash-pop 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
+      }
+      #splash .mark svg { display: block; width: 100%; height: 100%; }
+      #splash .title {
+        font-family: "Inter Variable", -apple-system, system-ui, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: rgba(60, 60, 67, 0.6);
+      }
+      @keyframes splash-pop {
+        from { opacity: 0; transform: scale(0.86); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #splash .mark { animation: none; }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+
+    <div id="splash">
+      <div class="mark">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true">
+          <rect width="512" height="512" rx="88" fill="#263238"/>
+          <g transform="rotate(-8, 256, 200)">
+            <rect x="92" y="88" width="328" height="210" rx="24" fill="#0288d1"/>
+            <rect x="92" y="88" width="328" height="76" rx="24" fill="#0277bd"/>
+            <rect x="130" y="148" width="64" height="48" rx="10" fill="rgba(255,255,255,0.22)"/>
+            <rect x="137" y="155" width="50" height="34" rx="6" fill="rgba(255,255,255,0.18)"/>
+          </g>
+          <rect x="60" y="272" width="392" height="196" rx="28" fill="#eceff1"/>
+          <rect x="60" y="272" width="392" height="42" rx="28" fill="#b0bec5"/>
+          <rect x="88" y="332" width="336" height="4" rx="2" fill="#cfd8dc"/>
+          <path d="M256 296 L214 348 L238 348 L238 400 L274 400 L274 348 L298 348 Z" fill="#0288d1"/>
+        </svg>
+      </div>
+      <div class="title">資産管理</div>
+    </div>
+    <script>
+      // テーマに合わせてスプラッシュ背景を選ぶ（現行=グレー #eceff1 / Apple=#F2F2F7）
+      try {
+        if (localStorage.getItem('app_theme') !== 'apple') {
+          document.getElementById('splash').style.background = '#eceff1';
+        }
+      } catch (e) { /* localStorage 不可でも既定色で表示 */ }
+    </script>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

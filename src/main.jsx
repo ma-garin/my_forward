@@ -13,3 +13,13 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
+
+// 初回描画後に起動スプラッシュをフェードアウトして除去
+requestAnimationFrame(() => requestAnimationFrame(() => {
+  const splash = document.getElementById('splash')
+  if (!splash) return
+  splash.classList.add('splash-hide')
+  const remove = () => splash.remove()
+  splash.addEventListener('transitionend', remove, { once: true })
+  setTimeout(remove, 700)
+}))
