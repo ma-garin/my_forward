@@ -12,6 +12,11 @@ import {
   loadOtherIncome,
 } from '../utils/ccStorage'
 import AmountField from './AmountField'
+import { useThemeMode } from '../ThemeModeContext'
+import Section from './apple/Section'
+import Row from './apple/Row'
+import HeroValue from './apple/HeroValue'
+import { ios } from './apple/tokens'
 
 export default function CombinedSummary({ ym, salaryYm = ym, otherIncomeYm, jcbLimit = 0, smbcLimit = 0 }) {
   const jcb      = getCCTotal('jcb',  ym)
@@ -84,7 +89,189 @@ export default function CombinedSummary({ ym, salaryYm = ym, otherIncomeYm, jcbL
 
   const iconSx = { p: 0.75, color: 'rgba(255,255,255,.4)', '&:hover': { color: 'rgba(255,255,255,.8)' } }
 
+  const { mode } = useThemeMode()
+  const apple = mode === 'apple'
+
+  // 追加/編集/削除ダイアログ（両モード共通）
+  const dialogs = (
+    <>
+      <Dialog open={dlg !== null} onClose={() => setDlg(null)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ pb: 1, fontSize: 15 }}>
+          {dlg?.mode === 'add' ? '固定費を追加' : '固定費を編集'}
+        </DialogTitle>
+        <DialogContent sx={{ pt: '8px !important' }}>
+          <Stack gap={2}>
+            <TextField label="項目名" value={dlgLabel} onChange={e => setDlgLabel(e.target.value)} size="small" fullWidth autoFocus />
+            <AmountField value={dlgAmount} onChange={setDlgAmount} label="金額" />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDlg(null)} size="small">キャンセル</Button>
+          <Button onClick={handleSave} variant="contained" size="small"
+            disabled={!dlgLabel.trim() || parseInt(dlgAmount, 10) <= 0}>
+            保存
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!deleteDlg} onClose={() => setDeleteDlg(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontSize: 15, pb: 1 }}>削除の確認</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">「{deleteDlg?.label}」を削除しますか？この操作は元に戻せません。</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDlg(null)} color="inherit" size="small">キャンセル</Button>
+          <Button onClick={confirmDelete} color="error" variant="contained" size="small">削除</Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  )
+
+  // ─── Apple（iOS 設定アプリ風）────────────────────────────
+  if (apple) {
+    const planRows = [
+      { label: otherIncome > 0 ? '給与+その他' : '給与', plan: totalIncome, actual: totalIncome, color: ios.label },
+      { label: '固定費',     plan: fixedTotal,    actual: fixedTotal,   sign: '−' },
+      { label: 'カード使用', plan: combinedLimit, actual: combined,     sign: '−' },
+    ]
+    return (
+      <>
+        {/* 合計ヒーロー */}
+        <Section header={`2枚合計 · ${ym}`}>
+          <Box sx={{ px: 2, pt: 1.75, pb: 1.5, textAlign: 'center' }}>
+            <HeroValue label="合計利用額" value={fmt(combined)} align="center" size={36} />
+          </Box>
+          <Row label="JCB"  value={`¥${fmt(jcb.total)}`}
+            leading={<Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#3A3A3C' }} />} />
+          <Row label="VISA" value={`¥${fmt(smbc.total)}`} last
+            leading={<Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: ios.green }} />} />
+        </Section>
+
+        {/* 給与入力 */}
+        <Section header="給与（手取り）">
+          <Box sx={{ px: 2, py: 1.25 }}>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <Box sx={{ flex: 1 }}>
+                <AmountField
+                  value={salaryInput}
+                  onChange={(raw) => { setSalaryInput(raw); saveSalaryOverride(raw, salaryYm) }}
+                  placeholder="手取り額"
+                  inputSx={{ '& .MuiInputBase-root': { height: 36 } }}
+                />
+              </Box>
+              {simSalary > 0 && (
+                <Button size="small" variant="text"
+                  onClick={() => { const v = String(simSalary); setSalaryInput(v); saveSalaryOverride(v, salaryYm) }}
+                  sx={{ fontSize: 13, minWidth: 0, px: 1.25, color: ios.accent, whiteSpace: 'nowrap' }}>
+                  反映
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        </Section>
+
+        {/* 予実 */}
+        {hasSalary && (
+          <Section header="予実">
+            <Box sx={{ px: 2, pt: 1, pb: 0.5 }}>
+              <Stack direction="row" sx={{ pb: 0.6 }}>
+                <Box sx={{ flex: 1.6 }} />
+                <Typography sx={{ flex: 1, fontSize: 12, fontWeight: 600, color: ios.secondary, textAlign: 'right' }}>予定</Typography>
+                <Typography sx={{ flex: 1, fontSize: 12, fontWeight: 600, color: ios.secondary, textAlign: 'right' }}>実績</Typography>
+              </Stack>
+            </Box>
+            {planRows.map((r, i) => (
+              <Box key={r.label} sx={{ px: 2, py: 1, position: 'relative',
+                '&::after': { content: '""', position: 'absolute', left: 16, right: 0, bottom: 0, height: '0.5px', bgcolor: ios.separator } }}>
+                <Stack direction="row" alignItems="baseline">
+                  <Box sx={{ flex: 1.6, display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                    {r.sign && <Typography sx={{ fontSize: 14, color: ios.tertiary }}>{r.sign}</Typography>}
+                    <Typography sx={{ fontSize: 15, color: ios.label }}>{r.label}</Typography>
+                  </Box>
+                  <Typography sx={{ flex: 1, pl: 1, fontSize: 15, color: ios.secondary, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>¥{fmt(r.plan)}</Typography>
+                  <Typography sx={{ flex: 1, pl: 1, fontSize: 15, color: r.color || ios.label, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>¥{fmt(r.actual)}</Typography>
+                </Stack>
+              </Box>
+            ))}
+            <Box sx={{ px: 2, py: 1.25 }}>
+              <Stack direction="row" alignItems="center">
+                <Typography sx={{ flex: 1.6, fontSize: 15, fontWeight: 600, color: ios.label }}>残高</Typography>
+                <Typography sx={{ flex: 1, pl: 1, fontSize: 16, fontWeight: 700, textAlign: 'right', color: planBalance >= 0 ? ios.green : ios.red, fontVariantNumeric: 'tabular-nums' }}>
+                  {planBalance < 0 ? '−' : ''}¥{fmt(Math.abs(planBalance))}
+                </Typography>
+                <Typography sx={{ flex: 1, pl: 1, fontSize: 16, fontWeight: 700, textAlign: 'right', color: actualBalance >= 0 ? ios.green : ios.red, fontVariantNumeric: 'tabular-nums' }}>
+                  {actualBalance < 0 ? '−' : ''}¥{fmt(Math.abs(actualBalance))}
+                </Typography>
+              </Stack>
+            </Box>
+          </Section>
+        )}
+
+        {/* 固定費内訳 */}
+        {hasSalary && (
+          <Section
+            header={
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <span>固定費内訳</span>
+                <IconButton size="small" aria-label="固定費を追加" onClick={openAdd} sx={{ p: 0.25, color: ios.accent }}>
+                  <AddIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Stack>
+            }
+          >
+            {fixedItems.map((item, i) => (
+              <Row
+                key={item.id}
+                label={item.label}
+                value={
+                  <Stack direction="row" alignItems="center" gap={0.25}>
+                    <Typography sx={{ fontSize: 15, color: ios.secondary, fontVariantNumeric: 'tabular-nums' }}>¥{fmt(item.amount)}</Typography>
+                    <IconButton size="small" aria-label="編集" onClick={() => openEdit(item)} sx={{ p: 0.5, color: ios.tertiary }}><EditIcon sx={{ fontSize: 15 }} /></IconButton>
+                    <IconButton size="small" aria-label="削除" onClick={() => askDelete(item)} sx={{ p: 0.5, color: ios.tertiary }}><DeleteIcon sx={{ fontSize: 15 }} /></IconButton>
+                  </Stack>
+                }
+              />
+            ))}
+            {livingUnit > 0 && (livingEdit !== null ? (
+              <Row
+                label="生活費（週あたり）"
+                last={false}
+                value={
+                  <TextField
+                    size="small" type="number" autoFocus
+                    value={livingEdit}
+                    onChange={e => setLivingEdit(e.target.value)}
+                    onBlur={commitLivingEdit}
+                    onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setLivingEdit(null) }}
+                    inputProps={{ min: 0, style: { textAlign: 'right', width: 80, fontSize: 15 } }}
+                    sx={{ '& .MuiInputBase-root': { height: 30 } }}
+                  />
+                }
+              />
+            ) : (
+              <Row
+                label={`生活費（${fridays}週 × ${fmt(livingUnit)}）`}
+                value={
+                  <Stack direction="row" alignItems="center" gap={0.25}>
+                    <Typography sx={{ fontSize: 15, color: ios.secondary, fontVariantNumeric: 'tabular-nums' }}>¥{fmt(livingCost)}</Typography>
+                    <IconButton size="small" aria-label="生活費を編集" onClick={() => setLivingEdit(String(livingUnit))} sx={{ p: 0.5, color: ios.tertiary }}><EditIcon sx={{ fontSize: 15 }} /></IconButton>
+                    <IconButton size="small" aria-label="生活費を削除" onClick={() => setDeleteDlg({ id: '__living__', label: '生活費' })} sx={{ p: 0.5, color: ios.tertiary }}><DeleteIcon sx={{ fontSize: 15 }} /></IconButton>
+                  </Stack>
+                }
+              />
+            ))}
+            <Row label="固定費合計" last value={<Typography sx={{ fontSize: 15, fontWeight: 600, color: ios.label, fontVariantNumeric: 'tabular-nums' }}>¥{fmt(fixedTotal)}</Typography>} />
+          </Section>
+        )}
+
+        {dialogs}
+      </>
+    )
+  }
+
+  // ─── Classic（現行）─────────────────────────────────────
   return (
+    <>
     <Card sx={{ mb: 2, bgcolor: '#263238', color: '#fff' }}>
       <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
         <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>2枚合計（{ym}）</Typography>
@@ -239,36 +426,8 @@ export default function CombinedSummary({ ym, salaryYm = ym, otherIncomeYm, jcbL
           </Box>
         )}
       </CardContent>
-
-      <Dialog open={dlg !== null} onClose={() => setDlg(null)} fullWidth maxWidth="xs">
-        <DialogTitle sx={{ pb: 1, fontSize: 15 }}>
-          {dlg?.mode === 'add' ? '固定費を追加' : '固定費を編集'}
-        </DialogTitle>
-        <DialogContent sx={{ pt: '8px !important' }}>
-          <Stack gap={2}>
-            <TextField label="項目名" value={dlgLabel} onChange={e => setDlgLabel(e.target.value)} size="small" fullWidth autoFocus />
-            <AmountField value={dlgAmount} onChange={setDlgAmount} label="金額" />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDlg(null)} size="small">キャンセル</Button>
-          <Button onClick={handleSave} variant="contained" size="small"
-            disabled={!dlgLabel.trim() || parseInt(dlgAmount, 10) <= 0}>
-            保存
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={!!deleteDlg} onClose={() => setDeleteDlg(null)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: 15, pb: 1 }}>削除の確認</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">「{deleteDlg?.label}」を削除しますか？この操作は元に戻せません。</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDlg(null)} color="inherit" size="small">キャンセル</Button>
-          <Button onClick={confirmDelete} color="error" variant="contained" size="small">削除</Button>
-        </DialogActions>
-      </Dialog>
     </Card>
+    {dialogs}
+    </>
   )
 }

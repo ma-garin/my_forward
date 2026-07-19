@@ -79,7 +79,18 @@ const GLASS_BLUR = 'blur(20px) saturate(180%)'
 const noBlur = '@media (prefers-reduced-transparency: reduce)'
 
 export const appleTheme = createTheme({
-  palette,
+  palette: {
+    ...palette,
+    // iOS システムグループ背景（薄グレー）。白カードをインセット配置する土台。
+    background: {
+      default: '#F2F2F7',
+      paper: '#ffffff',
+    },
+    text: {
+      primary: '#1C1C1E',
+      secondary: 'rgba(60,60,67,0.6)',
+    },
+  },
   typography: {
     // iOS/macOS は SF/ヒラギノ、Android/その他は Noto Sans JP にフォールバック
     fontFamily: '-apple-system, BlinkMacSystemFont, system-ui, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Helvetica Neue", Arial, sans-serif',
