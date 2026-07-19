@@ -1,5 +1,6 @@
 import { Box, Stack, Typography } from '@mui/material'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import { motion, useReducedMotion } from 'motion/react'
 import { ios } from './tokens'
 
 /**
@@ -18,8 +19,11 @@ import { ios } from './tokens'
  *  - sx:      passthrough
  */
 export default function Row({ label, sub, value, leading, chevron, onClick, last = false, dense = false, sx }) {
+  const reduce = useReducedMotion()
+  const tappable = !!onClick
   return (
     <Box
+      {...(tappable && !reduce ? { component: motion.div, whileTap: { scale: 0.985 } } : {})}
       onClick={onClick}
       sx={{
         display: 'flex',

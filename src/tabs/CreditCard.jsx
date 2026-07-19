@@ -1388,7 +1388,12 @@ export default function CreditCard() {
       <Fab
         color="primary"
         onClick={() => setAddOpen(true)}
-        sx={{ position: 'fixed', bottom: 'calc(88px + env(safe-area-inset-bottom))', right: 16, zIndex: 200 }}
+        sx={{
+          position: 'fixed', bottom: 'calc(88px + env(safe-area-inset-bottom))', right: 16, zIndex: 200,
+          transition: 'transform .15s ease',
+          '&:active': { transform: 'scale(0.9)' },
+          ...(apple ? { bgcolor: ios.accent, '&:hover': { bgcolor: '#0a6fe0' }, boxShadow: '0 6px 20px rgba(0,122,255,0.4)' } : {}),
+        }}
       >
         <AddIcon />
       </Fab>

@@ -1,4 +1,5 @@
 import { createTheme } from '@mui/material/styles'
+import SheetTransition from './components/apple/SheetTransition'
 
 // ─── 共通パレット ───────────────────────────────────────
 const palette = {
@@ -92,8 +93,10 @@ export const appleTheme = createTheme({
     },
   },
   typography: {
-    // iOS/macOS は SF/ヒラギノ、Android/その他は Noto Sans JP にフォールバック
-    fontFamily: '-apple-system, BlinkMacSystemFont, system-ui, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Helvetica Neue", Arial, sans-serif',
+    // 実機の Apple は SF/ヒラギノ。それ以外の端末やスクショでも一貫して
+    // Apple 風に見えるよう、ラテン/数字は同梱の Inter（SF 酷似）、
+    // 日本語は同梱の Noto Sans JP（ヒラギノ近似）にフォールバック。
+    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter Variable", "Inter", "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, "Helvetica Neue", Arial, sans-serif',
     // サイズ別トラッキング: 大見出しは詰め（負）、本文は 0、小テキストは僅かに広げる
     h4: { fontWeight: 700, letterSpacing: '-0.021em', lineHeight: 1.1 },
     h5: { fontWeight: 700, letterSpacing: '-0.019em', lineHeight: 1.12 },
@@ -143,16 +146,26 @@ export const appleTheme = createTheme({
         },
       },
     },
-    // ダイアログ/シートは大きめ角丸 + マテリアル感 + 柔らかい影
+    // ダイアログは iOS のボトムシート風（下からスプリングでせり上がる）
     MuiDialog: {
+      defaultProps: {
+        TransitionComponent: SheetTransition,
+      },
       styleOverrides: {
+        // 画面下端に寄せる
+        container: {
+          alignItems: 'flex-end',
+        },
         paper: {
-          borderRadius: 22,
-          backgroundColor: 'rgba(255,255,255,0.86)',
+          margin: 8,
+          width: 'calc(100% - 16px)',
+          maxWidth: '520px',
+          borderRadius: 24,
+          backgroundColor: 'rgba(255,255,255,0.92)',
           backdropFilter: GLASS_BLUR,
           WebkitBackdropFilter: GLASS_BLUR,
-          boxShadow: '0 24px 60px rgba(0,0,0,0.28)',
-          border: '1px solid rgba(255,255,255,0.5)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.30)',
+          border: '1px solid rgba(255,255,255,0.6)',
           [noBlur]: {
             backgroundColor: '#ffffff',
             backdropFilter: 'none',
