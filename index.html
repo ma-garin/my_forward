@@ -53,7 +53,7 @@
         #splash .mark { animation: none; }
       }
     </style>
-    <script type="module" crossorigin src="/my_forward/assets/index-Cl4djlAu.js"></script>
+    <script type="module" crossorigin src="/my_forward/assets/index-d82kNDpF.js"></script>
     <link rel="stylesheet" crossorigin href="/my_forward/assets/index-DggxZJZz.css">
   <link rel="manifest" href="/my_forward/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/my_forward/registerSW.js"></script></head>
   <body>
@@ -78,9 +78,10 @@
       <div class="title">資産管理</div>
     </div>
     <script>
-      // テーマに合わせてスプラッシュ背景を選ぶ（現行=グレー #eceff1 / Apple=#F2F2F7）
+      // テーマに合わせてスプラッシュ背景を選ぶ。
+      // 既定は Apple 風(#F2F2F7)。明示的に現行を選んでいる場合のみグレー(#eceff1)。
       try {
-        if (localStorage.getItem('app_theme') !== 'apple') {
+        if (localStorage.getItem('app_theme') === 'classic') {
           document.getElementById('splash').style.background = '#eceff1';
         }
       } catch (e) { /* localStorage 不可でも既定色で表示 */ }
