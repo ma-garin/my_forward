@@ -3,23 +3,7 @@ import { Box, Typography, Button, Stack, Divider, Alert } from '@mui/material'
 import DownloadIcon from '@mui/icons-material/Download'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 
-function isActiveKey(k) {
-  return k === 'salary_simulation'
-      || k === 'salary_simulation_monthly'
-      || k === 'life_weekly_budget'
-      || k.startsWith('salary_base_')
-      || k.startsWith('salary_extra_')
-      || k.startsWith('cc_')
-}
-
-function getAllKeys() {
-  const keys = []
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i)
-    if (k) keys.push(k)
-  }
-  return keys
-}
+import { isActiveKey, getAllKeys } from '../utils/appKeys'
 
 function createJsonExport(keys, filename) {
   const data = {}
