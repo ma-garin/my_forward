@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Box, Typography, Button, Stack, Divider, Alert, TextField,
+  Box, Typography, Button, Stack, Alert, TextField,
   CircularProgress, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
 } from '@mui/material'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
@@ -8,11 +8,12 @@ import CloudDownloadIcon from '@mui/icons-material/CloudDownload'
 import SearchIcon from '@mui/icons-material/Search'
 import RestoreIcon from '@mui/icons-material/Restore'
 import {
-  GistSyncError, buildSnapshot, applySnapshot, backupCurrentData, restoreBackup, loadBackup,
-  fetchRemoteSnapshot, pushSnapshot, createGist, findExistingGist,
-  loadToken, saveToken, loadGistId, saveGistId,
-  loadLastSyncedAt, loadLastRemoteExportedAt, markSynced, detectDevice,
+  GistSyncError, applyPulledSnapshot, restoreBackup, loadBackup,
+  fetchRemoteSnapshot, pushSnapshot, findExistingGist, checkRemoteConflict,
+  loadToken, saveToken, loadGistId, saveGistId, loadLastSyncedAt, detectDevice,
 } from '../utils/gistSync'
+
+const DEVICE = detectDevice()
 
 function fmtDateTime(iso) {
   if (!iso) return '—'
@@ -20,140 +21,102 @@ function fmtDateTime(iso) {
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('ja-JP')
 }
 
-export default function SyncSettings() {
-  const [token, setToken] = useState(loadToken())
-  const [gistId, setGistId] = useState(loadGistId())
-  const [lastSynced, setLastSynced] = useState(loadLastSyncedAt())
-  const [hasBackup, setHasBackup] = useState(() => !!loadBackup())
-  const [busy, setBusy] = useState('')
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
-  const [pushConfirm, setPushConfirm] = useState(null)
-  const [pullConfirm, setPullConfirm] = useState(null)
+function ConfirmDialog({ open, title, warning, confirmLabel, confirmColor, onConfirm, onClose, children }) {
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>{title}</DialogTitle>
+      <DialogContent>
+        {warning && <Alert severity="warning" sx={{ mb: 1.5, fontSize: 12 }}>{warning}</Alert>}
+        {children}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>キャンセル</Button>
+        <Button color={confirmColor} variant="contained" onClick={onConfirm}>{confirmLabel}</Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
 
-  const device = detectDevice()
+export default function SyncSettings() {
+  const [token, setToken] = useState(() => loadToken())
+  const [gistId, setGistId] = useState(() => loadGistId())
+  const [lastSynced, setLastSynced] = useState(() => loadLastSyncedAt())
+  const [busy, setBusy] = useState('')
+  const [msg, setMsg] = useState(null)
+  // 確認ダイアログ。push / pull は同時に開かないので単一の state で持つ。
+  const [confirm, setConfirm] = useState(null)
+
+  // 適用直後は必ずリロードするため、マウント時の判定で足りる。
+  const hasBackup = !!loadBackup()
   const canSync = !!token
 
-  const handleError = (e) => {
-    if (e instanceof GistSyncError) {
-      setError(e.message)
-      if (e.code === 'not_found') setNotice('')
-    } else {
-      setError('同期に失敗しました')
-    }
+  const notify = (text) => setMsg({ severity: 'success', text })
+  const handleError = (e) => setMsg({
+    severity: 'error',
+    text: e instanceof GistSyncError ? e.message : '同期に失敗しました',
+  })
+
+  // 各操作の共通スキャフォールド（メッセージ初期化 → 実行 → 後始末）。
+  const run = async (kind, fn) => {
+    setMsg(null)
+    setBusy(kind)
+    try { await fn() } catch (e) { handleError(e) } finally { setBusy('') }
   }
 
-  const reset = () => { setError(''); setNotice('') }
-
-  const handleSaveToken = () => {
-    reset()
-    saveToken(token.trim())
-    setToken(token.trim())
-    setNotice(token.trim() ? 'トークンを保存しました' : 'トークンを削除しました')
+  const applyToken = (v) => {
+    setMsg(null)
+    saveToken(v)
+    setToken(v)
+    notify(v ? 'トークンを保存しました' : 'トークンを削除しました')
   }
 
-  const handleSaveGistId = () => {
-    reset()
-    const v = gistId.trim()
+  const applyGistId = (v) => {
+    setMsg(null)
     saveGistId(v)
     setGistId(v)
-    setNotice(v ? 'Gist ID を保存しました' : 'Gist ID を削除しました')
+    notify(v ? 'Gist ID を保存しました' : 'Gist ID を削除しました')
   }
 
-  const handleFind = async () => {
-    reset()
-    setBusy('find')
-    try {
-      const found = await findExistingGist(token)
-      if (found) {
-        saveGistId(found)
-        setGistId(found)
-        setNotice('既存の Gist が見つかりました')
-      } else {
-        setNotice('同期用の Gist は見つかりませんでした。アップロードすると新規作成されます')
-      }
-    } catch (e) { handleError(e) } finally { setBusy('') }
+  const handleFind = () => run('find', async () => {
+    const found = await findExistingGist(token)
+    if (!found) return notify('同期用の Gist は見つかりませんでした。アップロードすると新規作成されます')
+    saveGistId(found)
+    setGistId(found)
+    notify('既存の Gist が見つかりました')
+  })
+
+  const upload = async () => {
+    setGistId(await pushSnapshot(token))
+    setLastSynced(loadLastSyncedAt())
+    notify('アップロードが完了しました')
   }
 
-  // 実際のアップロード処理。確認ダイアログを経由する場合は onConfirm から呼ばれる。
-  const doPush = async () => {
-    setBusy('push')
-    try {
-      const envelope = buildSnapshot(device)
-      let id = loadGistId()
-      if (!id) {
-        id = await findExistingGist(token)
-        if (id) await pushSnapshot(token, id, envelope)
-        else id = await createGist(token, envelope)
-        saveGistId(id)
-        setGistId(id)
-      } else {
-        await pushSnapshot(token, id, envelope)
-      }
-      markSynced(envelope.exportedAt)
-      setLastSynced(loadLastSyncedAt())
-      setNotice('アップロードが完了しました')
-    } catch (e) { handleError(e) } finally { setBusy('') }
-  }
+  const doPush = () => run('push', upload)
 
-  const handlePush = async () => {
-    reset()
+  const handlePush = () => run('push', async () => {
+    const conflict = await checkRemoteConflict(token, loadGistId())
+    if (conflict) return setConfirm({ kind: 'push', envelope: conflict })
+    await upload()
+  })
+
+  const handlePull = () => run('pull', async () => {
     const id = loadGistId()
-    if (!id) return doPush()
-
-    // 前回同期以降に他端末が push していないか確認する
-    setBusy('push')
-    try {
-      const { envelope: remote } = await fetchRemoteSnapshot(token, id)
-      const lastRemote = loadLastRemoteExportedAt()
-      if (lastRemote && remote.exportedAt !== lastRemote) {
-        setBusy('')
-        setPushConfirm(remote)
-        return
-      }
-    } catch (e) {
-      // リモート未作成・未取得でもアップロード自体は試みる
-      if (!(e instanceof GistSyncError) || (e.code !== 'not_found' && e.code !== 'invalid_data')) {
-        setBusy('')
-        return handleError(e)
-      }
-    }
-    setBusy('')
-    await doPush()
-  }
-
-  const handlePull = async () => {
-    reset()
-    const id = loadGistId()
-    if (!id) {
-      setError('Gist ID が未設定です。「既存の Gist を検索」または ID を入力してください')
-      return
-    }
-    setBusy('pull')
-    try {
-      const { envelope } = await fetchRemoteSnapshot(token, id)
-      setPullConfirm(envelope)
-    } catch (e) { handleError(e) } finally { setBusy('') }
-  }
+    if (!id) throw new GistSyncError('not_found', 'Gist ID が未設定です。「既存の Gist を検索」または ID を入力してください')
+    setConfirm({ kind: 'pull', envelope: await fetchRemoteSnapshot(token, id) })
+  })
 
   const doPull = (envelope) => {
-    setPullConfirm(null)
-    setBusy('pull')
+    setConfirm(null)
+    setMsg(null)
     try {
-      backupCurrentData(device)
-      applySnapshot(envelope)
-      markSynced(envelope.exportedAt)
-      setHasBackup(true)
+      applyPulledSnapshot(envelope)
       alert('ダウンロード完了しました。アプリを再読み込みします。')
       window.location.reload()
-    } catch (e) {
-      setBusy('')
-      handleError(e)
-    }
+    } catch (e) { handleError(e) }
   }
 
   const handleRestore = () => {
-    reset()
+    setMsg(null)
     try {
       restoreBackup()
       alert('復元しました。アプリを再読み込みします。')
@@ -161,14 +124,15 @@ export default function SyncSettings() {
     } catch (e) { handleError(e) }
   }
 
-  const pullIsNotNewer = pullConfirm && lastSynced && pullConfirm.exportedAt <= lastSynced
+  const remote = confirm?.envelope
+  const isPull = confirm?.kind === 'pull'
+  const pullIsNotNewer = isPull && lastSynced && remote.exportedAt <= lastSynced
 
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>クラウド同期</Typography>
 
-      {error && <Alert severity="error" sx={{ mb: 2, fontSize: 12 }}>{error}</Alert>}
-      {notice && <Alert severity="success" sx={{ mb: 2, fontSize: 12 }}>{notice}</Alert>}
+      {msg && <Alert severity={msg.severity} sx={{ mb: 2, fontSize: 12 }}>{msg.text}</Alert>}
 
       {/* 接続設定 */}
       <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 2, p: 2, mb: 2 }}>
@@ -185,11 +149,12 @@ export default function SyncSettings() {
           sx={{ mb: 1 }}
         />
         <Stack direction="row" gap={1} sx={{ mb: 2 }}>
-          <Button size="small" variant="contained" onClick={handleSaveToken} sx={{ fontSize: 12 }}>
+          <Button size="small" variant="contained" sx={{ fontSize: 12 }}
+            onClick={() => applyToken(token.trim())}>
             トークンを保存
           </Button>
           <Button size="small" variant="outlined" color="inherit" sx={{ fontSize: 12 }}
-            onClick={() => { saveToken(''); setToken(''); reset(); setNotice('トークンを削除しました') }}>
+            onClick={() => applyToken('')}>
             クリア
           </Button>
         </Stack>
@@ -201,7 +166,8 @@ export default function SyncSettings() {
           sx={{ mb: 1 }}
         />
         <Stack direction="row" gap={1} flexWrap="wrap">
-          <Button size="small" variant="contained" onClick={handleSaveGistId} sx={{ fontSize: 12 }}>
+          <Button size="small" variant="contained" sx={{ fontSize: 12 }}
+            onClick={() => applyGistId(gistId.trim())}>
             ID を保存
           </Button>
           <Button size="small" variant="outlined" disabled={!canSync || !!busy} sx={{ fontSize: 12 }}
@@ -216,7 +182,7 @@ export default function SyncSettings() {
       <Box sx={{ p: 2, bgcolor: '#e8f5e9', borderRadius: 2, mb: 2 }}>
         <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>同期</Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-          この端末: {device} ／ 最終同期: {fmtDateTime(lastSynced)}
+          この端末: {DEVICE} ／ 最終同期: {fmtDateTime(lastSynced)}
         </Typography>
         <Stack direction="row" gap={1} flexWrap="wrap">
           <Button variant="contained" disabled={!canSync || !!busy} sx={{ flex: '1 1 150px' }}
@@ -254,53 +220,33 @@ export default function SyncSettings() {
         </>
       )}
 
-      {/* アップロード確認（他端末が先に更新している場合） */}
-      <Dialog open={!!pushConfirm} onClose={() => setPushConfirm(null)}>
-        <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>クラウド側が更新されています</DialogTitle>
-        <DialogContent>
-          <Alert severity="warning" sx={{ mb: 1.5, fontSize: 12 }}>
-            前回の同期以降に他の端末からアップロードされています。続行するとその内容は失われます。
-          </Alert>
-          <DialogContentText sx={{ fontSize: 13 }}>
-            クラウド側の保存日時: {fmtDateTime(pushConfirm?.exportedAt)}<br />
-            アップロード元: {pushConfirm?.device || '不明'}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPushConfirm(null)}>キャンセル</Button>
-          <Button color="warning" variant="contained"
-            onClick={() => { setPushConfirm(null); doPush() }}>
-            上書きしてアップロード
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ダウンロード確認（常に表示） */}
-      <Dialog open={!!pullConfirm} onClose={() => setPullConfirm(null)}>
-        <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>ダウンロードの確認</DialogTitle>
-        <DialogContent>
-          {pullIsNotNewer && (
-            <Alert severity="warning" sx={{ mb: 1.5, fontSize: 12 }}>
-              クラウド側は前回の同期より新しくありません。この端末での変更が失われる可能性があります。
-            </Alert>
-          )}
-          <DialogContentText sx={{ fontSize: 13 }}>
-            クラウド側の保存日時: {fmtDateTime(pullConfirm?.exportedAt)}<br />
-            アップロード元: {pullConfirm?.device || '不明'}<br />
-            データ件数: {pullConfirm ? Object.keys(pullConfirm.data).length : 0} 件<br />
-            この端末の最終同期: {fmtDateTime(lastSynced)}
-          </DialogContentText>
+      <ConfirmDialog
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        title={isPull ? 'ダウンロードの確認' : 'クラウド側が更新されています'}
+        warning={
+          isPull
+            ? (pullIsNotNewer && 'クラウド側は前回の同期より新しくありません。この端末での変更が失われる可能性があります。')
+            : '前回の同期以降に他の端末からアップロードされています。続行するとその内容は失われます。'
+        }
+        confirmLabel={isPull ? 'ダウンロードする' : '上書きしてアップロード'}
+        confirmColor={isPull ? 'primary' : 'warning'}
+        onConfirm={() => (isPull ? doPull(remote) : (setConfirm(null), doPush()))}
+      >
+        <DialogContentText sx={{ fontSize: 13 }}>
+          クラウド側の保存日時: {fmtDateTime(remote?.exportedAt)}<br />
+          アップロード元: {remote?.device || '不明'}
+          {isPull && <>
+            <br />データ件数: {Object.keys(remote?.data || {}).length} 件
+            <br />この端末の最終同期: {fmtDateTime(lastSynced)}
+          </>}
+        </DialogContentText>
+        {isPull && (
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
             この端末のデータは上書きされます。直前の状態は自動でバックアップされ、あとから復元できます。
           </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPullConfirm(null)}>キャンセル</Button>
-          <Button color="primary" variant="contained" onClick={() => doPull(pullConfirm)}>
-            ダウンロードする
-          </Button>
-        </DialogActions>
-      </Dialog>
+        )}
+      </ConfirmDialog>
     </Box>
   )
 }

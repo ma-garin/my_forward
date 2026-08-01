@@ -1,9 +1,9 @@
 import { createContext, useContext, useState, useCallback, useMemo } from 'react'
+import { THEME_KEY as STORAGE_KEY } from './utils/appKeys'
 
 // テーマモード: 'classic'（現行）| 'apple'（Apple 風）
 // localStorage に保存し、リロード後も選択を保持する。
 // デフォルトは Apple 風（未選択時）。現行に戻すには 設定→外観 で切替。
-const STORAGE_KEY = 'app_theme'
 const VALID = ['classic', 'apple']
 const DEFAULT_MODE = 'apple'
 

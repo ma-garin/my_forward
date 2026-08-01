@@ -3,12 +3,15 @@ import { Box, Typography, Button, Stack, Divider, Alert } from '@mui/material'
 import DownloadIcon from '@mui/icons-material/Download'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 
-import { isActiveKey, getAllKeys } from '../utils/appKeys'
+import { isActiveKey, getAllKeys, isSalaryKey, isCardKey, isSalaryHistoryKey } from '../utils/appKeys'
 
 function createJsonExport(keys, filename) {
   const data = {}
   keys.forEach(k => {
-    try { data[k] = JSON.parse(localStorage.getItem(k)) } catch {}
+    // ファイル形式は後方互換のためパース済みの値を保持する。
+    // よって app_theme のような生文字列キーは対象外になる（同期スナップショットには含まれる）。
+    try { data[k] = JSON.parse(localStorage.getItem(k)) }
+    catch { console.warn(`export skipped non-JSON key: ${k}`) }
   })
   const fileName = `${filename}_${new Date().toISOString().slice(0, 10)}.json`
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -118,13 +121,13 @@ export default function DataSettings() {
       </Typography>
       <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 2, px: 2 }}>
         <DataRow label="給与シミュレーション" exportFilename="myforward_salary"
-          filterKeys={(keys) => keys.filter(k => k === 'salary_simulation' || k === 'salary_simulation_monthly')} />
+          filterKeys={(keys) => keys.filter(isSalaryKey)} />
         <Divider />
         <DataRow label="カード" exportFilename="myforward_card"
-          filterKeys={(keys) => keys.filter(k => k.startsWith('cc_'))} />
+          filterKeys={(keys) => keys.filter(isCardKey)} />
         <Divider />
         <DataRow label="給与履歴" exportFilename="myforward_salary_history"
-          filterKeys={(keys) => keys.filter(k => k.startsWith('salary_base_') || k.startsWith('salary_extra_'))} />
+          filterKeys={(keys) => keys.filter(isSalaryHistoryKey)} />
       </Box>
     </Box>
   )

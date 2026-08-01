@@ -1,4 +1,5 @@
 import { DEFAULT_JCB_FIXED, currentBillingYm } from './finance'
+import { WEEKLY_BUDGET_KEY, getAllKeys } from './appKeys'
 
 // ─── カード定義 ────────────────────────────────────────────
 
@@ -150,13 +151,9 @@ export function getBillingMonthsForRange(fromStr, toStr, cutoffDay) {
 const INIT_FLAG = 'cc_init_v4'
 
 function cleanupLegacyKeys() {
-  const toRemove = []
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i)
-    if (!k) continue
-    if (k.startsWith('bank_') || k.startsWith('asset_')) toRemove.push(k)
-  }
-  toRemove.forEach((k) => localStorage.removeItem(k))
+  getAllKeys()
+    .filter((k) => k.startsWith('bank_') || k.startsWith('asset_'))
+    .forEach((k) => localStorage.removeItem(k))
 }
 
 const fixedKey = (cardId) => `cc_fixed_${cardId}`
@@ -196,10 +193,10 @@ export function loadBilled(cardId, ym) {
 export function saveBilled(cardId, ym, ids) { try { localStorage.setItem(`cc_billed_${cardId}_${ym}`, JSON.stringify(ids)) } catch(e) { console.warn('saveBilled failed', e) } }
 
 export function loadWeeklyBudget() {
-  const v = parseInt(localStorage.getItem('life_weekly_budget') || '', 10)
+  const v = parseInt(localStorage.getItem(WEEKLY_BUDGET_KEY) || '', 10)
   return isNaN(v) ? 10000 : v
 }
-export function saveWeeklyBudget(v) { try { localStorage.setItem('life_weekly_budget', String(v)) } catch(e) { console.warn('saveWeeklyBudget failed', e) } }
+export function saveWeeklyBudget(v) { try { localStorage.setItem(WEEKLY_BUDGET_KEY, String(v)) } catch(e) { console.warn('saveWeeklyBudget failed', e) } }
 
 const salaryOverrideMonthlyKey = 'cc_salary_override_by_ym'
 const salaryOverrideMigratedKey = 'cc_salary_override_migrated_v1'

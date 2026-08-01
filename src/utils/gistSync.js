@@ -1,13 +1,13 @@
-import { isActiveKey, getAllKeys, listActiveKeys } from './appKeys'
+import { isActiveKey, getAllKeys, listActiveKeys, SYNC_PREFIX } from './appKeys'
 
-export const SYNC_TOKEN_KEY = 'sync_gist_token'
-export const SYNC_GIST_ID_KEY = 'sync_gist_id'
-export const SYNC_LAST_SYNCED_KEY = 'sync_last_synced_at'
-export const SYNC_LAST_REMOTE_KEY = 'sync_last_remote_exported_at'
-export const SYNC_BACKUP_KEY = 'sync_backup_before_pull'
+const TOKEN_KEY = `${SYNC_PREFIX}gist_token`
+const GIST_ID_KEY = `${SYNC_PREFIX}gist_id`
+const LAST_SYNCED_KEY = `${SYNC_PREFIX}last_synced_at`
+const LAST_REMOTE_KEY = `${SYNC_PREFIX}last_remote_exported_at`
+const BACKUP_KEY = `${SYNC_PREFIX}backup_before_pull`
 
-export const GIST_FILENAME = 'my_forward_sync.json'
-export const GIST_MARKER = 'my_forward-sync-v1'
+const GIST_FILENAME = 'my_forward_sync.json'
+const GIST_MARKER = 'my_forward-sync-v1'
 
 const API_BASE = 'https://api.github.com'
 const SCHEMA_VERSION = 1
@@ -24,29 +24,18 @@ export class GistSyncError extends Error {
 
 // ---- 同期メタデータ（端末固有・スナップショット対象外） ----
 
-export function loadToken() {
-  return localStorage.getItem(SYNC_TOKEN_KEY) || ''
-}
-export function saveToken(v) {
-  if (v) localStorage.setItem(SYNC_TOKEN_KEY, v)
-  else localStorage.removeItem(SYNC_TOKEN_KEY)
-}
-export function loadGistId() {
-  return localStorage.getItem(SYNC_GIST_ID_KEY) || ''
-}
-export function saveGistId(v) {
-  if (v) localStorage.setItem(SYNC_GIST_ID_KEY, v)
-  else localStorage.removeItem(SYNC_GIST_ID_KEY)
-}
-export function loadLastSyncedAt() {
-  return localStorage.getItem(SYNC_LAST_SYNCED_KEY) || ''
-}
-export function loadLastRemoteExportedAt() {
-  return localStorage.getItem(SYNC_LAST_REMOTE_KEY) || ''
-}
-export function markSynced(exportedAt) {
-  localStorage.setItem(SYNC_LAST_SYNCED_KEY, new Date().toISOString())
-  if (exportedAt) localStorage.setItem(SYNC_LAST_REMOTE_KEY, exportedAt)
+const read = (k) => localStorage.getItem(k) || ''
+const write = (k, v) => { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k) }
+
+export const loadToken = () => read(TOKEN_KEY)
+export const saveToken = (v) => write(TOKEN_KEY, v)
+export const loadGistId = () => read(GIST_ID_KEY)
+export const saveGistId = (v) => write(GIST_ID_KEY, v)
+export const loadLastSyncedAt = () => read(LAST_SYNCED_KEY)
+
+function markSynced(exportedAt) {
+  write(LAST_SYNCED_KEY, new Date().toISOString())
+  write(LAST_REMOTE_KEY, exportedAt)
 }
 
 // ---- スナップショット ----
@@ -63,7 +52,7 @@ export function detectDevice() {
 }
 
 // localStorage の値を生文字列のまま格納する（JSON.parse を通さないためロスレス）。
-export function buildSnapshot(device = detectDevice()) {
+function buildSnapshot() {
   const data = {}
   listActiveKeys().forEach(k => {
     const v = localStorage.getItem(k)
@@ -73,12 +62,12 @@ export function buildSnapshot(device = detectDevice()) {
     schema: SCHEMA_VERSION,
     app: APP_ID,
     exportedAt: new Date().toISOString(),
-    device,
+    device: detectDevice(),
     data,
   }
 }
 
-export function validateSnapshot(obj) {
+function validateSnapshot(obj) {
   if (!obj || typeof obj !== 'object') {
     throw new GistSyncError('invalid_data', '同期データの形式が不正です')
   }
@@ -93,7 +82,7 @@ export function validateSnapshot(obj) {
 
 // 真のスナップショット適用: 受信データに無いキーは削除し、削除操作を他端末へ伝播させる。
 // isActiveKey を通らないキーは読み書きともに無視する（sync_* や任意キーの注入を防ぐ）。
-export function applySnapshot(envelope) {
+function applySnapshot(envelope) {
   const { data } = validateSnapshot(envelope)
 
   getAllKeys().forEach(k => {
@@ -105,14 +94,8 @@ export function applySnapshot(envelope) {
   })
 }
 
-export function backupCurrentData(device = detectDevice()) {
-  const snap = buildSnapshot(device)
-  localStorage.setItem(SYNC_BACKUP_KEY, JSON.stringify(snap))
-  return snap
-}
-
 export function loadBackup() {
-  const raw = localStorage.getItem(SYNC_BACKUP_KEY)
+  const raw = read(BACKUP_KEY)
   if (!raw) return null
   try {
     return validateSnapshot(JSON.parse(raw))
@@ -125,20 +108,23 @@ export function restoreBackup() {
   const snap = loadBackup()
   if (!snap) throw new GistSyncError('invalid_data', 'バックアップが見つかりません')
   applySnapshot(snap)
-  return snap
+}
+
+// ダウンロード適用。直前の状態を自動バックアップしてから上書きする。
+export function applyPulledSnapshot(envelope) {
+  write(BACKUP_KEY, JSON.stringify(buildSnapshot()))
+  applySnapshot(envelope)
+  markSynced(envelope.exportedAt)
 }
 
 // ---- GitHub Gist API ----
 
-function headers(token, withContentType = false) {
-  const h = {
-    Authorization: `Bearer ${token}`,
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-  }
-  if (withContentType) h['Content-Type'] = 'application/json'
-  return h
-}
+const headers = (token) => ({
+  Authorization: `Bearer ${token}`,
+  Accept: 'application/vnd.github+json',
+  'X-GitHub-Api-Version': '2022-11-28',
+  'Content-Type': 'application/json',
+})
 
 async function request(url, options) {
   let res
@@ -156,14 +142,19 @@ async function request(url, options) {
     throw new GistSyncError('not_found', 'Gist が見つかりません。Gist ID を確認してください', 404)
   }
   if (res.status === 403) {
-    const remaining = res.headers.get('x-ratelimit-remaining')
-    if (remaining === '0') {
+    if (res.headers.get('x-ratelimit-remaining') === '0') {
       throw new GistSyncError('rate_limited', 'GitHub API の制限に達しました。しばらく待ってから再試行してください', 403)
     }
     throw new GistSyncError('unauthorized', 'アクセスが拒否されました。トークンの権限（Gist）を確認してください', 403)
   }
   throw new GistSyncError('http', `通信エラーが発生しました（HTTP ${res.status}）`, res.status)
 }
+
+const gistBody = (envelope) => JSON.stringify({
+  description: GIST_MARKER,
+  public: false,
+  files: { [GIST_FILENAME]: { content: JSON.stringify(envelope) } },
+})
 
 export async function fetchRemoteSnapshot(token, gistId) {
   const res = await request(`${API_BASE}/gists/${gistId}`, { headers: headers(token) })
@@ -179,40 +170,12 @@ export async function fetchRemoteSnapshot(token, gistId) {
     content = await rawRes.text()
   }
 
-  let parsed
   try {
-    parsed = JSON.parse(content)
-  } catch {
+    return validateSnapshot(JSON.parse(content))
+  } catch (e) {
+    if (e instanceof GistSyncError) throw e
     throw new GistSyncError('invalid_data', '同期データの解析に失敗しました')
   }
-
-  return { envelope: validateSnapshot(parsed), gistUpdatedAt: gist.updated_at }
-}
-
-export async function createGist(token, envelope) {
-  const res = await request(`${API_BASE}/gists`, {
-    method: 'POST',
-    headers: headers(token, true),
-    body: JSON.stringify({
-      description: GIST_MARKER,
-      public: false,
-      files: { [GIST_FILENAME]: { content: JSON.stringify(envelope) } },
-    }),
-  })
-  const gist = await res.json()
-  return gist.id
-}
-
-export async function pushSnapshot(token, gistId, envelope) {
-  await request(`${API_BASE}/gists/${gistId}`, {
-    method: 'PATCH',
-    headers: headers(token, true),
-    body: JSON.stringify({
-      description: GIST_MARKER,
-      files: { [GIST_FILENAME]: { content: JSON.stringify(envelope) } },
-    }),
-  })
-  return gistId
 }
 
 // 既存の同期用 Gist を description / ファイル名で探す。見つからなければ null。
@@ -222,4 +185,40 @@ export async function findExistingGist(token) {
   if (!Array.isArray(list)) return null
   const hit = list.find(g => g.description === GIST_MARKER || g.files?.[GIST_FILENAME])
   return hit ? hit.id : null
+}
+
+// 前回の同期以降に他端末がアップロードしていれば、そのスナップショットを返す（無ければ null）。
+// リモート未作成・中身が不正なだけならアップロードは可能なので競合なしとして扱う。
+export async function checkRemoteConflict(token, gistId) {
+  if (!gistId) return null
+  let remote
+  try {
+    remote = await fetchRemoteSnapshot(token, gistId)
+  } catch (e) {
+    const ignorable = e instanceof GistSyncError && (e.code === 'not_found' || e.code === 'invalid_data')
+    if (ignorable) return null
+    throw e
+  }
+  const lastRemote = read(LAST_REMOTE_KEY)
+  return lastRemote && remote.exportedAt !== lastRemote ? remote : null
+}
+
+// アップロード。Gist が未作成なら検索し、無ければ新規作成する。保存先 ID を返す。
+export async function pushSnapshot(token) {
+  const envelope = buildSnapshot()
+  let gistId = loadGistId() || await findExistingGist(token)
+
+  if (gistId) await request(`${API_BASE}/gists/${gistId}`, {
+    method: 'PATCH', headers: headers(token), body: gistBody(envelope),
+  })
+  else {
+    const res = await request(`${API_BASE}/gists`, {
+      method: 'POST', headers: headers(token), body: gistBody(envelope),
+    })
+    gistId = (await res.json()).id
+  }
+
+  saveGistId(gistId)
+  markSynced(envelope.exportedAt)
+  return gistId
 }

@@ -58,7 +58,8 @@ SettingsMain.jsx → SalarySettings.jsx / CardSettings.jsx / DataSettings.jsx
 - `src/utils/finance.js` — 給与計算ロジック・共有関数
 - `src/utils/ccStorage.js` — クレカ・生活費・サマリー用ストレージ関数（`getBillingYmForDate`, `getBillingMonthsForRange` 含む）
 - `src/utils/parseSalaryPdf.js` — 給与明細PDF解析（SalaryHistory用）
-- `src/utils/appKeys.js` — エクスポート/同期対象キーの判定（`isActiveKey` / `getAllKeys` / `listActiveKeys`）
+- `src/utils/appKeys.js` — エクスポート/同期対象キーの判定（`isActiveKey` / `getAllKeys` / `listActiveKeys`）。
+  プレフィックスで表せないキー（`THEME_KEY` / `WEEKLY_BUDGET_KEY`）の定義元でもあり、所有モジュール側が import する
 - `src/utils/gistSync.js` — GitHub Gist 同期（スナップショット生成・適用・Gist API クライアント）
 
 ## クラウド同期（端末間データ連携）
