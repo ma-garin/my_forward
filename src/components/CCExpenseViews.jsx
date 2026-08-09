@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo, useCallback, memo } from 'react'
 import { Box, Typography, Stack, Chip, IconButton, Menu, MenuItem, Checkbox } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -12,32 +12,47 @@ const SUBLINE_SX = {
   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
 }
 const GROUP_HEAD_SX = { px: 2, py: 0.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #eeeeee' }
+const GROUP_LABEL_SX = { fontSize: 11, fontWeight: 700, color: 'text.secondary' }
+const GROUP_TOTAL_SX = { fontSize: 10, color: 'text.disabled', ml: 1 }
+
+// 行ごとに新しいオブジェクトを作らないよう、状態で変わるものだけ 2 種類用意する
+const ROW_SX        = { px: 2, py: 0.75, borderBottom: BORDER_LIGHT, opacity: 1, '&:hover': { bgcolor: '#f9fbe7' } }
+const ROW_SX_BILLED = { ...ROW_SX, opacity: 0.55 }
+const CHECKBOX_SX   = { p: 0.25, ml: -0.75, flexShrink: 0, color: '#bdbdbd', '&.Mui-checked': { color: '#43a047' } }
+const NAME_SX        = { fontSize: 12, fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+const NAME_SX_BILLED = { ...NAME_SX, textDecoration: 'line-through', color: '#9e9e9e' }
+const AMOUNT_SX     = { fontSize: 13, fontWeight: 700 }
+const SUBTOTAL_SX   = { fontSize: 9, color: 'text.disabled' }
+const ICON_BTN_SX   = { p: 0.75 }
+const ICON_SX       = { fontSize: 13, color: 'text.disabled' }
+const LEFT_STACK_SX = { flex: 1, minWidth: 0 }
+const RIGHT_STACK_SX = { flexShrink: 0 }
+const MIN0_SX       = { minWidth: 0 }
 
 /**
  * 固定費・変動費で共通の 1 行。
  * 左: [チェック（固定費のみ）] カテゴリ / 消費分類 / 項目名 / 補足行
  * 右: 金額 / 累計 と 編集・削除
  * 見せ方が両者で食い違わないよう、必ずこのコンポーネントを使う。
+ *
+ * ハンドラは item / id を引数で受ける形にしてある（行ごとにクロージャを作らない
+ * ので、呼び出し側が参照を固定していれば memo が効く）。
  */
-export function ExpenseRow({
-  category, spendType, sign, name, payee, notes = [], amount, subtotal,
-  billed = false, onToggleBilled, onEdit, onDelete, onContextMenu,
+export const ExpenseRow = memo(function ExpenseRow({
+  item, subtotal, notes, billed = false, onToggleBilled, onEdit, onDelete, onContextMenu,
 }) {
+  const { category, spendType, sign, name, payee, amount } = item
   return (
     <Box
-      onContextMenu={onContextMenu}
-      sx={{
-        px: 2, py: 0.75, borderBottom: BORDER_LIGHT,
-        opacity: billed ? 0.55 : 1,
-        '&:hover': { bgcolor: '#f9fbe7' },
-      }}
+      onContextMenu={onContextMenu ? (e) => onContextMenu(e, item) : undefined}
+      sx={billed ? ROW_SX_BILLED : ROW_SX}
     >
       <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-        <Stack direction="row" alignItems="center" gap={0.75} sx={{ flex: 1, minWidth: 0 }}>
+        <Stack direction="row" alignItems="center" gap={0.75} sx={LEFT_STACK_SX}>
           {onToggleBilled && (
             <Checkbox
-              checked={billed} onChange={onToggleBilled} size="small" aria-label="引き落とし済み"
-              sx={{ p: 0.25, ml: -0.75, flexShrink: 0, color: '#bdbdbd', '&.Mui-checked': { color: '#43a047' } }}
+              checked={billed} onChange={() => onToggleBilled(item.id)} size="small" aria-label="引き落とし済み"
+              sx={CHECKBOX_SX}
             />
           )}
           <Chip label={category} size="small"
@@ -48,57 +63,75 @@ export function ExpenseRow({
               bgcolor: SPEND_TYPE_COLORS[spendType] ?? '#eceff1', color: '#fff',
             }} />
           )}
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="body2" sx={{
-              fontSize: 12, fontWeight: 500, lineHeight: 1.3,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              ...(billed ? { textDecoration: 'line-through', color: '#9e9e9e' } : {}),
-            }}>
-              {name}
-            </Typography>
+          <Box sx={MIN0_SX}>
+            <Typography variant="body2" sx={billed ? NAME_SX_BILLED : NAME_SX}>{name}</Typography>
             {payee && <Typography variant="caption" sx={SUBLINE_SX}>{payee}</Typography>}
-            {notes.filter(Boolean).map(n => (
+            {notes?.map(n => (
               <Typography key={n} variant="caption" sx={SUBLINE_SX}>{n}</Typography>
             ))}
           </Box>
         </Stack>
-        <Stack alignItems="flex-end" direction="row" gap={0.5} sx={{ flexShrink: 0 }}>
+        <Stack alignItems="flex-end" direction="row" gap={0.5} sx={RIGHT_STACK_SX}>
           <Stack alignItems="flex-end">
-            <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 700 }}>¥{fmt(amount)}</Typography>
+            <Typography variant="body2" sx={AMOUNT_SX}>¥{fmt(amount)}</Typography>
             {subtotal != null && (
-              <Typography variant="caption" sx={{ fontSize: 9, color: 'text.disabled' }}>累計 ¥{fmt(subtotal)}</Typography>
+              <Typography variant="caption" sx={SUBTOTAL_SX}>累計 ¥{fmt(subtotal)}</Typography>
             )}
           </Stack>
           <Stack>
-            <IconButton size="small" aria-label="編集" onClick={onEdit} sx={{ p: 0.75 }}>
-              <EditIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+            <IconButton size="small" aria-label="編集" onClick={() => onEdit(item)} sx={ICON_BTN_SX}>
+              <EditIcon sx={ICON_SX} />
             </IconButton>
-            <IconButton size="small" aria-label="削除" onClick={onDelete} sx={{ p: 0.75 }}>
-              <DeleteIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+            <IconButton size="small" aria-label="削除" onClick={() => onDelete(item.id)} sx={ICON_BTN_SX}>
+              <DeleteIcon sx={ICON_SX} />
             </IconButton>
           </Stack>
         </Stack>
       </Stack>
     </Box>
   )
-}
+})
 
 /** グループ見出し（変動費=日付 / 固定費=支払日）。両者で同じ体裁にする。 */
 export function ExpenseGroupHeader({ label, total }) {
   return (
     <Box sx={GROUP_HEAD_SX}>
-      <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: 'text.secondary' }}>
+      <Typography variant="caption" sx={GROUP_LABEL_SX}>
         {label}
-        <Typography component="span" variant="caption" sx={{ fontSize: 10, color: 'text.disabled', ml: 1 }}>
-          ¥{fmt(total)}
-        </Typography>
+        <Typography component="span" variant="caption" sx={GROUP_TOTAL_SX}>¥{fmt(total)}</Typography>
       </Typography>
     </Box>
   )
 }
 
+const shortDate = (d) => {
+  if (!d || d === '—') return '—'
+  const [, m, day] = d.split('-')
+  return `${parseInt(m)}/${parseInt(day)}`
+}
+
 export function VarExpenseTable({ varList, onEdit, onDelete }) {
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, item }
+
+  // 累計とグループ化は varList が変わったときだけ計算する
+  const grouped = useMemo(() => {
+    const out = []
+    let running = 0
+    varList.forEach(item => {
+      running += item.amount
+      const row  = { ...item, subtotal: running }
+      const last = out[out.length - 1]
+      const d    = item.date ?? '—'
+      if (last && last.date === d) { last.items.push(row); last.total += item.amount }
+      else out.push({ date: d, items: [row], total: item.amount })
+    })
+    return out
+  }, [varList])
+
+  const openCtxMenu = useCallback((e, item) => {
+    e.preventDefault()
+    setCtxMenu({ x: e.clientX, y: e.clientY, item })
+  }, [])
 
   if (varList.length === 0) return (
     <Typography variant="caption" color="text.disabled" sx={{ py: 1, display: 'block' }}>
@@ -106,41 +139,20 @@ export function VarExpenseTable({ varList, onEdit, onDelete }) {
     </Typography>
   )
 
-  let running = 0
-  const rows = varList.map((item) => {
-    running += item.amount
-    return { ...item, subtotal: running }
-  })
-
-  const grouped = []
-  rows.forEach(item => {
-    const d    = item.date ?? '—'
-    const last = grouped[grouped.length - 1]
-    if (last && last.date === d) last.items.push(item)
-    else grouped.push({ date: d, items: [item] })
-  })
-
-  const shortDate = (d) => {
-    if (!d || d === '—') return '—'
-    const [, m, day] = d.split('-')
-    return `${parseInt(m)}/${parseInt(day)}`
-  }
-
   return (
     <>
       <Box>
-        {grouped.map(({ date, items }) => (
+        {grouped.map(({ date, items, total }) => (
           <Box key={date}>
-            <ExpenseGroupHeader label={shortDate(date)} total={items.reduce((s, x) => s + x.amount, 0)} />
+            <ExpenseGroupHeader label={shortDate(date)} total={total} />
             {items.map(item => (
               <ExpenseRow
                 key={item.id}
-                category={item.category} spendType={item.spendType} sign={item.sign}
-                name={item.name} payee={item.payee}
-                amount={item.amount} subtotal={item.subtotal}
-                onEdit={() => onEdit(item)}
-                onDelete={() => onDelete(item.id)}
-                onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, item }) }}
+                item={item}
+                subtotal={item.subtotal}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onContextMenu={openCtxMenu}
               />
             ))}
           </Box>

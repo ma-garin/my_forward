@@ -7,7 +7,7 @@ import {
 import EditIcon from '@mui/icons-material/Edit'
 import CardHeaderBar from './CardHeaderBar'
 import { fmt, loadCategories } from '../utils/finance'
-import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS, saveFixed, saveVar, loadFixed, loadVar, CARDS, loadCategoryBudgets, saveCategoryBudgets, getBillingYmForDate } from '../utils/ccStorage'
+import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS, CARDS, loadCategoryBudgets, saveCategoryBudgets, upsertFixedItem, upsertVarItem } from '../utils/ccStorage'
 import AmountField from './AmountField'
 import ExpenseDialog from './ExpenseDialog'
 
@@ -139,36 +139,18 @@ function CategoryBreakdownBase({ fixedList, varList, cardId, ym, onUpdate, prevF
   }
 
   // 保存は固定費/変動費の共通ダイアログ（ExpenseDialog）から呼ばれる。
-  // カード（支払い方法）が変わった場合は保存先ごと移し替える。
+  // カード変更に伴う保存先の移し替えは ccStorage 側に集約してあるので、
+  // ここでは表示用のメタ（_type / _cardId）を落として渡すだけにする。
   function saveEdit({ cardId: nextCard, ...data }) {
     if (!editTarget) return
     const fromCard = editTarget._cardId ?? cardId
     const toCard   = nextCard ?? fromCard
-    const isFixed  = editTarget._type === 'fixed'
 
-    if (isFixed) {
-      const rest = loadFixed(fromCard).filter(x => x.id !== editTarget.id)
-      const moved = { ...editTarget, ...data }
-      delete moved._type; delete moved._cardId
-      if (toCard === fromCard) {
-        saveFixed(fromCard, loadFixed(fromCard).map(x => x.id === editTarget.id ? moved : x))
-      } else {
-        saveFixed(fromCard, rest)
-        saveFixed(toCard, [...loadFixed(toCard), moved])
-      }
-    } else {
-      const moved = { ...editTarget, ...data }
-      delete moved._type; delete moved._cardId
-      if (toCard === fromCard) {
-        saveVar(fromCard, ym, loadVar(fromCard, ym).map(x => x.id === editTarget.id ? moved : x))
-      } else {
-        // カードごとに締め日が違うため、移動先カードの請求月を計算して入れる
-        const toYm = getBillingYmForDate(moved.date, CARDS[toCard]?.cutoffDay ?? 0) || ym
-        saveVar(fromCard, ym, loadVar(fromCard, ym).filter(x => x.id !== editTarget.id))
-        saveVar(toCard, toYm, [...loadVar(toCard, toYm), moved]
-          .sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1))
-      }
-    }
+    const { _type, _cardId, ...rest } = editTarget
+    const item = { ...rest, ...data }
+
+    if (_type === 'fixed') upsertFixedItem({ item, fromCard, toCard })
+    else                   upsertVarItem({ item, fromCard, fromYm: ym, toCard })
 
     onUpdate?.()
     if (data.category !== selectedCat || toCard !== fromCard) closeDetail()
@@ -348,8 +330,7 @@ function CategoryBreakdownBase({ fixedList, varList, cardId, ym, onUpdate, prevF
   )
 }
 
-// 消費分類は変動費のみが持つ（固定費は分類の対象外）。
-// fixedList は呼び出し側の互換のため受け取るが集計には使わない。
+// 消費分類は変動費のみが対象（固定費は分類を持たない）。
 function SpendTypeChartBase({ varList }) {
   const { all, totals, grandTotal } = useMemo(() => {
     const all = varList.filter(x => x.sign !== 1)
