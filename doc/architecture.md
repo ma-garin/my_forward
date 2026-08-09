@@ -2,7 +2,8 @@
 
 ## アプリ構成
 
-完全オフライン・localStorage のみ使用。最大幅 600px のモバイルファーストWebアプリ。
+localStorage のみ使用。最大幅 600px のモバイルファーストWebアプリ。  
+通常動作は完全オフライン。例外として、クラウド同期を手動実行したときのみ `api.github.com` へ通信する。
 
 ## 画面構成（タブ）
 
@@ -47,6 +48,7 @@ App.jsx
 設定画面:
 ```
 SettingsMain.jsx → SalarySettings.jsx / CardSettings.jsx / DataSettings.jsx
+                 → SyncSettings.jsx（GitHub Gist クラウド同期）
                  → SalaryHistory.jsx（給与履歴グラフ）
 ```
 
@@ -56,6 +58,20 @@ SettingsMain.jsx → SalarySettings.jsx / CardSettings.jsx / DataSettings.jsx
 - `src/utils/finance.js` — 給与計算ロジック・共有関数
 - `src/utils/ccStorage.js` — クレカ・生活費・サマリー用ストレージ関数（`getBillingYmForDate`, `getBillingMonthsForRange` 含む）
 - `src/utils/parseSalaryPdf.js` — 給与明細PDF解析（SalaryHistory用）
+- `src/utils/appKeys.js` — エクスポート/同期対象キーの判定（`isActiveKey` / `getAllKeys` / `listActiveKeys`）。
+  プレフィックスで表せないキー（`THEME_KEY` / `WEEKLY_BUDGET_KEY`）の定義元でもあり、所有モジュール側が import する
+- `src/utils/gistSync.js` — GitHub Gist 同期（スナップショット生成・適用・Gist API クライアント）
+
+## クラウド同期（端末間データ連携）
+
+非公開 Gist を保存先にした**手動スナップショット同期**。iPhone / Galaxy など複数端末で同じデータを共有する。
+
+- 設定画面 → クラウド同期 で、Gist 権限のみの fine-grained トークンを端末ごとに1回入力
+- 「アップロード」= この端末 → クラウド（初回は Gist を自動作成）
+- 「ダウンロード」= クラウド → この端末（適用前に自動ローカルバックアップ → 復元可能）
+- 競合解決はスナップショット上書き（last-writer-wins）。アイテム単位のマージは行わない
+- 上書き前に確認ダイアログを表示（他端末が先に更新している場合／リモートが前回同期より新しくない場合は警告）
+- 適用時は `isActiveKey` を通るキーのみ書き込み、スナップショットに無いキーは削除する（削除の伝播）
 
 ## カード定義
 

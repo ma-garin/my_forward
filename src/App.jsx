@@ -19,6 +19,7 @@ import SettingsMain from './settings/SettingsMain'
 import SalarySettings from './settings/SalarySettings'
 import CardSettings from './settings/CardSettings'
 import DataSettings from './settings/DataSettings'
+import SyncSettings from './settings/SyncSettings'
 import AppInfo from './settings/AppInfo'
 import AppearanceSettings from './settings/AppearanceSettings'
 
@@ -33,6 +34,7 @@ const SETTINGS_TITLES = {
   salary:        '給与設定',
   card:          'カード設定',
   data:          'データ管理',
+  sync:          'クラウド同期',
   salaryHistory: '給与履歴',
   appInfo:       'アプリ情報',
   appearance:    '外観',
@@ -168,6 +170,7 @@ function AppInner() {
             {settingsPage === 'salary'        && <SalarySettings />}
             {settingsPage === 'card'          && <CardSettings />}
             {settingsPage === 'data'          && <DataSettings />}
+            {settingsPage === 'sync'          && <SyncSettings />}
             {settingsPage === 'salaryHistory' && <SalaryHistory />}
             {settingsPage === 'appInfo'       && <AppInfo />}
             {settingsPage === 'appearance'    && <AppearanceSettings />}
