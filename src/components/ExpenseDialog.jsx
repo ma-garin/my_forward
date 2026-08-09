@@ -46,8 +46,11 @@ export default function ExpenseDialog({ open, onClose, onSave, initial, title, c
     }
     onSave({
       cardId: card,
-      name: name.trim(), payee: payee.trim(), amount: a, category, spendType,
-      ...(isFixed ? { day: dayField, ...recurrenceFields } : { date }),
+      name: name.trim(), payee: payee.trim(), amount: a, category,
+      // 固定費は消費分類を持たない（既存データに残っていても保存時に落とす）
+      ...(isFixed
+        ? { spendType: undefined, day: dayField, ...recurrenceFields }
+        : { spendType, date }),
     })
     onClose()
   }
@@ -143,19 +146,22 @@ export default function ExpenseDialog({ open, onClose, onSave, initial, title, c
           <TextField label="項目名" size="small" fullWidth placeholder="例: YouTube Premium"
             value={name} onChange={(e) => setName(e.target.value)} />
           <AmountField label="金額" value={String(amount)} onChange={setAmount} />
-          <Stack direction="row" alignItems="center" gap={1}>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12, minWidth: 52 }}>消費分類</Typography>
-            <Stack direction="row" gap={0.75}>
-              {SPEND_TYPES.map(t => (
-                <Box key={t} onClick={() => setSpendType(t)} sx={{
-                  px: 1.5, py: 0.5, borderRadius: 2, cursor: 'pointer', fontSize: 12, userSelect: 'none',
-                  bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
-                  color: spendType === t ? '#fff' : 'text.secondary',
-                  fontWeight: spendType === t ? 700 : 400,
-                }}>{t}</Box>
-              ))}
+          {/* 消費分類は変動費のみ。固定費は分類の対象外とする。 */}
+          {!isFixed && (
+            <Stack direction="row" alignItems="center" gap={1}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12, minWidth: 52 }}>消費分類</Typography>
+              <Stack direction="row" gap={0.75}>
+                {SPEND_TYPES.map(t => (
+                  <Box key={t} onClick={() => setSpendType(t)} sx={{
+                    px: 1.5, py: 0.5, borderRadius: 2, cursor: 'pointer', fontSize: 12, userSelect: 'none',
+                    bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
+                    color: spendType === t ? '#fff' : 'text.secondary',
+                    fontWeight: spendType === t ? 700 : 400,
+                  }}>{t}</Box>
+                ))}
+              </Stack>
             </Stack>
-          </Stack>
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
