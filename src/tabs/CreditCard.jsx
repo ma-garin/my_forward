@@ -490,7 +490,7 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onTogg
           {items.map(item => (
             <ExpenseRow
               key={item.id}
-              category={item.category} spendType={item.spendType}
+              category={item.category}
               name={item.name} payee={item.payee} notes={recurrenceNotes(item)}
               amount={item.amount} subtotal={item.subtotal}
               billed={billedIds.includes(item.id)}

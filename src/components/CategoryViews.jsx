@@ -348,9 +348,11 @@ function CategoryBreakdownBase({ fixedList, varList, cardId, ym, onUpdate, prevF
   )
 }
 
-function SpendTypeChartBase({ fixedList, varList }) {
+// 消費分類は変動費のみが持つ（固定費は分類の対象外）。
+// fixedList は呼び出し側の互換のため受け取るが集計には使わない。
+function SpendTypeChartBase({ varList }) {
   const { all, totals, grandTotal } = useMemo(() => {
-    const all = [...fixedList, ...varList].filter(x => x.sign !== 1)
+    const all = varList.filter(x => x.sign !== 1)
     const totals = {}
     SPEND_TYPES.forEach(t => { totals[t] = 0 })
     all.forEach(x => {
@@ -359,7 +361,7 @@ function SpendTypeChartBase({ fixedList, varList }) {
     })
     const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0)
     return { all, totals, grandTotal }
-  }, [fixedList, varList])
+  }, [varList])
 
   if (all.length === 0) return null
   if (grandTotal === 0) return null
