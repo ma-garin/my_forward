@@ -183,7 +183,9 @@ export function DailyBarChart({ varList }) {
         <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary', fontWeight: 600 }}>日別支出</Typography>
         <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>最大 ¥{fmt(maxAmt)}</Typography>
       </Stack>
-      <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: CHART_H + 30, overflowX: 'auto', pb: 0.5 }}>
+      {/* 高さは固定しない。固定値だと最も高い棒の金額ラベルが入りきらず上で切れる。
+          列の中身（ラベル + 棒 + 日付軸）で自然に高さが決まるようにする。 */}
+      <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: '4px', minHeight: CHART_H + 30, overflowX: 'auto', overflowY: 'hidden', pb: 0.5 }}>
         {dates.map(d => {
           const amt  = byDate[d]
           const barH = Math.max(4, Math.round((amt / maxAmt) * CHART_H))
