@@ -1,9 +1,101 @@
 import { useState } from 'react'
-import { Box, Typography, Stack, Chip, IconButton, Menu, MenuItem } from '@mui/material'
+import { Box, Typography, Stack, Chip, IconButton, Menu, MenuItem, Checkbox } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { fmt } from '../utils/finance'
 import { CATEGORY_COLORS, BORDER_LIGHT, SPEND_TYPE_COLORS } from '../utils/ccStorage'
+
+// ─── 共通スタイル ─────────────────────────────────────────
+
+const SUBLINE_SX = {
+  fontSize: 10, color: 'text.disabled', lineHeight: 1.2, display: 'block',
+  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+}
+const GROUP_HEAD_SX = { px: 2, py: 0.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #eeeeee' }
+
+/**
+ * 固定費・変動費で共通の 1 行。
+ * 左: [チェック（固定費のみ）] カテゴリ / 消費分類 / 項目名 / 補足行
+ * 右: 金額 / 累計 と 編集・削除
+ * 見せ方が両者で食い違わないよう、必ずこのコンポーネントを使う。
+ */
+export function ExpenseRow({
+  category, spendType, sign, name, payee, notes = [], amount, subtotal,
+  billed = false, onToggleBilled, onEdit, onDelete, onContextMenu,
+}) {
+  return (
+    <Box
+      onContextMenu={onContextMenu}
+      sx={{
+        px: 2, py: 0.75, borderBottom: BORDER_LIGHT,
+        opacity: billed ? 0.55 : 1,
+        '&:hover': { bgcolor: '#f9fbe7' },
+      }}
+    >
+      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
+        <Stack direction="row" alignItems="center" gap={0.75} sx={{ flex: 1, minWidth: 0 }}>
+          {onToggleBilled && (
+            <Checkbox
+              checked={billed} onChange={onToggleBilled} size="small" aria-label="引き落とし済み"
+              sx={{ p: 0.25, ml: -0.75, flexShrink: 0, color: '#bdbdbd', '&.Mui-checked': { color: '#43a047' } }}
+            />
+          )}
+          <Chip label={category} size="small"
+            sx={{ height: 18, fontSize: 9, flexShrink: 0, bgcolor: CATEGORY_COLORS[category] ?? '#eceff1', color: '#37474f' }} />
+          {spendType && sign !== 1 && (
+            <Chip label={spendType} size="small" sx={{
+              height: 16, fontSize: 8, flexShrink: 0,
+              bgcolor: SPEND_TYPE_COLORS[spendType] ?? '#eceff1', color: '#fff',
+            }} />
+          )}
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{
+              fontSize: 12, fontWeight: 500, lineHeight: 1.3,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              ...(billed ? { textDecoration: 'line-through', color: '#9e9e9e' } : {}),
+            }}>
+              {name}
+            </Typography>
+            {payee && <Typography variant="caption" sx={SUBLINE_SX}>{payee}</Typography>}
+            {notes.filter(Boolean).map(n => (
+              <Typography key={n} variant="caption" sx={SUBLINE_SX}>{n}</Typography>
+            ))}
+          </Box>
+        </Stack>
+        <Stack alignItems="flex-end" direction="row" gap={0.5} sx={{ flexShrink: 0 }}>
+          <Stack alignItems="flex-end">
+            <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 700 }}>¥{fmt(amount)}</Typography>
+            {subtotal != null && (
+              <Typography variant="caption" sx={{ fontSize: 9, color: 'text.disabled' }}>累計 ¥{fmt(subtotal)}</Typography>
+            )}
+          </Stack>
+          <Stack>
+            <IconButton size="small" aria-label="編集" onClick={onEdit} sx={{ p: 0.75 }}>
+              <EditIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+            </IconButton>
+            <IconButton size="small" aria-label="削除" onClick={onDelete} sx={{ p: 0.75 }}>
+              <DeleteIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+            </IconButton>
+          </Stack>
+        </Stack>
+      </Stack>
+    </Box>
+  )
+}
+
+/** グループ見出し（変動費=日付 / 固定費=支払日）。両者で同じ体裁にする。 */
+export function ExpenseGroupHeader({ label, total }) {
+  return (
+    <Box sx={GROUP_HEAD_SX}>
+      <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: 'text.secondary' }}>
+        {label}
+        <Typography component="span" variant="caption" sx={{ fontSize: 10, color: 'text.disabled', ml: 1 }}>
+          ¥{fmt(total)}
+        </Typography>
+      </Typography>
+    </Box>
+  )
+}
 
 export function VarExpenseTable({ varList, onEdit, onDelete }) {
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, item }
@@ -36,60 +128,20 @@ export function VarExpenseTable({ varList, onEdit, onDelete }) {
 
   return (
     <>
-      {/* 親 CardContent は px:0。ここで負マージンを掛けるとカード幅を 32px はみ出し、
-          Card の overflow:hidden で右端の削除ボタンが見切れる。 */}
       <Box>
         {grouped.map(({ date, items }) => (
           <Box key={date}>
-            <Box sx={{ px: 2, py: 0.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #eeeeee' }}>
-              <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: 'text.secondary' }}>
-                {shortDate(date)}
-                <Typography component="span" variant="caption" sx={{ fontSize: 10, color: 'text.disabled', ml: 1 }}>
-                  ¥{fmt(items.reduce((s, x) => s + x.amount, 0))}
-                </Typography>
-              </Typography>
-            </Box>
+            <ExpenseGroupHeader label={shortDate(date)} total={items.reduce((s, x) => s + x.amount, 0)} />
             {items.map(item => (
-              <Box key={item.id}
+              <ExpenseRow
+                key={item.id}
+                category={item.category} spendType={item.spendType} sign={item.sign}
+                name={item.name} payee={item.payee}
+                amount={item.amount} subtotal={item.subtotal}
+                onEdit={() => onEdit(item)}
+                onDelete={() => onDelete(item.id)}
                 onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, item }) }}
-                sx={{ px: 2, py: 0.75, borderBottom: BORDER_LIGHT, '&:hover': { bgcolor: '#f9fbe7' } }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-                  <Stack direction="row" alignItems="center" gap={0.75} sx={{ flex: 1, minWidth: 0 }}>
-                    <Chip label={item.category} size="small"
-                      sx={{ height: 18, fontSize: 9, flexShrink: 0, bgcolor: CATEGORY_COLORS[item.category] ?? '#eceff1', color: '#37474f' }} />
-                    {item.spendType && item.sign !== 1 && (
-                      <Chip label={item.spendType} size="small" sx={{
-                        height: 16, fontSize: 8, flexShrink: 0,
-                        bgcolor: SPEND_TYPE_COLORS[item.spendType] ?? '#eceff1', color: '#fff',
-                      }} />
-                    )}
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" sx={{ fontSize: 12, fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.name}
-                      </Typography>
-                      {item.payee && (
-                        <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
-                          {item.payee}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Stack>
-                  <Stack alignItems="flex-end" direction="row" gap={0.5} sx={{ flexShrink: 0 }}>
-                    <Stack alignItems="flex-end">
-                      <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 700 }}>¥{fmt(item.amount)}</Typography>
-                      <Typography variant="caption" sx={{ fontSize: 9, color: 'text.disabled' }}>累計 ¥{fmt(item.subtotal)}</Typography>
-                    </Stack>
-                    <Stack>
-                      <IconButton size="small" aria-label="編集" onClick={() => onEdit(item)} sx={{ p: 0.75 }}>
-                        <EditIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                      </IconButton>
-                      <IconButton size="small" aria-label="削除" onClick={() => onDelete(item.id)} sx={{ p: 0.75 }}>
-                        <DeleteIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                      </IconButton>
-                    </Stack>
-                  </Stack>
-                </Stack>
-              </Box>
+              />
             ))}
           </Box>
         ))}

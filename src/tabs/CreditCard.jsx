@@ -3,8 +3,7 @@ import {
   Box, Card, CardContent, Typography, Stack, Chip, Divider,
   IconButton, Button, TextField, Dialog, DialogTitle, DialogContent,
   DialogActions, Select, MenuItem, FormControl, InputLabel,
-  Table, TableHead, TableBody, TableRow, TableCell, Fab,
-  Snackbar, Alert, Collapse, InputBase, Checkbox,
+  Fab, Snackbar, Alert, Collapse, InputBase,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -26,7 +25,7 @@ import {
 } from '../utils/ccStorage'
 import AmountField, { CalcPad, parseAmount } from '../components/AmountField'
 import { OPAQUE_SHEET } from '../theme'
-import { VarExpenseTable, DailyBarChart } from '../components/CCExpenseViews'
+import { VarExpenseTable, DailyBarChart, ExpenseRow, ExpenseGroupHeader } from '../components/CCExpenseViews'
 import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/CategoryViews'
 import LivingExpenseCard from '../components/LivingExpenseCard'
 import CombinedSummary from '../components/CombinedSummary'
@@ -175,7 +174,8 @@ function CategoryDialog({ open, onClose, categories, onChange }) {
 
 // ─── 費用入力ダイアログ ───────────────────────────────────
 
-function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
+function ExpenseDialog({ open, onClose, onSave, initial, title, categories, cardId }) {
+  const [card,           setCard]           = useState(cardId)
   const [name,           setName]           = useState(initial?.name           ?? '')
   const [payee,          setPayee]          = useState(initial?.payee          ?? '')
   const [amount,         setAmount]         = useState(initial?.amount         ?? '')
@@ -207,6 +207,7 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
       }
     }
     onSave({
+      cardId: card,
       name: name.trim(), payee: payee.trim(), amount: a, category, spendType,
       ...(isFixed ? { day: dayField, ...recurrenceFields } : { date }),
     })
@@ -218,6 +219,21 @@ function ExpenseDialog({ open, onClose, onSave, initial, title, categories }) {
       <DialogTitle sx={{ pb: 0.5, fontSize: 16 }}>{title}</DialogTitle>
       <DialogContent>
         <Stack spacing={1.5} sx={{ mt: 0.5 }}>
+          {/* 支払い方法（カード）。編集時も別カードへ付け替えられる。 */}
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12, minWidth: 52 }}>カード</Typography>
+            <Stack direction="row" gap={0.75}>
+              {CARD_LIST.map(c => (
+                <Chip key={c.id} label={c.shortName} size="small" onClick={() => setCard(c.id)}
+                  sx={{
+                    fontWeight: 600, fontSize: 12,
+                    bgcolor: card === c.id ? c.color : 'transparent',
+                    color: card === c.id ? '#fff' : 'text.secondary',
+                    border: `1px solid ${c.color}`,
+                  }} />
+              ))}
+            </Stack>
+          </Stack>
           {!isFixed && (
             <TextField label="日付" type="date" size="small" fullWidth
               InputLabelProps={{ shrink: true }}
@@ -579,22 +595,18 @@ function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEdit
 
 // ─── 固定費テーブル ───────────────────────────────────────
 
-// 操作列（編集・削除）はカード幅に必ず収まるよう固定幅で右端に置く。
-const ACTION_CELL_SX = { width: 58, minWidth: 58, py: 0.5, px: 0.25 }
-const CHECK_CELL_SX  = { width: 34, minWidth: 34, py: 0.5, pl: 1, pr: 0 }
-const SUBLINE_SX     = { fontSize: 10, lineHeight: 1.25, color: 'text.disabled', display: 'block' }
-
-// 固定費の繰り返し設定を 1 行の補足テキストにまとめる（列を増やさず幅を節約する）
-function recurrenceNote(item) {
-  const parts = []
-  if (item.day != null) parts.push(`毎月${item.day}日`)
+// 固定費の繰り返し設定を補足行のテキストにまとめる
+function recurrenceNotes(item) {
+  const notes = []
   const rec = item.recurrence ?? 'monthly'
-  if (rec === 'monthly' && item.startYm) parts.push(`${item.startYm.replace('-', '/')}〜`)
-  if (rec === 'interval') parts.push(`${item.intervalMonths}ヶ月ごと${item.baseYm ? `（基準 ${item.baseYm.replace('-', '/')}）` : ''}`)
-  if (rec === 'once' && item.targetYm) parts.push(`${item.targetYm.replace('-', '/')}のみ`)
-  return parts.join(' ・ ')
+  if (rec === 'monthly' && item.startYm) notes.push(`${item.startYm.replace('-', '/')}〜`)
+  if (rec === 'interval') notes.push(`${item.intervalMonths}ヶ月ごと${item.baseYm ? `（基準 ${item.baseYm.replace('-', '/')}）` : ''}`)
+  if (rec === 'once' && item.targetYm) notes.push(`${item.targetYm.replace('-', '/')}のみ`)
+  return notes
 }
 
+// 固定費リスト。変動費と同じ ExpenseRow / ExpenseGroupHeader を使い、
+// 変動費が「日付」でグループ化するのに合わせて「支払日」でグループ化する。
 function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onToggleBilled }) {
   if (fixedList.length === 0) return (
     <Typography variant="caption" color="text.disabled" sx={{ py: 1, display: 'block' }}>
@@ -602,85 +614,49 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onTogg
     </Typography>
   )
 
+  // 支払日の昇順（未設定は最後）に並べてからグループ化する
+  const sorted = [...fixedList].sort((a, b) => {
+    const da = a.day == null ? 99 : a.day
+    const db = b.day == null ? 99 : b.day
+    return da - db
+  })
+
   let running = 0
-  const rows = fixedList.map((item) => {
+  const rows = sorted.map((item) => {
     running += item.amount
     return { ...item, subtotal: running }
   })
 
-  // 親 CardContent は px:0。以前はここに mx:-2 を掛けていたためカード幅を 32px
-  // はみ出し、Card の overflow:hidden で左のチェックボックスと右の削除ボタンが
-  // 見切れていた。あわせて 支払先→項目名 / 小計→金額 の補足行へ畳み、
-  // スマホ幅（375px）で横スクロールなしに全列が収まるようにする。
+  const grouped = []
+  rows.forEach(item => {
+    const key  = item.day == null ? '—' : String(item.day)
+    const last = grouped[grouped.length - 1]
+    if (last && last.key === key) last.items.push(item)
+    else grouped.push({ key, items: [item] })
+  })
+
   return (
-    <Box sx={{ overflowX: 'auto' }}>
-      <Table size="small" sx={{ tableLayout: 'fixed', width: '100%' }}>
-        <TableHead>
-          <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-            <TableCell sx={{ ...CHECK_CELL_SX, py: 0.75 }} />
-            <TableCell sx={{ fontSize: 11, fontWeight: 700, py: 0.75, whiteSpace: 'nowrap' }}>項目</TableCell>
-            <TableCell sx={{ fontSize: 11, fontWeight: 700, py: 0.75, whiteSpace: 'nowrap', textAlign: 'right', width: 96, minWidth: 96 }}>金額</TableCell>
-            <TableCell sx={{ ...ACTION_CELL_SX, py: 0.75 }} />
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((item, i) => {
-            const billed = billedIds.includes(item.id)
-            const note   = recurrenceNote(item)
-            return (
-              <TableRow key={item.id} sx={{
-                bgcolor: billed ? '#f1f8e9' : i % 2 === 0 ? '#fff' : '#fafafa',
-                opacity: billed ? 0.6 : 1,
-                '&:hover': { bgcolor: billed ? '#e8f5e9' : '#f1f8e9' },
-              }}>
-                <TableCell sx={CHECK_CELL_SX}>
-                  <Checkbox
-                    checked={billed}
-                    onChange={() => onToggleBilled(item.id)}
-                    size="small"
-                    sx={{ p: 0.25, color: '#bdbdbd', '&.Mui-checked': { color: '#43a047' } }}
-                  />
-                </TableCell>
-                <TableCell sx={{ py: 0.75, pl: 1, pr: 0.5 }}>
-                  <Stack direction="row" alignItems="center" gap={0.75} sx={{ minWidth: 0 }}>
-                    <Chip label={item.category} size="small"
-                      sx={{ height: 16, fontSize: 9, flexShrink: 0, bgcolor: CATEGORY_COLORS[item.category] ?? '#eceff1', color: '#37474f' }} />
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{
-                        fontSize: 12, fontWeight: 500, lineHeight: 1.3,
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        ...(billed ? { textDecoration: 'line-through', color: '#9e9e9e' } : {}),
-                      }}>
-                        {item.name}
-                      </Typography>
-                      {item.payee && (
-                        <Typography variant="caption" sx={{ ...SUBLINE_SX, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.payee}
-                        </Typography>
-                      )}
-                      {note && <Typography variant="caption" sx={SUBLINE_SX}>{note}</Typography>}
-                    </Box>
-                  </Stack>
-                </TableCell>
-                <TableCell sx={{ py: 0.75, px: 0.5, textAlign: 'right' }}>
-                  <Typography sx={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>¥{fmt(item.amount)}</Typography>
-                  <Typography variant="caption" sx={SUBLINE_SX}>累計 ¥{fmt(item.subtotal)}</Typography>
-                </TableCell>
-                <TableCell sx={ACTION_CELL_SX}>
-                  <Stack direction="row">
-                    <IconButton size="small" aria-label="編集" onClick={() => onEdit(item)} sx={{ p: 0.5 }}>
-                      <EditIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-                    </IconButton>
-                    <IconButton size="small" aria-label="削除" onClick={() => onDelete(item.id)} sx={{ p: 0.5 }}>
-                      <DeleteIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-                    </IconButton>
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
+    <Box>
+      {grouped.map(({ key, items }) => (
+        <Box key={key}>
+          <ExpenseGroupHeader
+            label={key === '—' ? '支払日未設定' : `毎月${key}日`}
+            total={items.reduce((s, x) => s + x.amount, 0)}
+          />
+          {items.map(item => (
+            <ExpenseRow
+              key={item.id}
+              category={item.category} spendType={item.spendType}
+              name={item.name} payee={item.payee} notes={recurrenceNotes(item)}
+              amount={item.amount} subtotal={item.subtotal}
+              billed={billedIds.includes(item.id)}
+              onToggleBilled={() => onToggleBilled(item.id)}
+              onEdit={() => onEdit(item)}
+              onDelete={() => onDelete(item.id)}
+            />
+          ))}
+        </Box>
+      ))}
     </Box>
   )
 }
@@ -1017,13 +993,35 @@ export default function CreditCard() {
   }
 
   // 固定費 CRUD
-  const addFixed = (data) => {
-    try { const next = [...fixedList, { id: newId(), ...data }]; setFixedList(next); saveFixed(cardId, next); notify('success', '固定費を保存しました') }
-    catch { notify('error', '固定費の保存に失敗しました') }
+  // ダイアログはカード（支払い方法）も返す。表示中のカード以外が選ばれたら
+  // そのカードの保存先へ移し替える。
+  const addFixed = ({ cardId: target = cardId, ...data }) => {
+    try {
+      const item = { id: newId(), ...data }
+      if (target === cardId) {
+        const next = [...fixedList, item]; setFixedList(next); saveFixed(cardId, next)
+        notify('success', '固定費を保存しました')
+      } else {
+        saveFixed(target, [...loadFixed(target), item])
+        notify('success', `固定費を ${CARDS[target]?.shortName ?? target} に保存しました`)
+      }
+    } catch { notify('error', '固定費の保存に失敗しました') }
   }
-  const editFixed = (data) => {
-    try { const next = fixedList.map((x) => x.id === dlg.initial.id ? { ...x, ...data } : x); setFixedList(next); saveFixed(cardId, next); notify('success', '固定費を更新しました') }
-    catch { notify('error', '固定費の更新に失敗しました') }
+  const editFixed = ({ cardId: target = cardId, ...data }) => {
+    try {
+      const id = dlg.initial.id
+      if (target === cardId) {
+        const next = fixedList.map((x) => x.id === id ? { ...x, ...data } : x)
+        setFixedList(next); saveFixed(cardId, next)
+        notify('success', '固定費を更新しました')
+      } else {
+        const moved = { ...fixedList.find(x => x.id === id), ...data }
+        const rest  = fixedList.filter(x => x.id !== id)
+        setFixedList(rest); saveFixed(cardId, rest)
+        saveFixed(target, [...loadFixed(target), moved])
+        notify('success', `固定費を ${CARDS[target]?.shortName ?? target} に移動しました`)
+      }
+    } catch { notify('error', '固定費の更新に失敗しました') }
   }
   const deleteFixed = useCallback((id) => {
     const item = fixedList.find(x => x.id === id)
@@ -1036,9 +1034,21 @@ export default function CreditCard() {
   }, [fixedList, cardId])
 
   // 変動費 CRUD
-  const addVar = (data) => {
-    try { const next = [...varList, { id: newId(), ...data }].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1); setVarList(next); saveVar(cardId, ym, next); notify('success', '変動費を保存しました') }
-    catch { notify('error', '変動費の保存に失敗しました') }
+  const byDate = (a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1
+
+  const addVar = ({ cardId: target = cardId, ...data }) => {
+    try {
+      const item = { id: newId(), ...data }
+      if (target === cardId) {
+        const next = [...varList, item].sort(byDate); setVarList(next); saveVar(cardId, ym, next)
+        notify('success', '変動費を保存しました')
+      } else {
+        // 別カードは締め日が違うため、そのカードの請求月へ入れる
+        const tYm = getBillingYm(item.date, target)
+        saveVar(target, tYm, [...loadVar(target, tYm), item].sort(byDate))
+        notify('success', `変動費を ${CARDS[target]?.shortName ?? target} の ${tYm.replace('-', '年')}月分に保存しました`)
+      }
+    } catch { notify('error', '変動費の保存に失敗しました') }
   }
 
   // 日付とカードIDから請求月(ym)を計算
@@ -1067,9 +1077,23 @@ export default function CreditCard() {
       if (!dup) notify('success', `支出を${targetYm.replace('-', '年')}月分として記録しました`)
     } catch { notify('error', '保存に失敗しました') }
   }
-  const editVar = (data) => {
-    try { const next = varList.map((x) => x.id === dlg.initial.id ? { ...x, ...data } : x).sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1); setVarList(next); saveVar(cardId, ym, next); notify('success', '変動費を更新しました') }
-    catch { notify('error', '変動費の更新に失敗しました') }
+  const editVar = ({ cardId: target = cardId, ...data }) => {
+    try {
+      const id = dlg.initial.id
+      if (target === cardId) {
+        const next = varList.map((x) => x.id === id ? { ...x, ...data } : x).sort(byDate)
+        setVarList(next); saveVar(cardId, ym, next)
+        notify('success', '変動費を更新しました')
+      } else {
+        // カードを変えると締め日が違うため請求月も変わりうる。移動先を明示する。
+        const moved = { ...varList.find(x => x.id === id), ...data }
+        const rest  = varList.filter(x => x.id !== id)
+        setVarList(rest); saveVar(cardId, ym, rest)
+        const tYm = getBillingYm(moved.date, target)
+        saveVar(target, tYm, [...loadVar(target, tYm), moved].sort(byDate))
+        notify('success', `変動費を ${CARDS[target]?.shortName ?? target} の ${tYm.replace('-', '年')}月分に移動しました`)
+      }
+    } catch { notify('error', '変動費の更新に失敗しました') }
   }
   const deleteVar = useCallback((id) => {
     const item = varList.find(x => x.id === id)
@@ -1445,13 +1469,13 @@ export default function CreditCard() {
       {dlg?.type === 'fixed' && (
         <ExpenseDialog open onClose={() => setDlg(null)}
           onSave={dlg.initial ? editFixed : addFixed}
-          initial={dlg.initial} categories={categories}
+          initial={dlg.initial} categories={categories} cardId={cardId}
           title={dlg.initial ? '固定費を編集' : '固定費を追加'} />
       )}
       {dlg?.type === 'var' && (
         <ExpenseDialog open onClose={() => setDlg(null)}
           onSave={dlg.initial ? editVar : addVar}
-          initial={dlg.initial ?? { date: todayStr }} categories={categories}
+          initial={dlg.initial ?? { date: todayStr }} categories={categories} cardId={cardId}
           title={dlg.initial ? '変動費を編集' : '変動費を追加'} />
       )}
       <CategoryDialog
