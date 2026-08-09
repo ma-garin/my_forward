@@ -2,14 +2,14 @@ import { useState, useMemo, memo } from 'react'
 import {
   Box, Card, CardContent, Typography, Stack, Divider,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, TextField, Select, MenuItem, FormControl, InputLabel,
-  Chip, IconButton,
+  Button, Chip, IconButton,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import CardHeaderBar from './CardHeaderBar'
 import { fmt, loadCategories } from '../utils/finance'
-import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS, saveFixed, saveVar, loadFixed, loadVar, CARDS, loadCategoryBudgets, saveCategoryBudgets } from '../utils/ccStorage'
+import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS, saveFixed, saveVar, loadFixed, loadVar, CARDS, loadCategoryBudgets, saveCategoryBudgets, getBillingYmForDate } from '../utils/ccStorage'
 import AmountField from './AmountField'
+import ExpenseDialog from './ExpenseDialog'
 
 function DonutChart({ data, size = 160 }) {
   const total = data.reduce((s, d) => s + d.value, 0)
@@ -99,7 +99,6 @@ function CategoryBreakdownBase({ fixedList, varList, cardId, ym, onUpdate, prevF
   const [selectedCat, setSelectedCat] = useState(null)
   const [detailView, setDetailView] = useState('list') // 'list' | 'edit'
   const [editTarget, setEditTarget] = useState(null)
-  const [editForm, setEditForm] = useState({})
   const [budgets, setBudgets] = useState(loadCategoryBudgets)
   const [budgetDlg, setBudgetDlg] = useState(null)
 
@@ -136,41 +135,44 @@ function CategoryBreakdownBase({ fixedList, varList, cardId, ym, onUpdate, prevF
 
   function openEdit(item) {
     setEditTarget(item)
-    setEditForm({
-      name: item.name,
-      amount: item.amount,
-      category: item.category,
-      spendType: item.spendType ?? '消費',
-      date: item.date ?? '',
-    })
     setDetailView('edit')
   }
 
-  function saveEdit() {
+  // 保存は固定費/変動費の共通ダイアログ（ExpenseDialog）から呼ばれる。
+  // カード（支払い方法）が変わった場合は保存先ごと移し替える。
+  function saveEdit({ cardId: nextCard, ...data }) {
     if (!editTarget) return
-    const targetCardId = editTarget._cardId ?? cardId
-    const patch = {
-      name: editForm.name,
-      amount: Number(editForm.amount),
-      category: editForm.category,
-      spendType: editForm.spendType,
-    }
-    if (editTarget._type === 'fixed') {
-      const full = loadFixed(targetCardId)
-      const updated = full.map(x => x.id === editTarget.id ? { ...x, ...patch } : x)
-      saveFixed(targetCardId, updated)
+    const fromCard = editTarget._cardId ?? cardId
+    const toCard   = nextCard ?? fromCard
+    const isFixed  = editTarget._type === 'fixed'
+
+    if (isFixed) {
+      const rest = loadFixed(fromCard).filter(x => x.id !== editTarget.id)
+      const moved = { ...editTarget, ...data }
+      delete moved._type; delete moved._cardId
+      if (toCard === fromCard) {
+        saveFixed(fromCard, loadFixed(fromCard).map(x => x.id === editTarget.id ? moved : x))
+      } else {
+        saveFixed(fromCard, rest)
+        saveFixed(toCard, [...loadFixed(toCard), moved])
+      }
     } else {
-      const full = loadVar(targetCardId, ym)
-      const updated = full.map(x => x.id === editTarget.id ? { ...x, ...patch, date: editForm.date } : x)
-      saveVar(targetCardId, ym, updated)
+      const moved = { ...editTarget, ...data }
+      delete moved._type; delete moved._cardId
+      if (toCard === fromCard) {
+        saveVar(fromCard, ym, loadVar(fromCard, ym).map(x => x.id === editTarget.id ? moved : x))
+      } else {
+        // カードごとに締め日が違うため、移動先カードの請求月を計算して入れる
+        const toYm = getBillingYmForDate(moved.date, CARDS[toCard]?.cutoffDay ?? 0) || ym
+        saveVar(fromCard, ym, loadVar(fromCard, ym).filter(x => x.id !== editTarget.id))
+        saveVar(toCard, toYm, [...loadVar(toCard, toYm), moved]
+          .sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1))
+      }
     }
+
     onUpdate?.()
-    if (editForm.category !== selectedCat) {
-      closeDetail()
-    } else {
-      setDetailView('list')
-      setEditTarget(null)
-    }
+    if (data.category !== selectedCat || toCard !== fromCard) closeDetail()
+    else { setDetailView('list'); setEditTarget(null) }
   }
 
   const categories = loadCategories()
@@ -253,109 +255,66 @@ function CategoryBreakdownBase({ fixedList, varList, cardId, ym, onUpdate, prevF
         </CardContent>
       </Card>
 
-      <Dialog open={!!selectedCat} onClose={closeDetail} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ pb: 1, fontSize: 16 }}>
-          {detailView === 'list' ? `${selectedCat}の内訳` : '項目を編集'}
-        </DialogTitle>
+      {/* カテゴリ内訳（一覧） */}
+      <Dialog open={!!selectedCat && detailView === 'list'} onClose={closeDetail} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ pb: 1, fontSize: 16 }}>{selectedCat}の内訳</DialogTitle>
         <DialogContent sx={{ pt: 0 }}>
-          {detailView === 'list' ? (
-            <Stack divider={<Divider />}>
-              {catItems.map(item => (
-                <Stack key={item.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1 }}>
-                  <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
-                    <Stack direction="row" alignItems="center" gap={0.75} flexWrap="wrap">
+          <Stack divider={<Divider />}>
+            {catItems.map(item => (
+              <Stack key={item.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1 }}>
+                <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
+                  <Stack direction="row" alignItems="center" gap={0.75} flexWrap="wrap">
+                    <Chip
+                      label={item._type === 'fixed' ? '固定' : '変動'}
+                      size="small"
+                      sx={{
+                        height: 18,
+                        fontSize: 10,
+                        bgcolor: item._type === 'fixed' ? '#eceff1' : '#e0f2f1',
+                        color: item._type === 'fixed' ? '#546e7a' : '#00695c',
+                      }}
+                    />
+                    {item._cardId && (
                       <Chip
-                        label={item._type === 'fixed' ? '固定' : '変動'}
+                        label={CARDS[item._cardId]?.shortName ?? item._cardId}
                         size="small"
-                        sx={{
-                          height: 18,
-                          fontSize: 10,
-                          bgcolor: item._type === 'fixed' ? '#eceff1' : '#e0f2f1',
-                          color: item._type === 'fixed' ? '#546e7a' : '#00695c',
-                        }}
+                        sx={{ height: 18, fontSize: 10, bgcolor: CARDS[item._cardId]?.color ?? '#ccc', color: '#fff' }}
                       />
-                      {item._cardId && (
-                        <Chip
-                          label={CARDS[item._cardId]?.shortName ?? item._cardId}
-                          size="small"
-                          sx={{ height: 18, fontSize: 10, bgcolor: CARDS[item._cardId]?.color ?? '#ccc', color: '#fff' }}
-                        />
-                      )}
-                      <Typography variant="body2" noWrap>{item.name}</Typography>
-                    </Stack>
-                    {item._type === 'var' && item.date && (
-                      <Typography variant="caption" sx={{ color: 'text.secondary', pl: 3.5 }}>{item.date}</Typography>
                     )}
+                    <Typography variant="body2" noWrap>{item.name}</Typography>
                   </Stack>
-                  <Stack direction="row" alignItems="center" gap={0.5} sx={{ flexShrink: 0, ml: 1 }}>
-                    <Typography variant="body2" fontWeight={600}>¥{fmt(item.amount)}</Typography>
-                    <IconButton size="small" onClick={() => openEdit(item)} sx={{ color: 'text.secondary' }}>
-                      <EditIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Stack>
+                  {item._type === 'var' && item.date && (
+                    <Typography variant="caption" sx={{ color: 'text.secondary', pl: 3.5 }}>{item.date}</Typography>
+                  )}
                 </Stack>
-              ))}
-            </Stack>
-          ) : (
-            <Stack spacing={2} sx={{ mt: 1 }}>
-              <TextField
-                label="名称"
-                value={editForm.name}
-                onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                fullWidth size="small"
-              />
-              <TextField
-                label="金額"
-                type="number"
-                value={editForm.amount}
-                onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))}
-                fullWidth size="small"
-                inputProps={{ min: 0 }}
-              />
-              <FormControl fullWidth size="small">
-                <InputLabel>カテゴリ</InputLabel>
-                <Select
-                  value={editForm.category}
-                  label="カテゴリ"
-                  onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
-                >
-                  {categories.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-                </Select>
-              </FormControl>
-              <FormControl fullWidth size="small">
-                <InputLabel>消費分類</InputLabel>
-                <Select
-                  value={editForm.spendType}
-                  label="消費分類"
-                  onChange={e => setEditForm(f => ({ ...f, spendType: e.target.value }))}
-                >
-                  {SPEND_TYPES.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
-                </Select>
-              </FormControl>
-              {editTarget?._type === 'var' && (
-                <TextField
-                  label="日付"
-                  type="date"
-                  value={editForm.date}
-                  onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
-                  fullWidth size="small"
-                  InputLabelProps={{ shrink: true }}
-                />
-              )}
-            </Stack>
-          )}
+                <Stack direction="row" alignItems="center" gap={0.5} sx={{ flexShrink: 0, ml: 1 }}>
+                  <Typography variant="body2" fontWeight={600}>¥{fmt(item.amount)}</Typography>
+                  <IconButton size="small" aria-label="編集" onClick={() => openEdit(item)} sx={{ color: 'text.secondary' }}>
+                    <EditIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Stack>
+              </Stack>
+            ))}
+          </Stack>
         </DialogContent>
         <DialogActions>
-          {detailView === 'list' ? (
-            <Button onClick={closeDetail}>閉じる</Button>
-          ) : (
-            <>
-              <Button onClick={() => setDetailView('list')}>戻る</Button>
-              <Button onClick={saveEdit} variant="contained" disabled={!editForm.name || !editForm.amount}>保存</Button>
-            </>
-          )}
+          <Button onClick={closeDetail}>閉じる</Button>
         </DialogActions>
       </Dialog>
+
+      {/* 編集はクレカタブと同じ共通ダイアログを使う（入力方法を統一するため） */}
+      {detailView === 'edit' && editTarget && (
+        <ExpenseDialog
+          open
+          onClose={() => { setDetailView('list'); setEditTarget(null) }}
+          onSave={saveEdit}
+          initial={editTarget}
+          categories={categories}
+          cardId={editTarget._cardId ?? cardId}
+          isFixed={editTarget._type === 'fixed'}
+          title={editTarget._type === 'fixed' ? '固定費を編集' : '変動費を編集'}
+        />
+      )}
 
       <Dialog open={!!budgetDlg} onClose={() => setBudgetDlg(null)} fullWidth maxWidth="xs">
         <DialogTitle sx={{ pb: 1, fontSize: 15 }}>{budgetDlg?.cat} の月間予算</DialogTitle>
