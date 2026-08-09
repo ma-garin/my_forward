@@ -79,6 +79,16 @@ export const classicTheme = createTheme({
 const GLASS_BLUR = 'blur(20px) saturate(180%)'
 const noBlur = '@media (prefers-reduced-transparency: reduce)'
 
+// 入力シート（電卓・クイック入力）用の Paper 上書き。
+// MuiDrawer の paper はすりガラス（backdrop-filter）だが、電卓は 1 タップごとに
+// 中身が再描画されるため、半透明のままだとその都度背景全体のぼかしが再計算され
+// 入力が 1 テンポ遅れる。入力シートだけ不透明にして合成コストを外す。
+export const OPAQUE_SHEET = {
+  bgcolor: '#ffffff',
+  backdropFilter: 'none',
+  WebkitBackdropFilter: 'none',
+}
+
 export const appleTheme = createTheme({
   palette: {
     ...palette,

@@ -36,7 +36,9 @@ export function VarExpenseTable({ varList, onEdit, onDelete }) {
 
   return (
     <>
-      <Box sx={{ mx: -2 }}>
+      {/* 親 CardContent は px:0。ここで負マージンを掛けるとカード幅を 32px はみ出し、
+          Card の overflow:hidden で右端の削除ボタンが見切れる。 */}
+      <Box>
         {grouped.map(({ date, items }) => (
           <Box key={date}>
             <Box sx={{ px: 2, py: 0.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #eeeeee' }}>

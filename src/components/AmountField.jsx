@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { Box, Typography, TextField, Button, InputAdornment, Drawer, Stack } from '@mui/material'
 import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined'
 import { fmt } from '../utils/finance'
+import { OPAQUE_SHEET } from '../theme'
 
 export function fmtInput(raw) {
   const n = parseInt(String(raw ?? '').replace(/,/g, ''), 10)
@@ -15,10 +16,83 @@ export function parseAmount(raw) {
 
 // ─── 電卓パッド ─────────────────────────────────────────────
 
-export function CalcPad({ value, onChange, onConfirm, disabled }) {
-  const [stored, setStored] = useState(null)
-  const [op, setOp]         = useState(null)
-  const [fresh, setFresh]   = useState(false)
+// sx をモジュール定数として持つ（毎レンダーで新しいオブジェクトを作らない）。
+const KEY_BASE = {
+  minWidth: 0,
+  border: 'none',
+  borderRadius: 0,
+  py: 1.6,
+  px: 0,
+  color: '#fff',
+  fontFamily: 'inherit',
+  fontSize: 20,
+  fontWeight: 500,
+  lineHeight: 1.4,
+  cursor: 'pointer',
+  userSelect: 'none',
+  touchAction: 'manipulation',
+  WebkitTapHighlightColor: 'transparent',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  '&:active': { filter: 'brightness(0.82)' },
+  '@media (hover: hover)': { '&:hover': { filter: 'brightness(1.08)' } },
+}
+const key = (bgcolor, extra) => ({ ...KEY_BASE, bgcolor, ...extra })
+
+const SX_NUM         = key('#546e7a')
+const SX_ZERO        = key('#546e7a', { gridColumn: 'span 2' })
+const SX_OP          = key('#37474f', { fontSize: 22 })
+const SX_OP_ON       = key('#0288d1', { fontSize: 22 })
+const SX_EQ          = key('#0288d1', { fontSize: 24, fontWeight: 700 })
+const SX_CLEAR       = key('#78909c', { fontWeight: 700 })
+const SX_BACK        = key('#37474f')
+const SX_CONFIRM     = key('#c62828', { fontSize: 18, fontWeight: 700 })
+const SX_CONFIRM_OFF = key('#455a64', { fontSize: 18, fontWeight: 700, cursor: 'default' })
+const SX_GRID = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', bgcolor: '#263238', overflow: 'hidden' }
+
+/**
+ * 電卓キー。
+ * `instant` のキーは pointerdown で発火する（touchend → click を待たないので
+ * 指を置いた瞬間に反応する）。ポインタイベント非対応環境では click に落ちる。
+ * 確定系（確認）はシートを閉じるためゴーストクリックを避けて click のまま。
+ */
+const CalcKey = memo(function CalcKey({ sx, onPress, disabled, instant = true, children }) {
+  const firedRef = useRef(false)
+
+  const handlePointerDown = useCallback((e) => {
+    if (!instant || e.button > 0) return
+    firedRef.current = true
+    onPress()
+  }, [instant, onPress])
+
+  const handleClick = useCallback(() => {
+    if (firedRef.current) { firedRef.current = false; return }
+    onPress()
+  }, [onPress])
+
+  return (
+    <Box component="button" type="button" disabled={disabled}
+      onPointerDown={handlePointerDown} onClick={handleClick} sx={sx}>
+      {children}
+    </Box>
+  )
+})
+
+export const CalcPad = memo(function CalcPad({ value, onChange, onConfirm, disabled }) {
+  // 表示に必要な状態だけ state に持つ（演算子ハイライト用）。
+  const [op, setOp]       = useState(null)
+  const [fresh, setFresh] = useState(false)
+
+  // ハンドラは ref 経由で最新値を読むので依存ゼロ＝参照が固定される。
+  // これで 20 個のキーが memo でバイパスされ、1 タップの再レンダーが最小になる。
+  // ref の更新はコミット後（キー押下より必ず前）に行う。
+  const ref = useRef({ value, onChange, onConfirm, stored: null, op: null, fresh: false })
+  useEffect(() => {
+    ref.current.value     = value
+    ref.current.onChange  = onChange
+    ref.current.onConfirm = onConfirm
+  })
 
   const calc = (a, b, operator) => {
     switch (operator) {
@@ -30,75 +104,90 @@ export function CalcPad({ value, onChange, onConfirm, disabled }) {
     }
   }
 
-  const pressDigit = (d) => {
-    if (fresh) { onChange(d === '00' ? '0' : d); setFresh(false) }
-    else { onChange((value === '0' ? '' : (value ?? '')) + d) }
-  }
+  const putOp = useCallback((next) => { ref.current.op = next; setOp(next) }, [])
+  const putFresh = useCallback((v) => { ref.current.fresh = v; setFresh(v) }, [])
 
-  const pressOp = (next) => {
-    const cur = parseAmount(value)
-    if (stored !== null && op && !fresh) {
-      const r = calc(stored, cur, op); setStored(r); onChange(String(r))
-    } else { setStored(cur) }
-    setOp(next); setFresh(true)
-  }
+  const pressDigit = useCallback((d) => {
+    const r = ref.current
+    if (r.fresh) { r.onChange(d === '00' ? '0' : d); putFresh(false) }
+    else { r.onChange((r.value === '0' ? '' : (r.value ?? '')) + d) }
+  }, [putFresh])
 
-  const pressBackspace = () => {
-    const s = String(value ?? '')
-    onChange(s.length <= 1 ? '' : s.slice(0, -1))
-  }
+  const pressOp = useCallback((next) => {
+    const r = ref.current
+    const cur = parseAmount(r.value)
+    if (r.stored !== null && r.op && !r.fresh) {
+      const v = calc(r.stored, cur, r.op); r.stored = v; r.onChange(String(v))
+    } else { r.stored = cur }
+    putOp(next); putFresh(true)
+  }, [putOp, putFresh])
 
-  const pressClear = () => { onChange(''); setStored(null); setOp(null); setFresh(false) }
+  const pressBackspace = useCallback(() => {
+    const s = String(ref.current.value ?? '')
+    ref.current.onChange(s.length <= 1 ? '' : s.slice(0, -1))
+  }, [])
 
-  const pressEquals = () => {
-    if (stored !== null && op) {
-      const r = calc(stored, parseAmount(value), op)
-      onChange(String(r)); setStored(null); setOp(null); setFresh(false)
+  const pressClear = useCallback(() => {
+    const r = ref.current
+    r.onChange(''); r.stored = null; putOp(null); putFresh(false)
+  }, [putOp, putFresh])
+
+  const pressEquals = useCallback(() => {
+    const r = ref.current
+    if (r.stored !== null && r.op) {
+      r.onChange(String(calc(r.stored, parseAmount(r.value), r.op)))
+      r.stored = null; putOp(null); putFresh(false)
     }
-  }
+  }, [putOp, putFresh])
 
-  const pressConfirm = () => {
-    let finalVal = value
-    if (stored !== null && op) {
-      finalVal = String(calc(stored, parseAmount(value), op))
-      onChange(finalVal)
-      setStored(null); setOp(null); setFresh(false)
+  const pressConfirm = useCallback(() => {
+    const r = ref.current
+    let finalVal = r.value
+    if (r.stored !== null && r.op) {
+      finalVal = String(calc(r.stored, parseAmount(r.value), r.op))
+      r.onChange(finalVal)
+      r.stored = null; putOp(null); putFresh(false)
     }
-    onConfirm(finalVal)
-  }
+    r.onConfirm(finalVal)
+  }, [putOp, putFresh])
 
-  const BASE = { minWidth: 0, fontSize: 20, fontWeight: 500, borderRadius: 0, py: 1.6, color: '#fff', border: 'none' }
-  const bg   = (c) => ({ bgcolor: c, '&:hover': { bgcolor: c, filter: 'brightness(1.1)' }, '&:active': { filter: 'brightness(0.85)' } })
-  const numBtn = (label, handler) => (
-    <Button key={label} onClick={handler ?? (() => pressDigit(label))} sx={{ ...BASE, ...bg('#546e7a') }}>{label}</Button>
+  // 数字・演算子ごとの押下ハンドラも参照を固定する。
+  const digitHandlers = useRef({})
+  const digitPress = (d) => (digitHandlers.current[d] ??= () => pressDigit(d))
+  const opHandlers = useRef({})
+  const opPress = (o) => (opHandlers.current[o] ??= () => pressOp(o))
+
+  const numKey = (label, sx = SX_NUM) => (
+    <CalcKey key={label} sx={sx} onPress={digitPress(label)}>{label}</CalcKey>
   )
-  const opBtn = (label) => (
-    <Button key={label} onClick={() => pressOp(label)}
-      sx={{ ...BASE, ...bg(op === label && fresh ? '#0288d1' : '#37474f'), fontSize: 22 }}>{label}</Button>
+  const opKey = (label) => (
+    <CalcKey key={label} sx={op === label && fresh ? SX_OP_ON : SX_OP} onPress={opPress(label)}>{label}</CalcKey>
   )
 
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', bgcolor: '#263238', overflow: 'hidden' }}>
-      {opBtn('+')} {opBtn('−')} {opBtn('×')} {opBtn('÷')}
-      {numBtn('7')} {numBtn('8')} {numBtn('9')}
-      <Button onClick={pressEquals} sx={{ ...BASE, ...bg('#0288d1'), fontSize: 24, fontWeight: 700 }}>=</Button>
-      {numBtn('4')} {numBtn('5')} {numBtn('6')}
-      <Button onClick={pressClear} sx={{ ...BASE, ...bg('#78909c'), fontWeight: 700 }}>C</Button>
-      {numBtn('1')} {numBtn('2')} {numBtn('3')}
-      <Button onClick={pressBackspace} sx={{ ...BASE, ...bg('#37474f') }}>
+    <Box sx={SX_GRID}>
+      {opKey('+')} {opKey('−')} {opKey('×')} {opKey('÷')}
+      {numKey('7')} {numKey('8')} {numKey('9')}
+      <CalcKey sx={SX_EQ} onPress={pressEquals}>=</CalcKey>
+      {numKey('4')} {numKey('5')} {numKey('6')}
+      <CalcKey sx={SX_CLEAR} onPress={pressClear}>C</CalcKey>
+      {numKey('1')} {numKey('2')} {numKey('3')}
+      <CalcKey sx={SX_BACK} onPress={pressBackspace}>
         <BackspaceOutlinedIcon sx={{ fontSize: 22 }} />
-      </Button>
-      <Button onClick={() => pressDigit('0')} sx={{ ...BASE, ...bg('#546e7a'), gridColumn: 'span 2' }}>0</Button>
-      {numBtn('00')}
-      <Button onClick={pressConfirm} disabled={disabled}
-        sx={{ ...BASE, ...bg(disabled ? '#455a64' : '#c62828'), fontWeight: 700, fontSize: 18 }}>
+      </CalcKey>
+      {numKey('0', SX_ZERO)}
+      {numKey('00')}
+      <CalcKey sx={disabled ? SX_CONFIRM_OFF : SX_CONFIRM} onPress={pressConfirm} disabled={disabled} instant={false}>
         確認
-      </Button>
+      </CalcKey>
     </Box>
   )
-}
+})
 
 // ─── 金額入力フィールド ─────────────────────────────────────
+
+const SHEET_PAPER_SX = { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto', ...OPAQUE_SHEET }
+const SHEET_TIMEOUT = { enter: 220, exit: 180 }
 
 export default function AmountField({ value, onChange, large = false, dark = false, label, placeholder = '0', autoFocus = false, inputSx = {}, allowZero = false }) {
   const [open, setOpen] = useState(false)
@@ -110,10 +199,15 @@ export default function AmountField({ value, onChange, large = false, dark = fal
     setDraft(allowZero ? String(n) : String(n || ''))
     setOpen(true)
   }
-  const handleConfirm = (val) => {
-    onChange((val ?? draft).replace(/[^0-9]/g, ''))
+
+  // CalcPad の onConfirm は参照を固定する（毎レンダーで作り直すとキーが再レンダーされる）。
+  const latest = useRef({ draft, onChange })
+  useEffect(() => { latest.current = { draft, onChange } })
+  const handleConfirm = useCallback((val) => {
+    const { draft: d, onChange: cb } = latest.current
+    cb(String(val ?? d).replace(/[^0-9]/g, ''))
     setOpen(false)
-  }
+  }, [])
 
   const darkSx = dark ? {
     '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,.1)', ...(large ? { height: 64 } : { height: 26 }) },
@@ -152,8 +246,9 @@ export default function AmountField({ value, onChange, large = false, dark = fal
         open={open}
         onClose={() => setOpen(false)}
         disableScrollLock
+        transitionDuration={SHEET_TIMEOUT}
         sx={{ zIndex: 1500 }}
-        PaperProps={{ sx: { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' } }}
+        PaperProps={{ sx: SHEET_PAPER_SX }}
       >
         <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
           <Box sx={{ width: 36, height: 4, bgcolor: '#ccc', borderRadius: 2, mx: 'auto' }} />
