@@ -57,19 +57,28 @@ const SX_GRID = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '
  * 指を置いた瞬間に反応する）。ポインタイベント非対応環境では click に落ちる。
  * 確定系（確認）はシートを閉じるためゴーストクリックを避けて click のまま。
  */
-const CalcKey = memo(function CalcKey({ sx, onPress, disabled, instant = true, children }) {
+const BACKSPACE_ICON = <BackspaceOutlinedIcon sx={{ fontSize: 22 }} />
+
+/**
+ * 電卓キー。
+ * `instant` のキーは pointerdown で発火する（touchend → click を待たないので
+ * 指を置いた瞬間に反応する）。ポインタイベント非対応環境では click に落ちる。
+ * 確定系（確認）はシートを閉じるためゴーストクリックを避けて click のまま。
+ * 押下値は `arg` として渡す（キーごとにクロージャを作らないので memo が効く）。
+ */
+const CalcKey = memo(function CalcKey({ sx, onPress, arg, disabled, instant = true, children }) {
   const firedRef = useRef(false)
 
   const handlePointerDown = useCallback((e) => {
     if (!instant || e.button > 0) return
     firedRef.current = true
-    onPress()
-  }, [instant, onPress])
+    onPress(arg)
+  }, [instant, onPress, arg])
 
   const handleClick = useCallback(() => {
     if (firedRef.current) { firedRef.current = false; return }
-    onPress()
-  }, [onPress])
+    onPress(arg)
+  }, [onPress, arg])
 
   return (
     <Box component="button" type="button" disabled={disabled}
@@ -79,17 +88,19 @@ const CalcKey = memo(function CalcKey({ sx, onPress, disabled, instant = true, c
   )
 })
 
-export const CalcPad = memo(function CalcPad({ value, onChange, onConfirm, disabled }) {
-  // 表示に必要な状態だけ state に持つ（演算子ハイライト用）。
-  const [op, setOp]       = useState(null)
-  const [fresh, setFresh] = useState(false)
+/**
+ * 電卓パッド。
+ * 入力値は `valueRef`（呼び出し側が持つ ref）から読む。value を prop で受けると
+ * 1 タップごとに props が変わって memo が必ず外れ、パッド全体が再レンダーされる。
+ * 表示に使う state は演算子ハイライト用の `activeOp` だけに絞る。
+ */
+export const CalcPad = memo(function CalcPad({ valueRef, onChange, onConfirm, disabled }) {
+  const [activeOp, setActiveOp] = useState(null)
 
   // ハンドラは ref 経由で最新値を読むので依存ゼロ＝参照が固定される。
-  // これで 20 個のキーが memo でバイパスされ、1 タップの再レンダーが最小になる。
   // ref の更新はコミット後（キー押下より必ず前）に行う。
-  const ref = useRef({ value, onChange, onConfirm, stored: null, op: null, fresh: false })
+  const ref = useRef({ onChange, onConfirm, stored: null, op: null, fresh: false })
   useEffect(() => {
-    ref.current.value     = value
     ref.current.onChange  = onChange
     ref.current.onConfirm = onConfirm
   })
@@ -104,64 +115,60 @@ export const CalcPad = memo(function CalcPad({ value, onChange, onConfirm, disab
     }
   }
 
-  const putOp = useCallback((next) => { ref.current.op = next; setOp(next) }, [])
-  const putFresh = useCallback((v) => { ref.current.fresh = v; setFresh(v) }, [])
-
   const pressDigit = useCallback((d) => {
     const r = ref.current
-    if (r.fresh) { r.onChange(d === '00' ? '0' : d); putFresh(false) }
-    else { r.onChange((r.value === '0' ? '' : (r.value ?? '')) + d) }
-  }, [putFresh])
+    if (r.fresh) { r.onChange(d === '00' ? '0' : d); r.fresh = false; setActiveOp(null) }
+    else {
+      const cur = valueRef.current
+      r.onChange((cur === '0' ? '' : (cur ?? '')) + d)
+    }
+  }, [valueRef])
 
   const pressOp = useCallback((next) => {
     const r = ref.current
-    const cur = parseAmount(r.value)
+    const cur = parseAmount(valueRef.current)
     if (r.stored !== null && r.op && !r.fresh) {
       const v = calc(r.stored, cur, r.op); r.stored = v; r.onChange(String(v))
     } else { r.stored = cur }
-    putOp(next); putFresh(true)
-  }, [putOp, putFresh])
+    r.op = next; r.fresh = true; setActiveOp(next)
+  }, [valueRef])
 
   const pressBackspace = useCallback(() => {
-    const s = String(ref.current.value ?? '')
-    ref.current.onChange(s.length <= 1 ? '' : s.slice(0, -1))
-  }, [])
+    const cur = String(valueRef.current ?? '')
+    ref.current.onChange(cur.length <= 1 ? '' : cur.slice(0, -1))
+  }, [valueRef])
+
+  const reset = (r) => { r.stored = null; r.op = null; r.fresh = false; setActiveOp(null) }
 
   const pressClear = useCallback(() => {
     const r = ref.current
-    r.onChange(''); r.stored = null; putOp(null); putFresh(false)
-  }, [putOp, putFresh])
+    r.onChange(''); reset(r)
+  }, [])
 
   const pressEquals = useCallback(() => {
     const r = ref.current
     if (r.stored !== null && r.op) {
-      r.onChange(String(calc(r.stored, parseAmount(r.value), r.op)))
-      r.stored = null; putOp(null); putFresh(false)
+      r.onChange(String(calc(r.stored, parseAmount(valueRef.current), r.op)))
+      reset(r)
     }
-  }, [putOp, putFresh])
+  }, [valueRef])
 
   const pressConfirm = useCallback(() => {
     const r = ref.current
-    let finalVal = r.value
+    let finalVal = valueRef.current
     if (r.stored !== null && r.op) {
-      finalVal = String(calc(r.stored, parseAmount(r.value), r.op))
+      finalVal = String(calc(r.stored, parseAmount(valueRef.current), r.op))
       r.onChange(finalVal)
-      r.stored = null; putOp(null); putFresh(false)
+      reset(r)
     }
     r.onConfirm(finalVal)
-  }, [putOp, putFresh])
-
-  // 数字・演算子ごとの押下ハンドラも参照を固定する。
-  const digitHandlers = useRef({})
-  const digitPress = (d) => (digitHandlers.current[d] ??= () => pressDigit(d))
-  const opHandlers = useRef({})
-  const opPress = (o) => (opHandlers.current[o] ??= () => pressOp(o))
+  }, [valueRef])
 
   const numKey = (label, sx = SX_NUM) => (
-    <CalcKey key={label} sx={sx} onPress={digitPress(label)}>{label}</CalcKey>
+    <CalcKey key={label} sx={sx} onPress={pressDigit} arg={label}>{label}</CalcKey>
   )
   const opKey = (label) => (
-    <CalcKey key={label} sx={op === label && fresh ? SX_OP_ON : SX_OP} onPress={opPress(label)}>{label}</CalcKey>
+    <CalcKey key={label} sx={activeOp === label ? SX_OP_ON : SX_OP} onPress={pressOp} arg={label}>{label}</CalcKey>
   )
 
   return (
@@ -172,9 +179,7 @@ export const CalcPad = memo(function CalcPad({ value, onChange, onConfirm, disab
       {numKey('4')} {numKey('5')} {numKey('6')}
       <CalcKey sx={SX_CLEAR} onPress={pressClear}>C</CalcKey>
       {numKey('1')} {numKey('2')} {numKey('3')}
-      <CalcKey sx={SX_BACK} onPress={pressBackspace}>
-        <BackspaceOutlinedIcon sx={{ fontSize: 22 }} />
-      </CalcKey>
+      <CalcKey sx={SX_BACK} onPress={pressBackspace}>{BACKSPACE_ICON}</CalcKey>
       {numKey('0', SX_ZERO)}
       {numKey('00')}
       <CalcKey sx={disabled ? SX_CONFIRM_OFF : SX_CONFIRM} onPress={pressConfirm} disabled={disabled} instant={false}>
@@ -200,12 +205,15 @@ export default function AmountField({ value, onChange, large = false, dark = fal
     setOpen(true)
   }
 
-  // CalcPad の onConfirm は参照を固定する（毎レンダーで作り直すとキーが再レンダーされる）。
-  const latest = useRef({ draft, onChange })
-  useEffect(() => { latest.current = { draft, onChange } })
+  // CalcPad へは値を ref で渡す（prop で渡すと 1 タップごとに memo が外れる）。
+  const draftRef = useRef(draft)
+  useEffect(() => { draftRef.current = draft })
+
+  // onConfirm の参照も固定する（毎レンダーで作り直すとキーが再レンダーされる）。
+  const onChangeRef = useRef(onChange)
+  useEffect(() => { onChangeRef.current = onChange })
   const handleConfirm = useCallback((val) => {
-    const { draft: d, onChange: cb } = latest.current
-    cb(String(val ?? d).replace(/[^0-9]/g, ''))
+    onChangeRef.current(String(val ?? '').replace(/[^0-9]/g, ''))
     setOpen(false)
   }, [])
 
@@ -257,7 +265,7 @@ export default function AmountField({ value, onChange, large = false, dark = fal
           {label
             ? <Typography variant="caption" color="text.secondary">{label}</Typography>
             : <Box />}
-          <Button size="small" onClick={() => handleConfirm(undefined)}
+          <Button size="small" onClick={() => handleConfirm(draft)}
             sx={{ fontSize: 13, fontWeight: 600, minWidth: 0, px: 1, py: 0, color: 'primary.main', textTransform: 'none' }}>
             完了
           </Button>
@@ -268,7 +276,7 @@ export default function AmountField({ value, onChange, large = false, dark = fal
             {parseAmount(draft) > 0 ? fmt(parseAmount(draft)) : '0'}
           </Typography>
         </Box>
-        <CalcPad value={draft} onChange={setDraft} onConfirm={handleConfirm} disabled={!allowZero && parseAmount(draft) <= 0} />
+        <CalcPad valueRef={draftRef} onChange={setDraft} onConfirm={handleConfirm} disabled={!allowZero && parseAmount(draft) <= 0} />
       </Drawer>
     </Box>
   )

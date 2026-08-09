@@ -4,15 +4,14 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material'
-import { CARDS, SPEND_TYPES, SPEND_TYPE_COLORS } from '../utils/ccStorage'
+import { CARD_LIST, SPEND_TYPES, SPEND_TYPE_COLORS } from '../utils/ccStorage'
+import { ymStr } from '../utils/finance'
 import AmountField, { parseAmount } from './AmountField'
-
-const CARD_LIST = Object.values(CARDS)
 
 // 固定費・変動費・カテゴリ別集計のいずれからも同じダイアログで編集する。
 // （画面ごとに別フォームを持つと入力方法が食い違うため、ここに一本化する）
 
-export default function ExpenseDialog({ open, onClose, onSave, initial, title, categories, cardId, isFixed: isFixedProp }) {
+export default function ExpenseDialog({ open, onClose, onSave, initial, title, categories, cardId, isFixed }) {
   const [card,           setCard]           = useState(cardId)
   const [name,           setName]           = useState(initial?.name           ?? '')
   const [payee,          setPayee]          = useState(initial?.payee          ?? '')
@@ -27,7 +26,6 @@ export default function ExpenseDialog({ open, onClose, onSave, initial, title, c
   const [baseYm,         setBaseYm]         = useState(initial?.baseYm         ?? '')
   const [targetYm,       setTargetYm]       = useState(initial?.targetYm       ?? '')
 
-  const isFixed = isFixedProp ?? title?.includes('固定')
 
   const handleSave = () => {
     const a = parseAmount(amount)
@@ -95,8 +93,7 @@ export default function ExpenseDialog({ open, onClose, onSave, initial, title, c
                 value={(() => {
                   if (!day) return ''
                   const now = new Date()
-                  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-                  return `${ym}-${String(day).padStart(2, '0')}`
+                  return `${ymStr(now.getFullYear(), now.getMonth() + 1)}-${String(day).padStart(2, '0')}`
                 })()}
                 onChange={(e) => {
                   const d = e.target.value ? parseInt(e.target.value.slice(8), 10) : ''

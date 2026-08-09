@@ -15,17 +15,16 @@ import SettingsIcon from '@mui/icons-material/Settings'
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import SwipeableDrawer from '@mui/material/SwipeableDrawer'
 import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm } from '../utils/finance'
 import {
   CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
   prevBusinessDay, nextBusinessDay, sumLiving, getBillingYmForDate,
   loadFixed, saveFixed, loadVar, saveVar,
+  CARD_LIST, billingYmForCard, upsertFixedItem, upsertVarItem,
   loadLimit, saveLimit, loadBilled, saveBilled,
 } from '../utils/ccStorage'
 import AmountField, { CalcPad, parseAmount } from '../components/AmountField'
 import ExpenseDialog from '../components/ExpenseDialog'
-import { OPAQUE_SHEET } from '../theme'
 import { VarExpenseTable, DailyBarChart, ExpenseRow, ExpenseGroupHeader } from '../components/CCExpenseViews'
 import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/CategoryViews'
 import LivingExpenseCard from '../components/LivingExpenseCard'
@@ -175,267 +174,8 @@ function CategoryDialog({ open, onClose, categories, onChange }) {
 
 // ─── 費用入力ダイアログ ───────────────────────────────────
 
-// ─── 変動費クイック入力（ボトムシート）──────────────────
-
-// ─── 変動費クイック入力（ボトムシート）──────────────────
-
-const TYPE_DEFS = [
-  { value: 'income',   label: '収入', color: '#1565c0' },
-  { value: 'expense',  label: '支出', color: '#c62828' },
-  { value: 'transfer', label: '振替', color: '#37474f' },
-]
-
-// レンダーごとに作り直さない静的スタイル・定数（電卓入力時の再計算を減らす）
-const ROW   = { display: 'flex', alignItems: 'center', px: 2, minHeight: 48, borderBottom: '1px solid #f0f0f0' }
-const ROW_TAP = { ...ROW, cursor: 'pointer' }
-const ROW_GAP = { ...ROW, gap: 1 }
-const LABEL = { fontSize: 13, color: '#757575', width: 52, flexShrink: 0 }
-const SELECT_SX = { flex: 1, fontSize: 15, '& .MuiSelect-select': { p: 0 } }
-const INPUT_SX  = { flex: 1, fontSize: 15 }
-const CARD_LIST = Object.values(CARDS)
+// AddExpenseScreen で使う静的定数（レンダーごとに作り直さない）
 const HIDDEN_DATE_STYLE = { position: 'fixed', opacity: 0, pointerEvents: 'none', width: 1, height: 1, top: '-100px' }
-const QUICK_ADD_TIMEOUT = { enter: 240, exit: 190 }
-
-const fmtDate = (d) => { const [y, m, day] = d.split('-'); return `${y}/${m}/${day}` }
-
-function QuickAddDrawer({ open, onClose, onSave, categories, defaultDate, onEditCategories, currentCardId }) {
-  const [type,      setType]      = useState('expense')
-  const [amount,    setAmount]    = useState('')
-  const [category,  setCategory]  = useState(categories[0] ?? 'その他')
-  const [name,      setName]      = useState('')
-  const [payee,     setPayee]     = useState('')
-  const [memo,      setMemo]      = useState('')
-  const [date,      setDate]      = useState(defaultDate)
-  const [card,      setCard]      = useState(currentCardId)
-  const [fromCard,  setFromCard]  = useState(currentCardId)
-  const [toCard,    setToCard]    = useState(currentCardId === 'jcb' ? 'smbc' : 'jcb')
-  const [spendType, setSpendType] = useState('消費')
-  const [catOpen,     setCatOpen]     = useState(false)
-  const [textFocused, setTextFocused] = useState(false)
-  const dateInputRef = useRef(null)
-
-  const [maxH, setMaxH] = useState('90vh')
-  useEffect(() => {
-    const vv = window.visualViewport
-    if (!vv) return
-    const onResize = () => setMaxH(vv.height ?? window.innerHeight)
-    vv.addEventListener('resize', onResize)
-    return () => vv.removeEventListener('resize', onResize)
-  }, [])
-
-  useEffect(() => { if (!open) { setDate(defaultDate); setCard(currentCardId) } }, [defaultDate, currentCardId, open])
-
-  const reset = () => {
-    setType('expense'); setDate(defaultDate); setAmount('')
-    setName(''); setPayee(''); setMemo('')
-    setCategory(categories[0] ?? 'その他'); setCatOpen(false)
-    setCard(currentCardId); setFromCard(currentCardId)
-    setToCard(currentCardId === 'jcb' ? 'smbc' : 'jcb')
-    setSpendType('消費')
-  }
-
-  // 電卓の 1 タップごとに doSave の参照が変わると CalcPad 全体が再レンダーされる。
-  // 最新の入力値は ref から読み、ハンドラの参照は固定する。
-  // ref の更新はコミット後（キー押下より必ず前）に行う。
-  const formRef = useRef({})
-  useEffect(() => {
-    formRef.current = { type, amount, fromCard, toCard, memo, date, card, name, payee, category, spendType }
-  })
-
-  const doSave = useCallback(() => {
-    const f = formRef.current
-    const a = parseAmount(f.amount)
-    if (a <= 0) return
-    if (f.type === 'transfer') {
-      if (f.fromCard === f.toCard) return
-      onSave({ transfer: true, fromCard: f.fromCard, toCard: f.toCard, item: { name: f.memo.trim() || '振替', amount: a, category: 'その他', date: f.date } })
-    } else {
-      onSave({
-        cardId: f.card,
-        item: {
-          name: f.name.trim() || (f.type === 'income' ? '収入' : f.category),
-          payee: f.payee.trim(), amount: a, category: f.category, date: f.date,
-          ...(f.type === 'income' ? { sign: 1 } : { spendType: f.spendType }),
-        },
-      })
-    }
-    reset(); onClose()
-    // reset は毎レンダー再生成されるが ref 経由の値のみ使うため依存に含めない
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onSave, onClose])
-
-  const typeColor = TYPE_DEFS.find(t => t.value === type)?.color ?? '#333'
-
-  const paperSx = useMemo(() => ({
-    borderRadius: '16px 16px 0 0', maxWidth: 600, mx: 'auto',
-    display: 'flex', flexDirection: 'column', maxHeight: maxH,
-    // Apple 風テーマの Drawer は paper にすりガラス（backdrop-filter）が掛かる。
-    // 電卓の入力で中身が毎タップ再描画されるとその都度ぼかしが再計算され、
-    // 体感で 1 テンポ遅れる。入力シートだけ不透明にして合成コストを外す。
-    ...OPAQUE_SHEET,
-  }), [maxH])
-
-  // 金額（電卓）以外のフォームは amount に依存しない。
-  // メモ化して、キー入力ごとに Select / InputBase まで再レンダーされるのを防ぐ。
-  const formArea = useMemo(() => (
-    <>
-      {/* タイプタブ */}
-      <Stack direction="row" sx={{ borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
-        {TYPE_DEFS.map(({ value, label, color }) => (
-          <Box key={value} flex={1} onClick={() => setType(value)} sx={{
-            textAlign: 'center', py: 1.5, fontSize: 14, cursor: 'pointer', userSelect: 'none',
-            fontWeight: type === value ? 700 : 400,
-            color: type === value ? color : '#9e9e9e',
-            borderBottom: type === value ? `3px solid ${color}` : '3px solid transparent',
-            transition: 'all .15s',
-          }}>{label}</Box>
-        ))}
-      </Stack>
-
-      {/* フォームエリア（スクロール可） */}
-      <Box sx={{ flex: 1, overflowY: 'auto' }}>
-        {/* 日付 */}
-        <Box sx={ROW_TAP} onClick={() => dateInputRef.current?.click()}>
-          <Typography sx={LABEL}>日付</Typography>
-          <Typography sx={INPUT_SX}>{fmtDate(date)}</Typography>
-          <input ref={dateInputRef} type="date" value={date} onChange={e => setDate(e.target.value)}
-            style={HIDDEN_DATE_STYLE} />
-        </Box>
-
-        {/* 収入 / 支出 */}
-        {(type === 'expense' || type === 'income') && (
-          <>
-            {type === 'expense' && (
-              <>
-                <Box sx={ROW_TAP} onClick={() => setCatOpen(v => !v)}>
-                  <Typography sx={LABEL}>分類</Typography>
-                  <Typography sx={INPUT_SX}>{category}</Typography>
-                  <IconButton size="small" aria-label="カテゴリ設定" onClick={e => { e.stopPropagation(); onEditCategories() }} sx={{ p: 0.75 }}>
-                    <SettingsIcon sx={{ fontSize: 15, color: 'text.disabled' }} />
-                  </IconButton>
-                </Box>
-                {catOpen && (
-                  <Box sx={{ px: 2, py: 1, bgcolor: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
-                    <Stack direction="row" flexWrap="wrap" gap={0.75}>
-                      {categories.map(cat => (
-                        <Chip key={cat} label={cat} onClick={() => { setCategory(cat); setCatOpen(false) }} sx={{
-                          fontWeight: category === cat ? 700 : 400, fontSize: 12,
-                          bgcolor: category === cat ? (CATEGORY_COLORS[cat] ?? '#e0e0e0') : '#f5f5f5',
-                          border: category === cat ? '2px solid' : '1px solid transparent',
-                          borderColor: category === cat ? 'primary.main' : 'transparent',
-                        }} />
-                      ))}
-                    </Stack>
-                  </Box>
-                )}
-              </>
-            )}
-
-            {type === 'expense' && (
-              <Box sx={ROW_GAP}>
-                <Typography sx={LABEL}>消費分類</Typography>
-                <Stack direction="row" gap={0.75}>
-                  {SPEND_TYPES.map(t => (
-                    <Box key={t} onClick={() => setSpendType(t)} sx={{
-                      px: 1.25, py: 0.4, borderRadius: 2, cursor: 'pointer', fontSize: 13, userSelect: 'none',
-                      bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
-                      color: spendType === t ? '#fff' : '#757575',
-                      fontWeight: spendType === t ? 700 : 400,
-                    }}>{t}</Box>
-                  ))}
-                </Stack>
-              </Box>
-            )}
-
-            <Box sx={ROW}>
-              <Typography sx={LABEL}>支払先</Typography>
-              <InputBase fullWidth placeholder="省略可" value={payee}
-                onChange={e => setPayee(e.target.value)} sx={INPUT_SX}
-                onFocus={() => setTextFocused(true)} onBlur={() => setTextFocused(false)} />
-            </Box>
-
-            <Box sx={ROW}>
-              <Typography sx={LABEL}>項目名</Typography>
-              <InputBase fullWidth placeholder="省略可" value={name}
-                onChange={e => setName(e.target.value)} sx={INPUT_SX}
-                onFocus={() => setTextFocused(true)} onBlur={() => setTextFocused(false)} />
-            </Box>
-
-            {type === 'expense' && (
-              <Box sx={ROW}>
-                <Typography sx={LABEL}>カード</Typography>
-                <Select value={card} onChange={e => setCard(e.target.value)}
-                  variant="standard" disableUnderline sx={SELECT_SX}>
-                  {CARD_LIST.map(c => <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>)}
-                </Select>
-              </Box>
-            )}
-          </>
-        )}
-
-        {/* 振替 */}
-        {type === 'transfer' && (
-          <>
-            <Box sx={ROW}>
-              <Typography sx={LABEL}>出金</Typography>
-              <Select value={fromCard} onChange={e => setFromCard(e.target.value)}
-                variant="standard" disableUnderline sx={SELECT_SX}>
-                {CARD_LIST.map(c => <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>)}
-              </Select>
-            </Box>
-            <Box sx={ROW}>
-              <Typography sx={LABEL}>入金</Typography>
-              <Select value={toCard} onChange={e => setToCard(e.target.value)}
-                variant="standard" disableUnderline sx={SELECT_SX}>
-                {CARD_LIST.map(c => <MenuItem key={c.id} value={c.id}>{c.shortName}</MenuItem>)}
-              </Select>
-            </Box>
-            <Box sx={ROW}>
-              <Typography sx={LABEL}>内容</Typography>
-              <InputBase fullWidth placeholder="省略可" value={memo}
-                onChange={e => setMemo(e.target.value)} sx={INPUT_SX}
-                onFocus={() => setTextFocused(true)} onBlur={() => setTextFocused(false)} />
-            </Box>
-          </>
-        )}
-      </Box>
-    </>
-  ), [type, date, category, catOpen, spendType, payee, name, card, fromCard, toCard, memo, categories, onEditCategories])
-
-  return (
-    <SwipeableDrawer
-      anchor="bottom" open={open}
-      onClose={onClose} onOpen={reset}
-      disableSwipeToOpen disableScrollLock
-      transitionDuration={QUICK_ADD_TIMEOUT}
-      PaperProps={{ sx: paperSx }}
-    >
-      {formArea}
-
-      {/* 金額ディスプレイ・電卓（テキスト入力中は非表示） */}
-      {!textFocused && (
-        <>
-          <Box sx={{
-            bgcolor: '#263238', px: 2, py: 1.5, flexShrink: 0,
-            display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 0.5,
-          }}>
-            {type !== 'transfer' && (
-              <Typography sx={{ color: typeColor, fontSize: 20, fontWeight: 700, mr: 0.25 }}>
-                {type === 'income' ? '+' : '−'}
-              </Typography>
-            )}
-            <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 20, mr: 0.5 }}>¥</Typography>
-            <Typography sx={{ color: '#fff', fontSize: 36, fontWeight: 700, fontVariantNumeric: 'tabular-nums', minHeight: 44 }}>
-              {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
-            </Typography>
-          </Box>
-          <CalcPad value={amount} onChange={setAmount} onConfirm={doSave} disabled={parseAmount(amount) <= 0} />
-        </>
-      )}
-    </SwipeableDrawer>
-  )
-}
-
 
 // ─── 固定費テーブル ───────────────────────────────────────
 
@@ -452,51 +192,47 @@ function recurrenceNotes(item) {
 // 固定費リスト。変動費と同じ ExpenseRow / ExpenseGroupHeader を使い、
 // 変動費が「日付」でグループ化するのに合わせて「支払日」でグループ化する。
 function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onToggleBilled }) {
+  // 並べ替え・累計・グループ化・補足行は fixedList が変わったときだけ計算する
+  // （親の再レンダーごとにやり直さない）。行の props 参照も安定するので
+  // ExpenseRow の memo が効く。
+  const grouped = useMemo(() => {
+    const sorted = [...fixedList].sort((a, b) => (a.day ?? 99) - (b.day ?? 99))
+    const out = []
+    let running = 0
+    sorted.forEach(item => {
+      running += item.amount
+      // 固定費は消費分類を持たない。既存データに残っていても行には出さない。
+      const { spendType: _drop, ...rest } = item
+      const row  = { ...rest, subtotal: running, notes: recurrenceNotes(item) }
+      const key  = item.day == null ? '—' : String(item.day)
+      const last = out[out.length - 1]
+      if (last && last.key === key) { last.items.push(row); last.total += item.amount }
+      else out.push({ key, items: [row], total: item.amount })
+    })
+    return out
+  }, [fixedList])
+
   if (fixedList.length === 0) return (
     <Typography variant="caption" color="text.disabled" sx={{ py: 1, display: 'block' }}>
       固定費を追加してください
     </Typography>
   )
 
-  // 支払日の昇順（未設定は最後）に並べてからグループ化する
-  const sorted = [...fixedList].sort((a, b) => {
-    const da = a.day == null ? 99 : a.day
-    const db = b.day == null ? 99 : b.day
-    return da - db
-  })
-
-  let running = 0
-  const rows = sorted.map((item) => {
-    running += item.amount
-    return { ...item, subtotal: running }
-  })
-
-  const grouped = []
-  rows.forEach(item => {
-    const key  = item.day == null ? '—' : String(item.day)
-    const last = grouped[grouped.length - 1]
-    if (last && last.key === key) last.items.push(item)
-    else grouped.push({ key, items: [item] })
-  })
-
   return (
     <Box>
-      {grouped.map(({ key, items }) => (
+      {grouped.map(({ key, items, total }) => (
         <Box key={key}>
-          <ExpenseGroupHeader
-            label={key === '—' ? '支払日未設定' : `毎月${key}日`}
-            total={items.reduce((s, x) => s + x.amount, 0)}
-          />
+          <ExpenseGroupHeader label={key === '—' ? '支払日未設定' : `毎月${key}日`} total={total} />
           {items.map(item => (
             <ExpenseRow
               key={item.id}
-              category={item.category}
-              name={item.name} payee={item.payee} notes={recurrenceNotes(item)}
-              amount={item.amount} subtotal={item.subtotal}
+              item={item}
+              subtotal={item.subtotal}
+              notes={item.notes}
               billed={billedIds.includes(item.id)}
-              onToggleBilled={() => onToggleBilled(item.id)}
-              onEdit={() => onEdit(item)}
-              onDelete={() => onDelete(item.id)}
+              onToggleBilled={onToggleBilled}
+              onEdit={onEdit}
+              onDelete={onDelete}
             />
           ))}
         </Box>
@@ -631,6 +367,10 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
     formRef.current = { amount, payee, name, cardId, category, date, spendType }
   })
 
+  // CalcPad へは値を ref で渡す（prop で渡すと 1 タップごとに memo が外れる）。
+  const amountRef = useRef(amount)
+  useEffect(() => { amountRef.current = amount })
+
   const doSave = useCallback(() => {
     const f = formRef.current
     const a = parseAmount(f.amount)
@@ -644,7 +384,8 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
   // 金額（電卓）以外のフォームは amount に依存しない。
   // メモ化して、キー入力ごとに Select / InputBase / 候補チップまで
   // 再レンダーされるのを防ぐ（体感の入力遅れの主因）。
-  const formArea = useMemo(() => (
+  // 閉じている間は組み立てない（親の再レンダーごとに 90 行分の JSX を作り直さない）
+  const formArea = useMemo(() => !open ? null : (
     <Box sx={{ overflowY: 'auto', bgcolor: '#fff', borderBottom: '1px solid #e0e0e0' }}>
 
       {/* 日付 */}
@@ -733,7 +474,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
         </Box>
       )}
     </Box>
-  ), [date, cardId, category, categories, spendType, payee, name,
+  ), [open, date, cardId, category, categories, spendType, payee, name,
       showPayeeSugg, showNameSugg, payeeSugg, nameSugg, onEditCategories])
 
   if (!open) return null
@@ -765,7 +506,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
       </Box>
 
       {/* 電卓 */}
-      <CalcPad value={amount} onChange={setAmount} onConfirm={doSave} disabled={parseAmount(amount) <= 0} />
+      <CalcPad valueRef={amountRef} onChange={setAmount} onConfirm={doSave} disabled={parseAmount(amount) <= 0} />
     </Box>
   )
 }
@@ -828,45 +569,40 @@ export default function CreditCard() {
     setBilledIds(loadBilled(cardId, newYm))
   }, [year, month, cardId])
 
-  const toggleBilled = (itemId) => {
+  const toggleBilled = useCallback((itemId) => {
     const next = billedIds.includes(itemId)
       ? billedIds.filter(id => id !== itemId)
       : [...billedIds, itemId]
     setBilledIds(next)
     saveBilled(cardId, ym, next)
+  }, [billedIds, cardId, ym])
+
+  // 固定費・変動費 CRUD
+  // 保存先の移し替え（カード変更・請求月の再計算）は ccStorage の
+  // upsertFixedItem / upsertVarItem に集約し、ここでは画面の state 更新と通知だけを持つ。
+  const cardName = (id) => CARDS[id]?.shortName ?? id
+
+  const saveFixedItem = (item, target) => {
+    const next = upsertFixedItem({ item, fromCard: cardId, toCard: target })
+    if (target === cardId) setFixedList(next)
+    else setFixedList(prev => prev.filter(x => x.id !== item.id))
   }
 
-  // 固定費 CRUD
-  // ダイアログはカード（支払い方法）も返す。表示中のカード以外が選ばれたら
-  // そのカードの保存先へ移し替える。
   const addFixed = ({ cardId: target = cardId, ...data }) => {
     try {
-      const item = { id: newId(), ...data }
-      if (target === cardId) {
-        const next = [...fixedList, item]; setFixedList(next); saveFixed(cardId, next)
-        notify('success', '固定費を保存しました')
-      } else {
-        saveFixed(target, [...loadFixed(target), item])
-        notify('success', `固定費を ${CARDS[target]?.shortName ?? target} に保存しました`)
-      }
+      saveFixedItem({ id: newId(), ...data }, target)
+      notify('success', target === cardId ? '固定費を保存しました' : `固定費を ${cardName(target)} に保存しました`)
     } catch { notify('error', '固定費の保存に失敗しました') }
   }
+
   const editFixed = ({ cardId: target = cardId, ...data }) => {
     try {
-      const id = dlg.initial.id
-      if (target === cardId) {
-        const next = fixedList.map((x) => x.id === id ? { ...x, ...data } : x)
-        setFixedList(next); saveFixed(cardId, next)
-        notify('success', '固定費を更新しました')
-      } else {
-        const moved = { ...fixedList.find(x => x.id === id), ...data }
-        const rest  = fixedList.filter(x => x.id !== id)
-        setFixedList(rest); saveFixed(cardId, rest)
-        saveFixed(target, [...loadFixed(target), moved])
-        notify('success', `固定費を ${CARDS[target]?.shortName ?? target} に移動しました`)
-      }
+      const current = fixedList.find(x => x.id === dlg.initial.id)
+      saveFixedItem({ ...current, ...data }, target)
+      notify('success', target === cardId ? '固定費を更新しました' : `固定費を ${cardName(target)} に移動しました`)
     } catch { notify('error', '固定費の更新に失敗しました') }
   }
+
   const deleteFixed = useCallback((id) => {
     const item = fixedList.find(x => x.id === id)
     setDeleteDlg({ type: 'fixed', id, name: item?.name ?? '固定費' })
@@ -877,68 +613,50 @@ export default function CreditCard() {
     catch { notify('error', '固定費の削除に失敗しました') }
   }, [fixedList, cardId])
 
-  // 変動費 CRUD
-  const byDate = (a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1
+  const saveVarItem = (item, target) => {
+    const { ym: toYm, list } = upsertVarItem({ item, fromCard: cardId, fromYm: ym, toCard: target })
+    if (target === cardId && toYm === ym) setVarList(list)
+    else setVarList(prev => prev.filter(x => x.id !== item.id))
+    return toYm
+  }
 
   const addVar = ({ cardId: target = cardId, ...data }) => {
     try {
-      const item = { id: newId(), ...data }
-      if (target === cardId) {
-        const next = [...varList, item].sort(byDate); setVarList(next); saveVar(cardId, ym, next)
-        notify('success', '変動費を保存しました')
-      } else {
-        // 別カードは締め日が違うため、そのカードの請求月へ入れる
-        const tYm = getBillingYm(item.date, target)
-        saveVar(target, tYm, [...loadVar(target, tYm), item].sort(byDate))
-        notify('success', `変動費を ${CARDS[target]?.shortName ?? target} の ${tYm.replace('-', '年')}月分に保存しました`)
-      }
+      const toYm = saveVarItem({ id: newId(), ...data }, target)
+      notify('success', target === cardId
+        ? '変動費を保存しました'
+        : `変動費を ${cardName(target)} の ${toYm.replace('-', '年')}月分に保存しました`)
     } catch { notify('error', '変動費の保存に失敗しました') }
   }
 
-  // 日付とカードIDから請求月(ym)を計算
-  const getBillingYm = (date, cId) => {
-    if (!date) return ym
-    const cutoff = CARDS[cId]?.cutoffDay ?? 0
-    const [y, m, d] = date.split('-').map(Number)
-    if (cutoff > 0 && d <= cutoff) {
-      // 締め日以前 → 前月扱い
-      return ymStr(m === 1 ? y - 1 : y, m === 1 ? 12 : m - 1)
-    }
-    return ymStr(y, m)
-  }
-
-  // QuickAddDrawer からの保存（収入/支出/振替対応）
-  const handleAddSave = ({ cardId: targetCard, item }) => {
-    try {
-      const targetYm = getBillingYm(item.date, targetCard)
-      const existing = loadVar(targetCard, targetYm)
-      const dup = existing.find(x => x.date === item.date && x.amount === item.amount && x.category === item.category)
-      if (dup) notify('warning', `同日・同金額・同カテゴリの支出が既に登録されています（${item.date} ¥${fmt(item.amount)} ${item.category}）`)
-      const newItem = { id: newId(), ...item }
-      const nextList = [...existing, newItem].sort((a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1)
-      saveVar(targetCard, targetYm, nextList)
-      if (targetCard === cardId && targetYm === ym) setVarList(nextList)
-      if (!dup) notify('success', `支出を${targetYm.replace('-', '年')}月分として記録しました`)
-    } catch { notify('error', '保存に失敗しました') }
-  }
   const editVar = ({ cardId: target = cardId, ...data }) => {
     try {
-      const id = dlg.initial.id
-      if (target === cardId) {
-        const next = varList.map((x) => x.id === id ? { ...x, ...data } : x).sort(byDate)
-        setVarList(next); saveVar(cardId, ym, next)
-        notify('success', '変動費を更新しました')
-      } else {
-        // カードを変えると締め日が違うため請求月も変わりうる。移動先を明示する。
-        const moved = { ...varList.find(x => x.id === id), ...data }
-        const rest  = varList.filter(x => x.id !== id)
-        setVarList(rest); saveVar(cardId, ym, rest)
-        const tYm = getBillingYm(moved.date, target)
-        saveVar(target, tYm, [...loadVar(target, tYm), moved].sort(byDate))
-        notify('success', `変動費を ${CARDS[target]?.shortName ?? target} の ${tYm.replace('-', '年')}月分に移動しました`)
-      }
+      const current = varList.find(x => x.id === dlg.initial.id)
+      const toYm = saveVarItem({ ...current, ...data }, target)
+      notify('success', target === cardId
+        ? '変動費を更新しました'
+        : `変動費を ${cardName(target)} の ${toYm.replace('-', '年')}月分に移動しました`)
     } catch { notify('error', '変動費の更新に失敗しました') }
   }
+
+  const openFixedEdit = useCallback((it) => setDlg({ type: 'fixed', initial: it }), [])
+  const openVarEdit   = useCallback((it) => setDlg({ type: 'var',   initial: it }), [])
+  const closeAddExpense   = useCallback(() => setAddOpen(false), [])
+  const openCategoryDialog = useCallback(() => setCatDlgOpen(true), [])
+
+  // 支出入力画面からの保存（重複警告つき）
+  const handleAddSave = useCallback(({ cardId: targetCard, item }) => {
+    try {
+      const targetYm = billingYmForCard(item.date, targetCard, ym)
+      const dup = loadVar(targetCard, targetYm)
+        .find(x => x.date === item.date && x.amount === item.amount && x.category === item.category)
+      if (dup) notify('warning', `同日・同金額・同カテゴリの支出が既に登録されています（${item.date} ¥${fmt(item.amount)} ${item.category}）`)
+      const { list } = upsertVarItem({ item: { id: newId(), ...item }, fromCard: targetCard, fromYm: targetYm })
+      if (targetCard === cardId && targetYm === ym) setVarList(list)
+      if (!dup) notify('success', `支出を${targetYm.replace('-', '年')}月分として記録しました`)
+    } catch { notify('error', '保存に失敗しました') }
+  }, [cardId, ym])
+
   const deleteVar = useCallback((id) => {
     const item = varList.find(x => x.id === id)
     setDeleteDlg({ type: 'var', id, name: item?.name ?? '変動費' })
@@ -1005,14 +723,14 @@ export default function CreditCard() {
         {apple ? (
           <Box sx={{ minWidth: 168 }}>
             <Segmented
-              options={Object.values(CARDS).map((c) => ({ value: c.id, label: c.shortName }))}
+              options={CARD_LIST.map((c) => ({ value: c.id, label: c.shortName }))}
               value={cardId}
               onChange={switchCard}
             />
           </Box>
         ) : (
           <Stack direction="row" spacing={1}>
-            {Object.values(CARDS).map((c) => (
+            {CARD_LIST.map((c) => (
               <Chip key={c.id} label={c.shortName} onClick={() => switchCard(c.id)}
                 variant={cardId === c.id ? 'filled' : 'outlined'}
                 sx={{
@@ -1236,7 +954,7 @@ export default function CreditCard() {
           <CardContent sx={{ px: 0, py: 0, '&:last-child': { pb: 0 } }}>
             <FixedExpenseTable
               fixedList={filteredFixed}
-              onEdit={(it) => setDlg({ type: 'fixed', initial: it })}
+              onEdit={openFixedEdit}
               onDelete={deleteFixed}
               billedIds={billedIds}
               onToggleBilled={toggleBilled}
@@ -1282,7 +1000,7 @@ export default function CreditCard() {
             <DailyBarChart varList={varList} />
             <VarExpenseTable
               varList={varList}
-              onEdit={(it) => setDlg({ type: 'var', initial: it })}
+              onEdit={openVarEdit}
               onDelete={deleteVar}
             />
           </CardContent>
@@ -1290,7 +1008,7 @@ export default function CreditCard() {
       </Card>
 
       {/* 消費分類（当カード） */}
-      <SpendTypeChart fixedList={filteredFixed} varList={varList} />
+      <SpendTypeChart varList={varList} />
 
       {/* カテゴリ別グラフ（当カード） */}
       <CategoryChart fixedList={filteredFixed} varList={varList} />
@@ -1313,13 +1031,13 @@ export default function CreditCard() {
       {dlg?.type === 'fixed' && (
         <ExpenseDialog open onClose={() => setDlg(null)}
           onSave={dlg.initial ? editFixed : addFixed}
-          initial={dlg.initial} categories={categories} cardId={cardId}
+          initial={dlg.initial} categories={categories} cardId={cardId} isFixed
           title={dlg.initial ? '固定費を編集' : '固定費を追加'} />
       )}
       {dlg?.type === 'var' && (
         <ExpenseDialog open onClose={() => setDlg(null)}
           onSave={dlg.initial ? editVar : addVar}
-          initial={dlg.initial ?? { date: todayStr }} categories={categories} cardId={cardId}
+          initial={dlg.initial ?? { date: todayStr }} categories={categories} cardId={cardId} isFixed={false}
           title={dlg.initial ? '変動費を編集' : '変動費を追加'} />
       )}
       <CategoryDialog
@@ -1342,11 +1060,11 @@ export default function CreditCard() {
 
       <AddExpenseScreen
         open={addOpen}
-        onClose={() => setAddOpen(false)}
+        onClose={closeAddExpense}
         onSave={handleAddSave}
         categories={categories}
         defaultDate={todayStr}
-        onEditCategories={() => setCatDlgOpen(true)}
+        onEditCategories={openCategoryDialog}
         currentCardId={cardId}
       />
 

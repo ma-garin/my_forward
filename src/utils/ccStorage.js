@@ -7,6 +7,9 @@ export const CARDS = {
   smbc: { id: 'smbc', name: '三井住友VISAナンバーレスゴールド', shortName: 'VISA', cutoffDay:  0, paymentDay: 26, color: '#1b5e20' },
 }
 
+// カード一覧（Object.values(CARDS) を各所で作り直さない）
+export const CARD_LIST = Object.values(CARDS)
+
 // ─── 共有スタイル定数 ────────────────────────────────────────
 
 export const BORDER_LIGHT = '1px solid #f5f5f5'
@@ -183,6 +186,57 @@ export function loadVar(cardId, ym) {
   try { return JSON.parse(localStorage.getItem(varKey(cardId, ym)) || '[]') } catch { return [] }
 }
 export function saveVar(cardId, ym, list) { try { localStorage.setItem(varKey(cardId, ym), JSON.stringify(list)) } catch(e) { console.warn('saveVar failed', e) } }
+
+// 変動費の並び順（日付昇順）。散らばったインライン比較をここに一本化する。
+export const byDate = (a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1
+
+// 日付とカードから請求月を返す。カードごとに締め日が違うため、
+// 「どのカードの何月分か」を求めるときは必ずこれを通す。
+export function billingYmForCard(dateStr, cardId, fallbackYm) {
+  if (!dateStr) return fallbackYm
+  return getBillingYmForDate(dateStr, CARDS[cardId]?.cutoffDay ?? 0)
+}
+
+/**
+ * 固定費を保存する。toCard が fromCard と違えば保存先ごと移し替える。
+ * 画面ごとに移動手順を書き分けると挙動が食い違うため、ここに集約する。
+ * 戻り値: 移動先カードの更新後リスト
+ */
+export function upsertFixedItem({ item, fromCard, toCard = fromCard }) {
+  const list = loadFixed(fromCard)
+  if (toCard === fromCard) {
+    const next = list.some(x => x.id === item.id)
+      ? list.map(x => x.id === item.id ? item : x)
+      : [...list, item]
+    saveFixed(fromCard, next)
+    return next
+  }
+  saveFixed(fromCard, list.filter(x => x.id !== item.id))
+  const next = [...loadFixed(toCard), item]
+  saveFixed(toCard, next)
+  return next
+}
+
+/**
+ * 変動費を保存する。toCard が fromCard と違えば、移動先カードの締め日から
+ * 請求月を計算し直してそのキーへ移す。
+ * 戻り値: { ym, list } 移動先の請求月と更新後リスト
+ */
+export function upsertVarItem({ item, fromCard, fromYm, toCard = fromCard }) {
+  const list = loadVar(fromCard, fromYm)
+  if (toCard === fromCard) {
+    const next = (list.some(x => x.id === item.id)
+      ? list.map(x => x.id === item.id ? item : x)
+      : [...list, item]).sort(byDate)
+    saveVar(fromCard, fromYm, next)
+    return { ym: fromYm, list: next }
+  }
+  saveVar(fromCard, fromYm, list.filter(x => x.id !== item.id))
+  const toYm = billingYmForCard(item.date, toCard, fromYm)
+  const next = [...loadVar(toCard, toYm), item].sort(byDate)
+  saveVar(toCard, toYm, next)
+  return { ym: toYm, list: next }
+}
 
 export function loadLimit(cardId) {
   const v = parseFloat(localStorage.getItem(`cc_limit_${cardId}`) || '')

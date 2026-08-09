@@ -89,7 +89,7 @@ export default function Kakeibo() {
       <MonthlyTrendCard currentBillingYm={billingYm} />
 
       {/* 消費分類（全カード） */}
-      <SpendTypeChart fixedList={allFixed} varList={allVar} />
+      <SpendTypeChart varList={allVar} />
 
       {/* カテゴリ別グラフ（全カード） */}
       <CategoryChart fixedList={allFixed} varList={allVar} />
