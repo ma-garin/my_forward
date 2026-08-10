@@ -13,7 +13,7 @@ const SheetTransition = forwardRef(function SheetTransition(props, ref) {
         enter: 'cubic-bezier(0.32, 0.72, 0, 1)',
         exit: 'cubic-bezier(0.32, 0.72, 0, 1)',
       }}
-      timeout={{ enter: 420, exit: 280 }}
+      timeout={{ enter: 280, exit: 200 }}
       {...props}
     />
   )
