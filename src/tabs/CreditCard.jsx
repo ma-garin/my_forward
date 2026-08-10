@@ -30,6 +30,7 @@ import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/
 import LivingExpenseCard from '../components/LivingExpenseCard'
 import CombinedSummary from '../components/CombinedSummary'
 import BudgetBreakdown from '../components/BudgetBreakdown'
+import { useAfterPaint } from '../utils/useAfterPaint'
 import { useThemeMode } from '../ThemeModeContext'
 import Section from '../components/apple/Section'
 import Row from '../components/apple/Row'
@@ -247,8 +248,9 @@ function YearlySummary({ year, cardId }) {
   const [open, setOpen] = useState(false)
   const { mode } = useThemeMode()
   const apple = mode === 'apple'
-  // 固定費リストは 12 ヶ月ループの外で 1 回だけロード（月ごとに再 parse しない）。
-  const { data, maxTotal, yearTotal } = useMemo(() => {
+  // 12 ヶ月ぶんの localStorage 読み込みは重い。タブを開いた瞬間の描画を止めない
+  // よう、最初の描画のあとに計算する（固定費リストはループの外で 1 回だけロード）。
+  const summary = useAfterPaint(() => {
     const fixedAll = loadFixed(cardId)
     const data = Array.from({ length: 12 }, (_, i) => {
       const m = i + 1
@@ -262,6 +264,7 @@ function YearlySummary({ year, cardId }) {
     const yearTotal = data.reduce((s, d) => s + d.total, 0)
     return { data, maxTotal, yearTotal }
   }, [year, cardId])
+  const { data, maxTotal, yearTotal } = summary ?? { data: [], maxTotal: 1, yearTotal: null }
 
   return (
     <Card sx={{ mb: 1.5 }}>
@@ -273,7 +276,9 @@ function YearlySummary({ year, cardId }) {
           <ExpandMoreIcon sx={{ fontSize: 16, color: apple ? ios.tertiary : '#fff', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
           <Typography variant="caption" sx={apple ? { color: ios.label, fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em' } : { color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>年間サマリー {year}年</Typography>
         </Stack>
-        <Typography variant="caption" sx={apple ? { color: ios.secondary, fontSize: 13 } : { color: 'rgba(255,255,255,.7)', fontSize: 10 }}>合計 ¥{fmt(yearTotal)}</Typography>
+        <Typography variant="caption" sx={apple ? { color: ios.secondary, fontSize: 13 } : { color: 'rgba(255,255,255,.7)', fontSize: 10 }}>
+          {yearTotal == null ? '集計中…' : `合計 ¥${fmt(yearTotal)}`}
+        </Typography>
       </Box>
       <Collapse in={open}>
         <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
