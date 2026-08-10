@@ -220,7 +220,27 @@ export function upsertFixedItem({ item, fromCard, toCard = fromCard }) {
   saveFixed(fromCard, list.filter(x => x.id !== item.id))
   const next = [...loadFixed(toCard), item]
   saveFixed(toCard, next)
+  moveBilledFlags(item.id, fromCard, toCard)
   return next
+}
+
+/**
+ * 引き落とし済みチェックは `cc_billed_{cardId}_{ym}` に項目 ID で入っている。
+ * 固定費をカード移動したときに移し替えないと、旧カードに ID が残り続け、
+ * 移動先ではチェックが外れて見える。全請求月ぶんを追随させる。
+ */
+function moveBilledFlags(itemId, fromCard, toCard) {
+  const prefix = `cc_billed_${fromCard}_`
+  const yms = Object.keys(localStorage)
+    .filter(k => k.startsWith(prefix))
+    .map(k => k.slice(prefix.length))
+  yms.forEach(ym => {
+    const ids = loadBilled(fromCard, ym)
+    if (!ids.includes(itemId)) return
+    saveBilled(fromCard, ym, ids.filter(id => id !== itemId))
+    const toIds = loadBilled(toCard, ym)
+    if (!toIds.includes(itemId)) saveBilled(toCard, ym, [...toIds, itemId])
+  })
 }
 
 /**
