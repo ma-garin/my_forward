@@ -13,7 +13,7 @@ import AmountField, { parseAmount } from '../components/AmountField'
 import { fmt, isActiveForYm, loadCategories, ymStr } from '../utils/finance'
 import {
   CARDS, CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
-  getBillingYmForDate, billingYmForCard, loadFixed, saveFixed, loadVar, saveVar,
+  billingYmForCard, loadFixed, saveFixed, loadVar, saveVar,
 } from '../utils/ccStorage'
 import { useThemeMode } from '../ThemeModeContext'
 import Section from '../components/apple/Section'
