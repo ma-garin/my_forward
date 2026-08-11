@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Box, Card, CardContent, Typography, Stack } from '@mui/material'
 import { loadFixed, loadVar } from '../utils/ccStorage'
 import { isActiveForYm, fmt } from '../utils/finance'
+import { useAfterPaint } from '../utils/useAfterPaint'
 import CardHeaderBar from './CardHeaderBar'
 
 function addMonth(ym, n) {
@@ -15,23 +16,26 @@ export default function MonthlyTrendCard({ currentBillingYm }) {
     return Array.from({ length: 6 }, (_, i) => addMonth(currentBillingYm, -5 + i))
   }, [currentBillingYm])
 
-  const data = useMemo(() => {
+  // 6 ヶ月 × 2 カードぶんの localStorage 読み込みは重い。タブを開いた瞬間の
+  // 描画を止めないよう、最初の描画のあとに計算する。
+  // 固定費リストはループの外で 1 回だけロードする（月ごとに再 parse しない）。
+  const data = useAfterPaint(() => {
+    const jFixedAll = loadFixed('jcb')
+    const sFixedAll = loadFixed('smbc')
     return months.map(ym => {
-      const jFixed  = loadFixed('jcb').filter(x => isActiveForYm(x, ym))
-      const jVar    = loadVar('jcb', ym)
-      const sFixed  = loadFixed('smbc').filter(x => isActiveForYm(x, ym))
-      const sVar    = loadVar('smbc', ym)
-      const total   = [...jFixed, ...jVar, ...sFixed, ...sVar]
-        .filter(x => x.sign !== 1)
-        .reduce((s, x) => s + x.amount, 0)
-      const [, m]   = ym.split('-').map(Number)
-      return { ym, month: m, total }
+      const total = [
+        ...jFixedAll.filter(x => isActiveForYm(x, ym)),
+        ...loadVar('jcb', ym),
+        ...sFixedAll.filter(x => isActiveForYm(x, ym)),
+        ...loadVar('smbc', ym),
+      ].filter(x => x.sign !== 1).reduce((s, x) => s + x.amount, 0)
+      return { ym, month: Number(ym.split('-')[1]), total }
     })
   }, [months])
 
+  if (!data) return null
   const maxTotal = Math.max(...data.map(d => d.total), 1)
-  const hasAny   = data.some(d => d.total > 0)
-  if (!hasAny) return null
+  if (!data.some(d => d.total > 0)) return null
 
   return (
     <Card sx={{ mb: 1.5 }}>

@@ -13,7 +13,7 @@ import AmountField, { parseAmount } from '../components/AmountField'
 import { fmt, isActiveForYm, loadCategories, ymStr } from '../utils/finance'
 import {
   CARDS, CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
-  getBillingYmForDate, loadFixed, saveFixed, loadVar, saveVar,
+  billingYmForCard, loadFixed, saveFixed, loadVar, saveVar,
 } from '../utils/ccStorage'
 import { useThemeMode } from '../ThemeModeContext'
 import Section from '../components/apple/Section'
@@ -279,6 +279,8 @@ function ExpenseEditDialog({ open, item, categories, onClose, onSave }) {
           <TextField label="支払先" size="small" fullWidth
             value={payee} onChange={(e) => setPayee(e.target.value)} />
           <AmountField label="金額" value={String(amount)} onChange={setAmount} />
+          {/* 消費分類は変動費のみ。固定費は分類の対象外。 */}
+          {item.type !== 'fixed' && (
           <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12 }}>消費分類</Typography>
             {SPEND_TYPES.map(t => (
@@ -290,6 +292,7 @@ function ExpenseEditDialog({ open, item, categories, onClose, onSave }) {
               }}>{t}</Box>
             ))}
           </Stack>
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -338,7 +341,8 @@ export default function Cashflow() {
   }
 
   const handleSaveVar = (source, data) => {
-    const targetYm = getBillingYmForDate(data.date, data.cardId)
+    // 第 2 引数は締め日。カードIDを渡していたため締め日判定が効いていなかった。
+    const targetYm = billingYmForCard(data.date, data.cardId, source.sourceYm)
     const oldList = loadVar(source.cardId, source.sourceYm)
     const cleanedOld = oldList.filter(x => x.id !== source.id)
     const nextItem = {
@@ -365,13 +369,14 @@ export default function Cashflow() {
     const cleanedOld = oldList.filter(x => x.id !== source.id)
     const day = parseInt(data.date.slice(8), 10)
     const current = oldList.find(x => x.id === source.id) ?? source
+    // 固定費は消費分類を持たない（既存データに残っていても保存時に落とす）
+    const { spendType: _drop, ...base } = current
     const nextItem = {
-      ...current,
+      ...base,
       name: data.name,
       payee: data.payee,
       amount: data.amount,
       category: data.category,
-      spendType: data.spendType,
       day,
     }
 

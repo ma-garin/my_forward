@@ -1,7 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { Box, AppBar, Toolbar, Typography, BottomNavigation, BottomNavigationAction, Paper, IconButton, Drawer } from '@mui/material'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
 import CreditCardIcon from '@mui/icons-material/CreditCard'
 import HomeIcon from '@mui/icons-material/Home'
@@ -10,6 +9,7 @@ import SettingsIcon from '@mui/icons-material/Settings'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { classicTheme, appleTheme } from './theme'
 import { ThemeModeProvider, useThemeMode } from './ThemeModeContext'
+import { getDataVersion } from './utils/ccStorage'
 import SalarySimulation from './tabs/SalarySimulation'
 import CreditCard from './tabs/CreditCard'
 import Kakeibo from './tabs/Kakeibo'
@@ -46,35 +46,43 @@ export default function App() {
   )
 }
 
-function renderTab(activeTab, refreshKeys) {
-  switch (activeTab) {
-    case 0: return <CreditCard key={refreshKeys[0]} />
-    case 1: return <Kakeibo key={refreshKeys[1]} />
-    case 2: return <Cashflow key={refreshKeys[2]} />
-    case 3: return <SalarySimulation key={refreshKeys[3]} />
-    default: return null
-  }
-}
+const TAB_COMPONENTS = [CreditCard, Kakeibo, Cashflow, SalarySimulation]
+const SHOW = { display: 'block' }
+const HIDE = { display: 'none' }
 
 function AppInner() {
   const { mode } = useThemeMode()
-  const reduceMotion = useReducedMotion()
   const apple = mode === 'apple'
-  const animate = apple && !reduceMotion
   const activeTheme = apple ? appleTheme : classicTheme
 
   const [activeTab,    setActiveTab]    = useState(0)
   const [refreshKeys,  setRefreshKeys]  = useState([0, 0, 0, 0])
+  const [mounted,      setMounted]      = useState([true, false, false, false])
+  // 各タブを最後に描画したときのデータ版数。変わっていなければ作り直さない。
+  const seenVersion = useRef([0, 0, 0, 0])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsPage, setSettingsPage] = useState(null)
 
+  // 要素参照を固定する。activeTab が変わっても再生成しないことで、
+  // React は隠れているタブの再レンダーを丸ごとスキップできる。
+  const panes = useMemo(
+    () => TAB_COMPONENTS.map((Tab, i) => mounted[i] ? <Tab key={refreshKeys[i]} /> : null),
+    [mounted, refreshKeys],
+  )
+
   const handleTabChange = useCallback((_, v) => {
     setActiveTab(v)
-    setRefreshKeys(prev => {
-      const next = [...prev]
-      next[v] = next[v] + 1
-      return next
-    })
+    setMounted(prev => prev[v] ? prev : prev.map((m, i) => i === v ? true : m))
+    const version = getDataVersion()
+    if (seenVersion.current[v] !== version) {
+      seenVersion.current[v] = version
+      setRefreshKeys(prev => {
+        const next = [...prev]
+        next[v] = next[v] + 1
+        return next
+      })
+    }
+    window.scrollTo(0, 0)
   }, [])
 
   const openSettings = () => { setSettingsPage(null); setSettingsOpen(true) }
@@ -119,22 +127,16 @@ function AppInner() {
         </AppBar>
 
         {/* Content */}
-        <Box sx={{ flex: 1, overflowY: 'auto', pb: 'calc(56px + env(safe-area-inset-bottom))' }}>
-          {animate ? (
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ type: 'spring', bounce: 0, duration: 0.35 }}
-              >
-                {renderTab(activeTab, refreshKeys)}
-              </motion.div>
-            </AnimatePresence>
-          ) : (
-            renderTab(activeTab, refreshKeys)
-          )}
+        <Box sx={{ flex: 1, overflowY: 'auto', // ボトムナビ(56px) に加えて FAB(56px) の高さぶんの余白を確保し、
+          // 最下部の行が FAB や下部ナビに隠れないようにする
+          pb: 'calc(132px + env(safe-area-inset-bottom))' }}>
+          {/* タブは切り替えても作り直さず、表示/非表示だけを切り替える。
+              pane の要素参照を useMemo で固定しているので、隠れているタブは
+              再レンダーされない（切替が実質ゼロコストになる）。
+              iOS のタブバー同様、切替アニメーションは持たせない。 */}
+          {panes.map((pane, i) => pane && (
+            <Box key={i} sx={i === activeTab ? SHOW : HIDE}>{pane}</Box>
+          ))}
         </Box>
 
         {/* Bottom Navigation */}

@@ -7,6 +7,12 @@ export const CARDS = {
   smbc: { id: 'smbc', name: '三井住友VISAナンバーレスゴールド', shortName: 'VISA', cutoffDay:  0, paymentDay: 26, color: '#1b5e20' },
 }
 
+// 保存が起きるたびに増える版数。タブは「前回描画したときから版数が変わって
+// いれば作り直す」ことで、変更がないときの作り直し（＝切替のもたつき）を避ける。
+let dataVersion = 0
+export const getDataVersion = () => dataVersion
+export const bumpDataVersion = () => { dataVersion += 1 }
+
 // カード一覧（Object.values(CARDS) を各所で作り直さない）
 export const CARD_LIST = Object.values(CARDS)
 
@@ -180,12 +186,12 @@ export function loadFixed(cardId) {
     return []
   } catch { return [] }
 }
-export function saveFixed(cardId, list) { try { localStorage.setItem(fixedKey(cardId), JSON.stringify(list)) } catch(e) { console.warn('saveFixed failed', e) } }
+export function saveFixed(cardId, list) { try { localStorage.setItem(fixedKey(cardId), JSON.stringify(list)); bumpDataVersion() } catch(e) { console.warn('saveFixed failed', e) } }
 
 export function loadVar(cardId, ym) {
   try { return JSON.parse(localStorage.getItem(varKey(cardId, ym)) || '[]') } catch { return [] }
 }
-export function saveVar(cardId, ym, list) { try { localStorage.setItem(varKey(cardId, ym), JSON.stringify(list)) } catch(e) { console.warn('saveVar failed', e) } }
+export function saveVar(cardId, ym, list) { try { localStorage.setItem(varKey(cardId, ym), JSON.stringify(list)); bumpDataVersion() } catch(e) { console.warn('saveVar failed', e) } }
 
 // 変動費の並び順（日付昇順）。散らばったインライン比較をここに一本化する。
 export const byDate = (a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1
@@ -214,7 +220,27 @@ export function upsertFixedItem({ item, fromCard, toCard = fromCard }) {
   saveFixed(fromCard, list.filter(x => x.id !== item.id))
   const next = [...loadFixed(toCard), item]
   saveFixed(toCard, next)
+  moveBilledFlags(item.id, fromCard, toCard)
   return next
+}
+
+/**
+ * 引き落とし済みチェックは `cc_billed_{cardId}_{ym}` に項目 ID で入っている。
+ * 固定費をカード移動したときに移し替えないと、旧カードに ID が残り続け、
+ * 移動先ではチェックが外れて見える。全請求月ぶんを追随させる。
+ */
+function moveBilledFlags(itemId, fromCard, toCard) {
+  const prefix = `cc_billed_${fromCard}_`
+  const yms = Object.keys(localStorage)
+    .filter(k => k.startsWith(prefix))
+    .map(k => k.slice(prefix.length))
+  yms.forEach(ym => {
+    const ids = loadBilled(fromCard, ym)
+    if (!ids.includes(itemId)) return
+    saveBilled(fromCard, ym, ids.filter(id => id !== itemId))
+    const toIds = loadBilled(toCard, ym)
+    if (!toIds.includes(itemId)) saveBilled(toCard, ym, [...toIds, itemId])
+  })
 }
 
 /**
@@ -242,18 +268,18 @@ export function loadLimit(cardId) {
   const v = parseFloat(localStorage.getItem(`cc_limit_${cardId}`) || '')
   return isNaN(v) ? '' : String(v)
 }
-export function saveLimit(cardId, v) { try { localStorage.setItem(`cc_limit_${cardId}`, v) } catch(e) { console.warn('saveLimit failed', e) } }
+export function saveLimit(cardId, v) { try { localStorage.setItem(`cc_limit_${cardId}`, v); bumpDataVersion() } catch(e) { console.warn('saveLimit failed', e) } }
 
 export function loadBilled(cardId, ym) {
   try { return JSON.parse(localStorage.getItem(`cc_billed_${cardId}_${ym}`) || '[]') } catch { return [] }
 }
-export function saveBilled(cardId, ym, ids) { try { localStorage.setItem(`cc_billed_${cardId}_${ym}`, JSON.stringify(ids)) } catch(e) { console.warn('saveBilled failed', e) } }
+export function saveBilled(cardId, ym, ids) { try { localStorage.setItem(`cc_billed_${cardId}_${ym}`, JSON.stringify(ids)); bumpDataVersion() } catch(e) { console.warn('saveBilled failed', e) } }
 
 export function loadWeeklyBudget() {
   const v = parseInt(localStorage.getItem('life_weekly_budget') || '', 10)
   return isNaN(v) ? 10000 : v
 }
-export function saveWeeklyBudget(v) { try { localStorage.setItem('life_weekly_budget', String(v)) } catch(e) { console.warn('saveWeeklyBudget failed', e) } }
+export function saveWeeklyBudget(v) { try { localStorage.setItem('life_weekly_budget', String(v)); bumpDataVersion() } catch(e) { console.warn('saveWeeklyBudget failed', e) } }
 
 const salaryOverrideMonthlyKey = 'cc_salary_override_by_ym'
 const salaryOverrideMigratedKey = 'cc_salary_override_migrated_v1'
@@ -263,7 +289,7 @@ function loadSalaryOverrideMap() {
 }
 
 function saveSalaryOverrideMap(map) {
-  try { localStorage.setItem(salaryOverrideMonthlyKey, JSON.stringify(map)) } catch(e) { console.warn('saveSalaryOverrideMap failed', e) }
+  try { localStorage.setItem(salaryOverrideMonthlyKey, JSON.stringify(map)); bumpDataVersion() } catch(e) { console.warn('saveSalaryOverrideMap failed', e) }
 }
 
 function migrateLegacySalaryOverride(ym) {
@@ -289,7 +315,8 @@ export function loadSalaryOverride(ym = currentBillingYm()) {
 export function saveSalaryOverride(v, ym = currentBillingYm()) {
   const map = loadSalaryOverrideMap()
   saveSalaryOverrideMap({ ...map, [ym]: v })
-  try { localStorage.setItem(salaryOverrideMigratedKey, '1') } catch(e) { console.warn('saveSalaryOverride failed', e) }
+  try { localStorage.setItem(salaryOverrideMigratedKey, '1'); bumpDataVersion() } catch(e) { console.warn('saveSalaryOverride failed', e) }
+  bumpDataVersion()
 }
 
 const DEFAULT_SUMMARY_FIXED = [
@@ -303,13 +330,13 @@ export function loadSummaryFixed() {
     return s ? JSON.parse(s) : DEFAULT_SUMMARY_FIXED.map(x => ({ ...x }))
   } catch { return DEFAULT_SUMMARY_FIXED.map(x => ({ ...x })) }
 }
-export function saveSummaryFixed(list) { try { localStorage.setItem('cc_summary_fixed', JSON.stringify(list)) } catch(e) { console.warn('saveSummaryFixed failed', e) } }
+export function saveSummaryFixed(list) { try { localStorage.setItem('cc_summary_fixed', JSON.stringify(list)); bumpDataVersion() } catch(e) { console.warn('saveSummaryFixed failed', e) } }
 
 export function loadLivingUnit() {
   const v = parseInt(localStorage.getItem('cc_living_unit') || '', 10)
   return isNaN(v) ? 10000 : v
 }
-export function saveLivingUnit(v) { try { localStorage.setItem('cc_living_unit', String(v)) } catch(e) { console.warn('saveLivingUnit failed', e) } }
+export function saveLivingUnit(v) { try { localStorage.setItem('cc_living_unit', String(v)); bumpDataVersion() } catch(e) { console.warn('saveLivingUnit failed', e) } }
 
 export function loadLivingOverride(cardId, ym) {
   const v = parseInt(localStorage.getItem(`cc_living_override_${cardId}_${ym}`) || '', 10)
@@ -317,7 +344,8 @@ export function loadLivingOverride(cardId, ym) {
 }
 export function saveLivingOverride(cardId, ym, v) {
   if (v == null) localStorage.removeItem(`cc_living_override_${cardId}_${ym}`)
-  else { try { localStorage.setItem(`cc_living_override_${cardId}_${ym}`, String(v)) } catch(e) { console.warn('saveLivingOverride failed', e) } }
+  else { try { localStorage.setItem(`cc_living_override_${cardId}_${ym}`, String(v)); bumpDataVersion() } catch(e) { console.warn('saveLivingOverride failed', e) } }
+  bumpDataVersion()
 }
 
 const otherIncomeKey = 'cc_other_income_by_ym'
@@ -333,6 +361,7 @@ export function saveOtherIncome(v, ym) {
     const map = JSON.parse(localStorage.getItem(otherIncomeKey) || '{}')
     localStorage.setItem(otherIncomeKey, JSON.stringify({ ...map, [ym]: v }))
   } catch {}
+  bumpDataVersion()
 }
 
 export function loadCategoryBudgets() {
@@ -340,4 +369,5 @@ export function loadCategoryBudgets() {
 }
 export function saveCategoryBudgets(map) {
   try { localStorage.setItem('cc_category_budgets', JSON.stringify(map)) } catch {}
+  bumpDataVersion()
 }
