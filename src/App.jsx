@@ -127,7 +127,9 @@ function AppInner() {
         </AppBar>
 
         {/* Content */}
-        <Box sx={{ flex: 1, overflowY: 'auto', pb: 'calc(56px + env(safe-area-inset-bottom))' }}>
+        <Box sx={{ flex: 1, overflowY: 'auto', // ボトムナビ(56px) に加えて FAB(56px) の高さぶんの余白を確保し、
+          // 最下部の行が FAB や下部ナビに隠れないようにする
+          pb: 'calc(132px + env(safe-area-inset-bottom))' }}>
           {/* タブは切り替えても作り直さず、表示/非表示だけを切り替える。
               pane の要素参照を useMemo で固定しているので、隠れているタブは
               再レンダーされない（切替が実質ゼロコストになる）。

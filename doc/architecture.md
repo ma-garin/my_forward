@@ -8,58 +8,107 @@
 
 | タブ | コンポーネント | 概要 |
 |------|--------------|------|
-| カード（tab 0） | `src/tabs/CreditCard.jsx` | クレカ固定費・変動費の管理・集計 |
-| 家計（tab 1） | `src/tabs/Kakeibo.jsx` | 収支サマリー・2枚合計・生活費・JCB+SMBC全カードのカテゴリ分析 |
-| 給与（tab 2） | `src/tabs/SalarySimulation.jsx` | 手取りシミュレーション・残業時間入力 |
+| クレカ（tab 0） | `src/tabs/CreditCard.jsx` | クレカ固定費・変動費の管理・集計 |
+| 家計（tab 1） | `src/tabs/Kakeibo.jsx` | 収支サマリー・2枚合計・生活費・全カードのカテゴリ分析 |
+| 支出一覧（tab 2） | `src/tabs/Cashflow.jsx` | 固定費+変動費を横断した月次明細・集計 |
+| 給与（tab 3） | `src/tabs/SalarySimulation.jsx` | 手取りシミュレーション・残業時間入力 |
 
 設定はドロワー（右スライド）で開く。`src/settings/` 配下。
+
+## タブの保持と再構築
+
+タブは切り替えても作り直さず、表示/非表示のみを切り替える（`App.jsx`）。
+毎回作り直すと localStorage の読み込みと集計が丸ごと走り、切替がもたつくため。
+
+- 一度開いたタブは DOM に残す。pane の要素参照を `useMemo` で固定しているので、
+  隠れているタブは再レンダーされない
+- `ccStorage` の `getDataVersion()` は保存のたびに増える。前回描画時から版数が
+  変わったタブだけ `key` を進めて作り直す（＝タブをまたいだ変更は反映される）
+- 切替アニメーションは持たない（iOS のタブバーと同じ即時切替）
+
+重い集計（年間サマリー 12 ヶ月・支出トレンド 6 ヶ月）は `utils/useAfterPaint.js`
+で初回描画の後に回す。画面を先に出し、集計は空き時間で差し替える。
 
 ## コンポーネントツリー（主要部分）
 
 ```
 App.jsx
-├── CreditCard.jsx        # カードタブ本体（~1200行）
-│   ├── ExpenseDialog     # 固定費・変動費入力ダイアログ（内部）
-│   ├── FixedExpenseTable # 固定費テーブル（内部）
-│   ├── VarExpenseTable   # 変動費テーブル（CCExpenseViews.jsx）
+├── CreditCard.jsx        # クレカタブ本体
+│   ├── FixedExpenseTable # 固定費リスト（内部。ExpenseRow を使う）
+│   ├── VarExpenseTable   # 変動費リスト（CCExpenseViews.jsx）
 │   ├── DailyBarChart     # 日別棒グラフ（CCExpenseViews.jsx）
+│   ├── AddExpenseScreen  # 支出追加のフルスクリーン入力（内部）
 │   ├── YearlySummary     # 年間サマリー（内部）
+│   ├── SpendTypeChart    # 消費分類グラフ（CategoryViews.jsx）
 │   ├── CategoryChart     # カテゴリ別グラフ（CategoryViews.jsx）
 │   ├── CategoryBreakdown # カテゴリ別集計（CategoryViews.jsx）
 │   ├── LivingExpenseCard # 生活費カード（LivingExpenseCard.jsx）
-│   └── CombinedSummary   # 2枚合計（CombinedSummary.jsx）
-├── Kakeibo.jsx           # 家計タブ本体（JCB+SMBC両カードを合算）
-│   ├── IncomeSummaryCard # 収支サマリー（手取り/支出/差額・貯蓄率）
+│   └── BudgetBreakdown   # 予算内訳（BudgetBreakdown.jsx）
+├── Kakeibo.jsx           # 家計タブ本体（全カードを合算）
+│   ├── IncomeSummaryCard # 収支サマリー
 │   ├── CombinedSummary   # 2枚合計・固定費内訳
-│   ├── LivingExpenseCard # 生活費週予算管理
-│   ├── SpendTypeChart    # 消費分類グラフ（CategoryViews.jsx）
-│   ├── CategoryChart
-│   └── CategoryBreakdown # タップで内訳・編集ダイアログ（カード別バッジ表示）
+│   ├── LivingExpenseCard
+│   ├── MonthlyTrendCard  # 支出トレンド（6ヶ月）
+│   ├── SpendTypeChart / CategoryChart / CategoryBreakdown
+├── Cashflow.jsx          # 支出一覧タブ本体
 └── SalarySimulation.jsx  # 給与タブ本体
-    ├── DrumRoll          # 残業時間ドラムロール（内部）
-    ├── FixedRow          # 固定項目行（内部）
-    ├── OverrideRow       # 手動上書き可能行（内部）
-    ├── AutoRow           # 自動計算行（内部）
-    ├── CustomRow         # カスタム項目行（内部）
-    └── AddItemDialog     # 項目追加ダイアログ（内部）
 ```
 
 設定画面:
 ```
 SettingsMain.jsx → SalarySettings.jsx / CardSettings.jsx / DataSettings.jsx
-                 → SalaryHistory.jsx（給与履歴グラフ）
+                 → SalaryHistory.jsx（給与履歴グラフ）/ AppearanceSettings.jsx / AppInfo.jsx
 ```
+
+## 共通コンポーネント（重要）
+
+画面ごとに実装を持つと見せ方や入力方法が食い違うため、以下に一本化している。
+
+| コンポーネント | 場所 | 役割 |
+|--------------|------|------|
+| `ExpenseRow` | `components/CCExpenseViews.jsx` | 固定費・変動費で共通の 1 行 |
+| `ExpenseGroupHeader` | 同上 | グループ見出し（変動費=日付 / 固定費=支払日） |
+| `ExpenseDialog` | `components/ExpenseDialog.jsx` | 固定費・変動費・カテゴリ別集計の編集ダイアログ |
+| `AmountField` / `CalcPad` | `components/AmountField.jsx` | 金額入力（電卓シート） |
+| `SwipeRow` | `components/apple/SwipeRow.jsx` | 行タップ + 左スワイプ削除 |
+
+### 行の操作
+
+`ExpenseRow` は行タップで編集、左スワイプで削除。
+右下に固定表示される FAB が行内の小さなボタンと重なるため、
+ボタンを置かず行全体をタップ領域にしている。
+
+### CalcPad の値の受け渡し
+
+電卓は入力値を props ではなく **ref**（`valueRef`）で受け取る。
+props で渡すと 1 タップごとに props が変わって `memo` が必ず外れ、
+パッド全体が再レンダーされるため。
 
 ## データフロー
 
 - 全データは localStorage に保存（サーバー通信なし）
 - `src/utils/finance.js` — 給与計算ロジック・共有関数
-- `src/utils/ccStorage.js` — クレカ・生活費・サマリー用ストレージ関数（`getBillingYmForDate`, `getBillingMonthsForRange` 含む）
-- `src/utils/parseSalaryPdf.js` — 給与明細PDF解析（SalaryHistory用）
+- `src/utils/ccStorage.js` — クレカ・生活費・サマリー用ストレージ関数
+- `src/utils/parseSalaryPdf.js` — 給与明細PDF解析（SalaryHistory から動的 import）
+- `src/utils/useAfterPaint.js` — 重い集計を初回描画の後に回すフック
+
+### 保存先の移し替え
+
+カード（支払い方法）を変更したときの移動は `ccStorage` に集約している。
+画面ごとに手順を書き分けると挙動が食い違うため、必ずこれを通すこと。
+
+| 関数 | 用途 |
+|------|------|
+| `upsertFixedItem({ item, fromCard, toCard })` | 固定費の保存・カード移動（引き落とし済みチェックも追随） |
+| `upsertVarItem({ item, fromCard, fromYm, toCard })` | 変動費の保存・カード移動（請求月を再計算） |
+| `billingYmForCard(date, cardId, fallbackYm)` | 日付とカードから請求月を求める |
+
+`getBillingYmForDate(dateStr, cutoffDay)` の第 2 引数は **締め日（数値）**。
+カード ID を渡すと締め日判定が効かないので、通常は `billingYmForCard` を使う。
 
 ## カード定義
 
-`cc_cards` に保存。デフォルトは JCB（id: `jcb`）と SMBC（id: `smbc`）を想定。
+`cc_cards` に保存。デフォルトは JCB（id: `jcb`）と SMBC（id: `smbc`）。
 
 ```js
 // ccStorage.js の CARDS 定数
@@ -67,17 +116,18 @@ CARDS = {
   jcb:  { id: 'jcb',  shortName: 'JCB',  cutoffDay: 15, paymentDay: 10, color: '#37474f' },
   smbc: { id: 'smbc', shortName: 'VISA', cutoffDay:  0, paymentDay: 26, color: '#1b5e20' },
 }
+// CARD_LIST = Object.values(CARDS) も export している
 ```
 
 ## デフォルト表示月
 
-クレカ・家計タブはJCB締め日（15日）基準でデフォルト月を決定する。  
+クレカ・家計タブはJCB締め日（15日）基準でデフォルト月を決定する。
 今日 ≤ 15日 → 前月（請求サイクルの起点月）、それ以降 → 当月。
 
 ## 締め日と請求月の関係
 
-`getBillingYmForDate(dateStr, cutoffDay)` で日付→請求月を変換。  
-例: JCB cutoff=15 のとき 5/4 → `2026-04`（4月請求）。  
+`getBillingYmForDate(dateStr, cutoffDay)` で日付→請求月を変換。
+例: JCB cutoff=15 のとき 5/4 → `2026-04`（4月請求）。
 生活費の週集計は `getBillingMonthsForRange` で各カードの正しい請求月からロードする。
 
 ## 固定費の繰り返しパターン（recurrence）
@@ -89,3 +139,17 @@ CARDS = {
 | `'once'` | `targetYm` | 指定月のみ |
 
 判定関数: `isActiveForYm(item, ym)` in `finance.js`
+
+## 消費分類（消費 / 投資 / 浪費）
+
+**変動費のみが持つ**。固定費は分類の対象外で、保存時に `spendType` を書き込まない。
+消費分類グラフ（`SpendTypeChart`）の集計対象も変動費のみ。
+
+## テーマ
+
+`app_theme` に `'apple'`（デフォルト）/ `'classic'` を保存（`ThemeModeContext.jsx`）。
+`src/theme.js` が両テーマを定義する。
+
+- Apple 風テーマは AppBar・ボトムナビ・Drawer にすりガラス（`backdrop-filter`）を掛ける
+- 電卓シートだけは不透明にする（`OPAQUE_SHEET`）。半透明のままだとキー入力の
+  たびに背景全体のぼかしが再計算され、入力が 1 テンポ遅れるため
