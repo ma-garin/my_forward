@@ -1,39 +1,55 @@
 import { useState, useMemo, useCallback, memo } from 'react'
-import { Box, Typography, Stack, Chip, IconButton, Menu, MenuItem, Checkbox } from '@mui/material'
+import { Box, Typography, Stack, Chip, Menu, MenuItem, Checkbox } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import SwipeRow from './apple/SwipeRow'
 import { fmt } from '../utils/finance'
 import { CATEGORY_COLORS, BORDER_LIGHT, SPEND_TYPE_COLORS } from '../utils/ccStorage'
 
 // ─── 共通スタイル ─────────────────────────────────────────
+// レンダーごとに新しいオブジェクトを作らないよう、モジュール定数として持つ。
 
-const SUBLINE_SX = {
-  fontSize: 10, color: 'text.disabled', lineHeight: 1.2, display: 'block',
+const GROUP_HEAD_SX  = { px: 2, py: 0.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #eeeeee' }
+const GROUP_LABEL_SX = { fontSize: 11, fontWeight: 700, color: 'text.secondary' }
+const GROUP_TOTAL_SX = { fontSize: 10, color: 'text.disabled', ml: 1, fontVariantNumeric: 'tabular-nums' }
+
+// 状態で変わるものだけ 2 種類用意する
+const ROW_SX        = { px: 2, py: 1, borderBottom: BORDER_LIGHT, opacity: 1, '&:hover': { bgcolor: '#f9fbe7' } }
+const ROW_SX_BILLED = { ...ROW_SX, opacity: 0.55 }
+
+const CHECKBOX_SX = {
+  p: 0.75, ml: -1, flexShrink: 0, color: '#bdbdbd', '&.Mui-checked': { color: '#43a047' },
+  '& .MuiSvgIcon-root': { fontSize: 20 },
+}
+
+// 1 行目は項目名。開始位置が行ごとに揃い、名前に幅を使える。
+const NAME_LINE_SX        = { fontSize: 13.5, fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+const NAME_LINE_BILLED_SX = { ...NAME_LINE_SX, textDecoration: 'line-through', color: '#9e9e9e' }
+
+// カテゴリは色ドット＋文字で補足行に置く。チップを名前の前に置くと幅が可変で
+// 名前の開始位置が揃わず、固定幅にすると名前が切れるため。
+const DOT_SX  = { width: 7, height: 7, borderRadius: '50%', flexShrink: 0 }
+const META_SX = {
+  fontSize: 10.5, color: 'text.secondary', lineHeight: 1.25, minWidth: 0,
   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
 }
-const GROUP_HEAD_SX = { px: 2, py: 0.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #eeeeee' }
-const GROUP_LABEL_SX = { fontSize: 11, fontWeight: 700, color: 'text.secondary' }
-const GROUP_TOTAL_SX = { fontSize: 10, color: 'text.disabled', ml: 1 }
 
-// 行ごとに新しいオブジェクトを作らないよう、状態で変わるものだけ 2 種類用意する
-const ROW_SX        = { px: 2, py: 0.75, borderBottom: BORDER_LIGHT, opacity: 1, '&:hover': { bgcolor: '#f9fbe7' } }
-const ROW_SX_BILLED = { ...ROW_SX, opacity: 0.55 }
-const CHECKBOX_SX   = { p: 0.25, ml: -0.75, flexShrink: 0, color: '#bdbdbd', '&.Mui-checked': { color: '#43a047' } }
-const NAME_SX        = { fontSize: 12, fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
-const NAME_SX_BILLED = { ...NAME_SX, textDecoration: 'line-through', color: '#9e9e9e' }
-const AMOUNT_SX     = { fontSize: 13, fontWeight: 700 }
-const SUBTOTAL_SX   = { fontSize: 9, color: 'text.disabled' }
-const ICON_BTN_SX   = { p: 0.75 }
-const ICON_SX       = { fontSize: 13, color: 'text.disabled' }
-const LEFT_STACK_SX = { flex: 1, minWidth: 0 }
+const AMOUNT_SX   = { fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }
+const SUBTOTAL_SX = { fontSize: 9, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }
+const CHEVRON_SX  = { fontSize: 20, color: 'text.disabled', flexShrink: 0, ml: 0.25 }
+
+const LEFT_STACK_SX  = { flex: 1, minWidth: 0 }
 const RIGHT_STACK_SX = { flexShrink: 0 }
-const MIN0_SX       = { minWidth: 0 }
+const MIN0_SX        = { minWidth: 0 }
 
 /**
  * 固定費・変動費で共通の 1 行。
- * 左: [チェック（固定費のみ）] カテゴリ / 消費分類 / 項目名 / 補足行
- * 右: 金額 / 累計 と 編集・削除
- * 見せ方が両者で食い違わないよう、必ずこのコンポーネントを使う。
+ * 行タップで編集、左スワイプで削除（iOS のリストと同じ作法）。
+ * 小さいアイコンを狙わせないことで、右下に浮く FAB と操作が競合しなくなる。
+ *
+ * 左: [チェック（固定費のみ）] 項目名 / 消費分類 と、カテゴリ・支払先の補足行
+ * 右: 金額 / 累計 と chevron（タップできることを示す）
  *
  * ハンドラは item / id を引数で受ける形にしてある（行ごとにクロージャを作らない
  * ので、呼び出し側が参照を固定していれば memo が効く）。
@@ -43,52 +59,51 @@ export const ExpenseRow = memo(function ExpenseRow({
 }) {
   const { category, spendType, sign, name, payee, amount } = item
   return (
-    <Box
-      onContextMenu={onContextMenu ? (e) => onContextMenu(e, item) : undefined}
-      sx={billed ? ROW_SX_BILLED : ROW_SX}
-    >
-      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-        <Stack direction="row" alignItems="center" gap={0.75} sx={LEFT_STACK_SX}>
-          {onToggleBilled && (
-            <Checkbox
-              checked={billed} onChange={() => onToggleBilled(item.id)} size="small" aria-label="引き落とし済み"
-              sx={CHECKBOX_SX}
-            />
-          )}
-          <Chip label={category} size="small"
-            sx={{ height: 18, fontSize: 9, flexShrink: 0, bgcolor: CATEGORY_COLORS[category] ?? '#eceff1', color: '#37474f' }} />
-          {spendType && sign !== 1 && (
-            <Chip label={spendType} size="small" sx={{
-              height: 16, fontSize: 8, flexShrink: 0,
-              bgcolor: SPEND_TYPE_COLORS[spendType] ?? '#eceff1', color: '#fff',
-            }} />
-          )}
-          <Box sx={MIN0_SX}>
-            <Typography variant="body2" sx={billed ? NAME_SX_BILLED : NAME_SX}>{name}</Typography>
-            {payee && <Typography variant="caption" sx={SUBLINE_SX}>{payee}</Typography>}
-            {notes?.map(n => (
-              <Typography key={n} variant="caption" sx={SUBLINE_SX}>{n}</Typography>
-            ))}
-          </Box>
-        </Stack>
-        <Stack alignItems="flex-end" direction="row" gap={0.5} sx={RIGHT_STACK_SX}>
-          <Stack alignItems="flex-end">
-            <Typography variant="body2" sx={AMOUNT_SX}>¥{fmt(amount)}</Typography>
-            {subtotal != null && (
-              <Typography variant="caption" sx={SUBTOTAL_SX}>累計 ¥{fmt(subtotal)}</Typography>
+    <SwipeRow onDelete={() => onDelete(item.id)} onClick={() => onEdit(item)}>
+      <Box
+        onContextMenu={onContextMenu ? (e) => onContextMenu(e, item) : undefined}
+        sx={billed ? ROW_SX_BILLED : ROW_SX}
+      >
+        <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
+          <Stack direction="row" alignItems="center" gap={0.75} sx={LEFT_STACK_SX}>
+            {onToggleBilled && (
+              <Checkbox
+                checked={billed} size="small" aria-label="引き落とし済み"
+                onClick={(e) => e.stopPropagation()}
+                onChange={() => onToggleBilled(item.id)}
+                sx={CHECKBOX_SX}
+              />
             )}
+            <Box sx={MIN0_SX}>
+              <Stack direction="row" alignItems="center" gap={0.5}>
+                <Typography sx={billed ? NAME_LINE_BILLED_SX : NAME_LINE_SX}>{name}</Typography>
+                {spendType && sign !== 1 && (
+                  <Chip label={spendType} size="small" sx={{
+                    height: 15, fontSize: 8, flexShrink: 0,
+                    bgcolor: SPEND_TYPE_COLORS[spendType] ?? '#eceff1', color: '#fff',
+                  }} />
+                )}
+              </Stack>
+              <Stack direction="row" alignItems="center" gap={0.5} sx={MIN0_SX}>
+                <Box sx={{ ...DOT_SX, bgcolor: CATEGORY_COLORS[category] ?? '#cfd8dc' }} />
+                <Typography sx={META_SX}>
+                  {[category, payee, ...(notes ?? [])].filter(Boolean).join(' · ')}
+                </Typography>
+              </Stack>
+            </Box>
           </Stack>
-          <Stack>
-            <IconButton size="small" aria-label="編集" onClick={() => onEdit(item)} sx={ICON_BTN_SX}>
-              <EditIcon sx={ICON_SX} />
-            </IconButton>
-            <IconButton size="small" aria-label="削除" onClick={() => onDelete(item.id)} sx={ICON_BTN_SX}>
-              <DeleteIcon sx={ICON_SX} />
-            </IconButton>
+          <Stack alignItems="center" direction="row" gap={0.25} sx={RIGHT_STACK_SX}>
+            <Stack alignItems="flex-end">
+              <Typography variant="body2" sx={AMOUNT_SX}>¥{fmt(amount)}</Typography>
+              {subtotal != null && (
+                <Typography variant="caption" sx={SUBTOTAL_SX}>累計 ¥{fmt(subtotal)}</Typography>
+              )}
+            </Stack>
+            <ChevronRightIcon sx={CHEVRON_SX} />
           </Stack>
         </Stack>
-      </Stack>
-    </Box>
+      </Box>
+    </SwipeRow>
   )
 })
 
