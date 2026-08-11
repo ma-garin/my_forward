@@ -10,38 +10,38 @@ import { CATEGORY_COLORS, BORDER_LIGHT, SPEND_TYPE_COLORS } from '../utils/ccSto
 // ─── 共通スタイル ─────────────────────────────────────────
 // レンダーごとに新しいオブジェクトを作らないよう、モジュール定数として持つ。
 
-const GROUP_HEAD_SX = { px: 2, py: 0.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #eeeeee' }
+const GROUP_HEAD_SX  = { px: 2, py: 0.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #eeeeee' }
 const GROUP_LABEL_SX = { fontSize: 11, fontWeight: 700, color: 'text.secondary' }
 const GROUP_TOTAL_SX = { fontSize: 10, color: 'text.disabled', ml: 1, fontVariantNumeric: 'tabular-nums' }
 
-// 行ごとに新しいオブジェクトを作らないよう、状態で変わるものだけ 2 種類用意する
-const ROW_SX        = { px: 2, py: 0.75, borderBottom: BORDER_LIGHT, opacity: 1, '&:hover': { bgcolor: '#f9fbe7' } }
+// 状態で変わるものだけ 2 種類用意する
+const ROW_SX        = { px: 2, py: 1, borderBottom: BORDER_LIGHT, opacity: 1, '&:hover': { bgcolor: '#f9fbe7' } }
 const ROW_SX_BILLED = { ...ROW_SX, opacity: 0.55 }
-const CHECKBOX_SX   = {
+
+const CHECKBOX_SX = {
   p: 0.75, ml: -1, flexShrink: 0, color: '#bdbdbd', '&.Mui-checked': { color: '#43a047' },
   '& .MuiSvgIcon-root': { fontSize: 20 },
 }
-const AMOUNT_SX     = { fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }
-const SUBTOTAL_SX   = { fontSize: 9, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }
-// 見た目は小さいまま、タップ領域は 44px 角を確保する（iOS の推奨最小サイズ）。
-// アイコン自体を大きくすると行が詰まるので、疑似要素で当たり判定だけ広げる。
-// アイコンは小さいまま、ボタン自体を 40px 角にしてタップ領域を確保する。
-// 疑似要素で判定だけ広げると隣のボタンと重なって取り合いになるため、
-// 実体のサイズで確保する（横並び・隙間なしで 2 つ並べても重ならない）。
-const ICON_BTN_SX   = { width: 40, height: 40, p: 0, flexShrink: 0 }
-const ICON_SX       = { fontSize: 16, color: 'text.disabled' }
-const LEFT_STACK_SX = { flex: 1, minWidth: 0 }
-const RIGHT_STACK_SX = { flexShrink: 0 }
-const MIN0_SX       = { minWidth: 0 }
-// カテゴリは色ドット＋文字で補足行に置く。チップを名前の前に置くと
-// 幅が可変で名前の開始位置が揃わず、固定幅にすると名前が切れるため。
-const DOT_SX = { width: 7, height: 7, borderRadius: '50%', flexShrink: 0 }
+
+// 1 行目は項目名。開始位置が行ごとに揃い、名前に幅を使える。
+const NAME_LINE_SX        = { fontSize: 13.5, fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+const NAME_LINE_BILLED_SX = { ...NAME_LINE_SX, textDecoration: 'line-through', color: '#9e9e9e' }
+
+// カテゴリは色ドット＋文字で補足行に置く。チップを名前の前に置くと幅が可変で
+// 名前の開始位置が揃わず、固定幅にすると名前が切れるため。
+const DOT_SX  = { width: 7, height: 7, borderRadius: '50%', flexShrink: 0 }
 const META_SX = {
   fontSize: 10.5, color: 'text.secondary', lineHeight: 1.25, minWidth: 0,
   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
 }
-const NAME_LINE_SX = { fontSize: 13.5, fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
-const NAME_LINE_BILLED_SX = { ...NAME_LINE_SX, textDecoration: 'line-through', color: '#9e9e9e' }
+
+const AMOUNT_SX   = { fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }
+const SUBTOTAL_SX = { fontSize: 9, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }
+const CHEVRON_SX  = { fontSize: 20, color: 'text.disabled', flexShrink: 0, ml: 0.25 }
+
+const LEFT_STACK_SX  = { flex: 1, minWidth: 0 }
+const RIGHT_STACK_SX = { flexShrink: 0 }
+const MIN0_SX        = { minWidth: 0 }
 
 /**
  * 固定費・変動費で共通の 1 行。
@@ -59,42 +59,20 @@ export const ExpenseRow = memo(function ExpenseRow({
 }) {
   const { category, spendType, sign, name, payee, amount } = item
   return (
-    <Box
-      onContextMenu={onContextMenu ? (e) => onContextMenu(e, item) : undefined}
-      sx={billed ? ROW_SX_BILLED : ROW_SX}
-    >
-      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-        <Stack direction="row" alignItems="center" gap={0.75} sx={LEFT_STACK_SX}>
-          {onToggleBilled && (
-            <Checkbox
-              checked={billed} onChange={() => onToggleBilled(item.id)} size="small" aria-label="引き落とし済み"
-              sx={CHECKBOX_SX}
-            />
-          )}
-          {/* 1 行目に項目名。開始位置が行ごとに揃い、名前に幅を使える。 */}
-          <Box sx={MIN0_SX}>
-            <Stack direction="row" alignItems="center" gap={0.5}>
-              <Typography sx={billed ? NAME_LINE_BILLED_SX : NAME_LINE_SX}>{name}</Typography>
-              {spendType && sign !== 1 && (
-                <Chip label={spendType} size="small" sx={{
-                  height: 15, fontSize: 8, flexShrink: 0,
-                  bgcolor: SPEND_TYPE_COLORS[spendType] ?? '#eceff1', color: '#fff',
-                }} />
-              )}
-            </Stack>
-            <Stack direction="row" alignItems="center" gap={0.5} sx={MIN0_SX}>
-              <Box sx={{ ...DOT_SX, bgcolor: CATEGORY_COLORS[category] ?? '#cfd8dc' }} />
-              <Typography sx={META_SX}>
-                {[category, payee, ...(notes ?? [])].filter(Boolean).join(' · ')}
-              </Typography>
-            </Stack>
-          </Box>
-        </Stack>
-        <Stack alignItems="center" direction="row" gap={0.25} sx={RIGHT_STACK_SX}>
-          <Stack alignItems="flex-end" sx={{ mr: 0.25 }}>
-            <Typography variant="body2" sx={AMOUNT_SX}>¥{fmt(amount)}</Typography>
-            {subtotal != null && (
-              <Typography variant="caption" sx={SUBTOTAL_SX}>累計 ¥{fmt(subtotal)}</Typography>
+    <SwipeRow onDelete={() => onDelete(item.id)} onClick={() => onEdit(item)}>
+      <Box
+        onContextMenu={onContextMenu ? (e) => onContextMenu(e, item) : undefined}
+        sx={billed ? ROW_SX_BILLED : ROW_SX}
+      >
+        <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
+          <Stack direction="row" alignItems="center" gap={0.75} sx={LEFT_STACK_SX}>
+            {onToggleBilled && (
+              <Checkbox
+                checked={billed} size="small" aria-label="引き落とし済み"
+                onClick={(e) => e.stopPropagation()}
+                onChange={() => onToggleBilled(item.id)}
+                sx={CHECKBOX_SX}
+              />
             )}
             <Box sx={MIN0_SX}>
               <Stack direction="row" alignItems="center" gap={0.5}>
@@ -114,13 +92,14 @@ export const ExpenseRow = memo(function ExpenseRow({
               </Stack>
             </Box>
           </Stack>
-          <Stack direction="row">
-            <IconButton size="small" aria-label="編集" onClick={() => onEdit(item)} sx={ICON_BTN_SX}>
-              <EditIcon sx={ICON_SX} />
-            </IconButton>
-            <IconButton size="small" aria-label="削除" onClick={() => onDelete(item.id)} sx={ICON_BTN_SX}>
-              <DeleteIcon sx={ICON_SX} />
-            </IconButton>
+          <Stack alignItems="center" direction="row" gap={0.25} sx={RIGHT_STACK_SX}>
+            <Stack alignItems="flex-end">
+              <Typography variant="body2" sx={AMOUNT_SX}>¥{fmt(amount)}</Typography>
+              {subtotal != null && (
+                <Typography variant="caption" sx={SUBTOTAL_SX}>累計 ¥{fmt(subtotal)}</Typography>
+              )}
+            </Stack>
+            <ChevronRightIcon sx={CHEVRON_SX} />
           </Stack>
         </Stack>
       </Box>
