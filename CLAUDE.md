@@ -1,6 +1,6 @@
 # my_forward — 個人資産管理アプリ
 
-完全オフライン（localStorage のみ）。React 19 + Vite 8 + MUI v6。3タブ構成（カード/家計/給与）。
+完全オフライン（localStorage のみ）。React 19 + Vite 8 + MUI v6。4タブ構成（クレカ/家計/支出一覧/給与）。
 
 ## Development Guidelines
 - Think in English, generate responses in Japanese
@@ -21,6 +21,20 @@ Kiro Spec Driven Development を使う場合は `/kiro` skill を呼び出す。
 - `newId()` — ID生成 / `fmt(n)` — 金額フォーマット / `ymStr(y,m)` — YYYY-MM生成
 - `isActiveForYm(item, ym)` — 固定費が指定月に有効か / `getCCTotal(cardId, ym)` — クレカ合計
 
+### Key Utils（ccStorage.js）
+- `billingYmForCard(date, cardId, fallbackYm)` — 日付+カード → 請求月。
+  `getBillingYmForDate` の第2引数は締め日（数値）なので、カードIDを渡さないこと
+- `upsertFixedItem` / `upsertVarItem` — 保存とカード移動。画面ごとに移動手順を書かない
+- `bumpDataVersion()` — 保存関数を足したら必ず呼ぶ（タブ間の反映に使う）
+
+### 一本化しているもの（分岐実装を作らない）
+- 支出の行: `components/CCExpenseViews.jsx` の `ExpenseRow`（行タップで編集・左スワイプで削除）
+- 編集フォーム: `components/ExpenseDialog.jsx`
+- 金額入力: `components/AmountField.jsx`（`CalcPad` の値は ref で渡す）
+
+### 仕様メモ
+- 消費分類（消費/投資/浪費）は変動費のみ。固定費は持たない
+
 ### Reading Rules
 - 大ファイルは全読みしない — `Grep` で行番号特定 → `Read` で周辺のみ
 - 構造把握は `Glob` + `Grep` 優先
@@ -31,6 +45,9 @@ Kiro Spec Driven Development を使う場合は `/kiro` skill を呼び出す。
 
 ### Validation
 - 実装後は必ず `npx vite build` でビルド確認
+- `npm run preview` の URL は `http://localhost:4173/my_forward/`（base 付き）
+- レイアウトは見切れが再発しやすい: `Card` は overflow:hidden、負マージン禁止。
+  高さは固定値でなく `minHeight`。FAB は内容の上に浮くので行端にボタンを置かない
 
 ### Context Management
 - 無関係なタスク間では `/clear` でリセット
