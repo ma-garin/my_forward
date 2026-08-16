@@ -48,7 +48,7 @@ const MIN0_SX        = { minWidth: 0 }
  * 行タップで編集、左スワイプで削除（iOS のリストと同じ作法）。
  * 小さいアイコンを狙わせないことで、右下に浮く FAB と操作が競合しなくなる。
  *
- * 左: [チェック（固定費のみ）] 項目名 / 消費分類 と、カテゴリ・支払先の補足行
+ * 左: [チェック（固定費のみ）] 消費分類 / 支払先 と、カテゴリ・項目名の補足行
  * 右: 金額 / 累計 と chevron（タップできることを示す）
  *
  * ハンドラは item / id を引数で受ける形にしてある（行ごとにクロージャを作らない
@@ -58,6 +58,11 @@ export const ExpenseRow = memo(function ExpenseRow({
   item, subtotal, notes, billed = false, onToggleBilled, onEdit, onDelete, onContextMenu,
 }) {
   const { category, spendType, sign, name, payee, amount } = item
+  // 主役は店名。品名は補足行に回す（払った先が思い出しやすい）。
+  // 店名が無い固定費などは従来どおり項目名を主役にし、補足行に重複させない。
+  const title = payee?.trim() || name
+  const metaText = [category, payee?.trim() ? name : null, ...(notes ?? [])]
+    .filter(Boolean).join(' · ')
   return (
     <SwipeRow onDelete={() => onDelete(item.id)} onClick={() => onEdit(item)}>
       <Box
@@ -76,19 +81,17 @@ export const ExpenseRow = memo(function ExpenseRow({
             )}
             <Box sx={MIN0_SX}>
               <Stack direction="row" alignItems="center" gap={0.5}>
-                <Typography sx={billed ? NAME_LINE_BILLED_SX : NAME_LINE_SX}>{name}</Typography>
                 {spendType && sign !== 1 && (
                   <Chip label={spendType} size="small" sx={{
                     height: 15, fontSize: 8, flexShrink: 0,
                     bgcolor: SPEND_TYPE_COLORS[spendType] ?? '#eceff1', color: '#fff',
                   }} />
                 )}
+                <Typography sx={billed ? NAME_LINE_BILLED_SX : NAME_LINE_SX}>{title}</Typography>
               </Stack>
               <Stack direction="row" alignItems="center" gap={0.5} sx={MIN0_SX}>
                 <Box sx={{ ...DOT_SX, bgcolor: CATEGORY_COLORS[category] ?? '#cfd8dc' }} />
-                <Typography sx={META_SX}>
-                  {[category, payee, ...(notes ?? [])].filter(Boolean).join(' · ')}
-                </Typography>
+                <Typography sx={META_SX}>{metaText}</Typography>
               </Stack>
             </Box>
           </Stack>
