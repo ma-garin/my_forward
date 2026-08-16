@@ -203,9 +203,10 @@ export function DailyBarChart({ varList }) {
 
   const maxAmt   = Math.max(...Object.values(byDate))
   const CHART_H  = 80
-  const BAR_W    = 28
+  // 金額ラベルは省略せず実額で出す。桁を落とすと読み替えが要るので、
+  // 代わりに列幅を広げて 1 行に収める（横スクロールは元から効く）。
+  const BAR_W    = 44
   const todayStr = new Date().toISOString().slice(0, 10)
-  const fmtAmt   = (v) => v >= 10000 ? `${Math.round(v / 1000)}k` : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`
 
   return (
     <Box sx={{ px: 1.5, pt: 1.5, pb: 1, borderBottom: '1px solid #f0f0f0' }}>
@@ -224,8 +225,8 @@ export function DailyBarChart({ varList }) {
           const isMax   = amt === maxAmt
           return (
             <Box key={d} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: BAR_W }}>
-              <Typography variant="caption" sx={{ fontSize: 8, color: isMax ? '#e53935' : 'text.disabled', fontWeight: isMax ? 700 : 400, mb: 0.25, lineHeight: 1.2 }}>
-                ¥{fmtAmt(amt)}
+              <Typography variant="caption" sx={{ fontSize: 8, color: isMax ? '#e53935' : 'text.disabled', fontWeight: isMax ? 700 : 400, mb: 0.25, lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+                ¥{fmt(amt)}
               </Typography>
               <Box sx={{ width: BAR_W - 4, height: barH, bgcolor: isToday ? '#1976d2' : isMax ? '#e53935' : '#90a4ae', borderRadius: '3px 3px 0 0', opacity: 0.85 }} />
               <Box sx={{ width: '100%', borderTop: '1px solid #e0e0e0', pt: 0.25 }}>

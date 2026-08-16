@@ -48,8 +48,8 @@ export default function MonthlyTrendCard({ currentBillingYm }) {
             return (
               <Stack key={ym} alignItems="center" sx={{ flex: 1 }}>
                 {total > 0 && (
-                  <Typography sx={{ fontSize: 8, color: isCurrent ? 'primary.main' : 'text.secondary', mb: 0.3, fontWeight: isCurrent ? 700 : 400 }}>
-                    ¥{total >= 10000 ? `${Math.round(total / 1000)}k` : fmt(total)}
+                  <Typography sx={{ fontSize: 8, color: isCurrent ? 'primary.main' : 'text.secondary', mb: 0.3, fontWeight: isCurrent ? 700 : 400, whiteSpace: 'nowrap' }}>
+                    ¥{fmt(total)}
                   </Typography>
                 )}
                 <Box sx={{
