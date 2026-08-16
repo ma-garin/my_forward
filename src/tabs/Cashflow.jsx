@@ -256,6 +256,21 @@ function ExpenseEditDialog({ open, item, categories, onClose, onSave }) {
       <DialogTitle sx={{ pb: 0.5, fontSize: 16 }}>支出を編集</DialogTitle>
       <DialogContent>
         <Stack spacing={1.5} sx={{ mt: 0.5 }}>
+          {/* 消費分類は変動費のみ。固定費は分類の対象外。
+              最初に選ぶ項目なのでフォームの先頭に置く。 */}
+          {item.type !== 'fixed' && (
+          <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12 }}>消費分類</Typography>
+            {SPEND_TYPES.map(t => (
+              <Box key={t} onClick={() => setSpendType(t)} sx={{
+                px: 1.5, py: 0.5, borderRadius: 2, cursor: 'pointer', fontSize: 12, userSelect: 'none',
+                bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
+                color: spendType === t ? '#fff' : 'text.secondary',
+                fontWeight: spendType === t ? 700 : 400,
+              }}>{t}</Box>
+            ))}
+          </Stack>
+          )}
           <TextField label="日付" type="date" size="small" fullWidth
             InputLabelProps={{ shrink: true }}
             value={date} onChange={(e) => setDate(e.target.value)}
@@ -279,20 +294,6 @@ function ExpenseEditDialog({ open, item, categories, onClose, onSave }) {
           <TextField label="支払先" size="small" fullWidth
             value={payee} onChange={(e) => setPayee(e.target.value)} />
           <AmountField label="金額" value={String(amount)} onChange={setAmount} />
-          {/* 消費分類は変動費のみ。固定費は分類の対象外。 */}
-          {item.type !== 'fixed' && (
-          <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12 }}>消費分類</Typography>
-            {SPEND_TYPES.map(t => (
-              <Box key={t} onClick={() => setSpendType(t)} sx={{
-                px: 1.5, py: 0.5, borderRadius: 2, cursor: 'pointer', fontSize: 12, userSelect: 'none',
-                bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
-                color: spendType === t ? '#fff' : 'text.secondary',
-                fontWeight: spendType === t ? 700 : 400,
-              }}>{t}</Box>
-            ))}
-          </Stack>
-          )}
         </Stack>
       </DialogContent>
       <DialogActions>

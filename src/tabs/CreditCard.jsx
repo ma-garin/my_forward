@@ -393,6 +393,21 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
   const formArea = useMemo(() => !open ? null : (
     <Box sx={{ overflowY: 'auto', bgcolor: '#fff', borderBottom: '1px solid #e0e0e0' }}>
 
+      {/* 消費分類。最初に選ぶ項目なのでフォームの先頭に置く。 */}
+      <Box sx={IROW_GAP}>
+        <Typography sx={ILABEL}>消費分類</Typography>
+        <Stack direction="row" gap={0.75}>
+          {SPEND_TYPES.map(t => (
+            <Box key={t} onClick={() => setSpendType(t)} sx={{
+              px: 1.25, py: 0.4, borderRadius: 2, cursor: 'pointer', fontSize: 13, userSelect: 'none',
+              bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
+              color: spendType === t ? '#fff' : '#757575',
+              fontWeight: spendType === t ? 700 : 400,
+            }}>{t}</Box>
+          ))}
+        </Stack>
+      </Box>
+
       {/* 日付 */}
       <Box sx={IROW_TAP} onClick={() => dateRef.current?.click()}>
         <Typography sx={ILABEL}>日付</Typography>
@@ -428,21 +443,6 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
         <IconButton size="small" aria-label="カテゴリ設定" onClick={onEditCategories} sx={{ p: 0.75 }}>
           <SettingsIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
         </IconButton>
-      </Box>
-
-      {/* 消費分類 */}
-      <Box sx={IROW_GAP}>
-        <Typography sx={ILABEL}>消費分類</Typography>
-        <Stack direction="row" gap={0.75}>
-          {SPEND_TYPES.map(t => (
-            <Box key={t} onClick={() => setSpendType(t)} sx={{
-              px: 1.25, py: 0.4, borderRadius: 2, cursor: 'pointer', fontSize: 13, userSelect: 'none',
-              bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
-              color: spendType === t ? '#fff' : '#757575',
-              fontWeight: spendType === t ? 700 : 400,
-            }}>{t}</Box>
-          ))}
-        </Stack>
       </Box>
 
       {/* 支払先 */}

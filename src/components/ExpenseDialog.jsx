@@ -58,6 +58,23 @@ export default function ExpenseDialog({ open, onClose, onSave, initial, title, c
       <DialogTitle sx={{ pb: 0.5, fontSize: 16 }}>{title}</DialogTitle>
       <DialogContent>
         <Stack spacing={1.5} sx={{ mt: 0.5 }}>
+          {/* 消費分類は変動費のみ。固定費は分類の対象外とする。
+              最初に選ぶ項目なのでフォームの先頭に置く。 */}
+          {!isFixed && (
+            <Stack direction="row" alignItems="center" gap={1}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12, minWidth: 52 }}>消費分類</Typography>
+              <Stack direction="row" gap={0.75}>
+                {SPEND_TYPES.map(t => (
+                  <Box key={t} onClick={() => setSpendType(t)} sx={{
+                    px: 1.5, py: 0.5, borderRadius: 2, cursor: 'pointer', fontSize: 12, userSelect: 'none',
+                    bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
+                    color: spendType === t ? '#fff' : 'text.secondary',
+                    fontWeight: spendType === t ? 700 : 400,
+                  }}>{t}</Box>
+                ))}
+              </Stack>
+            </Stack>
+          )}
           {/* 支払い方法（カード）。編集時も別カードへ付け替えられる。 */}
           <Stack direction="row" alignItems="center" gap={1}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12, minWidth: 52 }}>カード</Typography>
@@ -143,22 +160,6 @@ export default function ExpenseDialog({ open, onClose, onSave, initial, title, c
           <TextField label="項目名" size="small" fullWidth placeholder="例: YouTube Premium"
             value={name} onChange={(e) => setName(e.target.value)} />
           <AmountField label="金額" value={String(amount)} onChange={setAmount} />
-          {/* 消費分類は変動費のみ。固定費は分類の対象外とする。 */}
-          {!isFixed && (
-            <Stack direction="row" alignItems="center" gap={1}>
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12, minWidth: 52 }}>消費分類</Typography>
-              <Stack direction="row" gap={0.75}>
-                {SPEND_TYPES.map(t => (
-                  <Box key={t} onClick={() => setSpendType(t)} sx={{
-                    px: 1.5, py: 0.5, borderRadius: 2, cursor: 'pointer', fontSize: 12, userSelect: 'none',
-                    bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
-                    color: spendType === t ? '#fff' : 'text.secondary',
-                    fontWeight: spendType === t ? 700 : 400,
-                  }}>{t}</Box>
-                ))}
-              </Stack>
-            </Stack>
-          )}
         </Stack>
       </DialogContent>
       <DialogActions>
