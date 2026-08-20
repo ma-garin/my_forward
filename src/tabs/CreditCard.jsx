@@ -123,6 +123,29 @@ function addToHistory(key, value) {
   }
 }
 
+// 支払先ごとに前回選んだ分類・消費分類を覚えておき、次に同じ支払先を選んだときに
+// 埋め直す。履歴（cc_payee_history）は並び順自体が候補の意味を持つので別キーにする。
+const PAYEE_META_KEY = 'cc_payee_meta'
+
+function loadPayeeMeta() {
+  try {
+    const value = JSON.parse(localStorage.getItem(PAYEE_META_KEY) || '{}')
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  } catch {
+    return {}
+  }
+}
+
+function savePayeeMeta(payee, meta) {
+  const key = payee.trim()
+  if (!key) return
+  try {
+    localStorage.setItem(PAYEE_META_KEY, JSON.stringify({ ...loadPayeeMeta(), [key]: meta }))
+  } catch {
+    // 補完用の記憶なので、保存失敗時も入力処理は続行する
+  }
+}
+
 // ─── カテゴリ管理ダイアログ ────────────────────────────────
 
 function CategoryDialog({ open, onClose, categories, onChange }) {
@@ -350,11 +373,24 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
   const [name,     setName]     = useState('')
   const [cardId,   setCardId]   = useState(currentCardId)
   const [spendType, setSpendType] = useState('消費')
-  const [payeeHistory] = useState(() => loadHistory('cc_payee_history'))
-  const [nameHistory]  = useState(() => loadHistory('cc_name_history'))
+  // 履歴は開くたび・保存するたびに読み直す。マウント時に 1 回だけ読むと、
+  // 追加したばかりの支払先が次の入力の候補に出てこない（再読み込みまで出ない）。
+  const [payeeHistory, setPayeeHistory] = useState(() => loadHistory('cc_payee_history'))
+  const [nameHistory,  setNameHistory]  = useState(() => loadHistory('cc_name_history'))
+  const refreshHistories = useCallback(() => {
+    setPayeeHistory(loadHistory('cc_payee_history'))
+    setNameHistory(loadHistory('cc_name_history'))
+  }, [])
   const [showPayeeSugg, setShowPayeeSugg] = useState(false)
   const [showNameSugg,  setShowNameSugg]  = useState(false)
+  // 連続入力: 保存しても閉じず、次の 1 件を続けて入れる
+  const [keepOpen,   setKeepOpen]   = useState(false)
+  const [savedCount, setSavedCount] = useState(0)
   const dateRef = useRef(null)
+
+  // 自分で選び直した項目は支払先による補完で上書きしない（選択を勝手に消さない）
+  const catTouchedRef   = useRef(false)
+  const spendTouchedRef = useRef(false)
 
   const payeeSugg = useMemo(() => payee
     ? payeeHistory.filter(x => x.toLowerCase().includes(payee.toLowerCase()) && x !== payee).slice(0, 5)
@@ -363,18 +399,31 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
     ? nameHistory.filter(x => x.toLowerCase().includes(name.toLowerCase()) && x !== name).slice(0, 5)
     : nameHistory.slice(0, 5), [name, nameHistory])
 
+  // 支払先を選んだら、その支払先で前回使った分類・消費分類を埋める。
+  // 消したカテゴリが残っていることがあるので、今あるカテゴリのときだけ反映する。
+  const applyPayeeMeta = useCallback((value) => {
+    const meta = loadPayeeMeta()[value.trim()]
+    if (!meta) return
+    if (!catTouchedRef.current && categories.includes(meta.category)) setCategory(meta.category)
+    if (!spendTouchedRef.current && SPEND_TYPES.includes(meta.spendType)) setSpendType(meta.spendType)
+  }, [categories])
+
   useEffect(() => {
     if (open) {
       setAmount(''); setPayee(''); setName('')
       setCategory(defaultExpenseCategory(categories))
       setSpendType('消費')
       setDate(defaultDate); setCardId(currentCardId)
+      setSavedCount(0)
+      refreshHistories()
+      catTouchedRef.current = false
+      spendTouchedRef.current = false
       window.history.pushState({ addExpenseOpen: true }, '')
       const handlePop = () => onClose()
       window.addEventListener('popstate', handlePop)
       return () => window.removeEventListener('popstate', handlePop)
     }
-  }, [open, defaultDate, currentCardId, categories, onClose])
+  }, [open, defaultDate, currentCardId, categories, onClose, refreshHistories])
 
   const doClose = useCallback(() => {
     if (window.history.state?.addExpenseOpen) window.history.back()
@@ -386,7 +435,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
   // ref の更新はコミット後（キー押下より必ず前）に行う。
   const formRef = useRef({})
   useEffect(() => {
-    formRef.current = { amount, payee, name, cardId, category, date, spendType }
+    formRef.current = { amount, payee, name, cardId, category, date, spendType, keepOpen }
   })
 
   // CalcPad へは値を ref で渡す（prop で渡すと 1 タップごとに memo が外れる）。
@@ -397,11 +446,23 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
     const f = formRef.current
     const a = parseAmount(f.amount)
     if (a <= 0) return
-    if (f.payee.trim()) addToHistory('cc_payee_history', f.payee.trim())
+    if (f.payee.trim()) {
+      addToHistory('cc_payee_history', f.payee.trim())
+      savePayeeMeta(f.payee, { category: f.category, spendType: f.spendType })
+    }
     if (f.name.trim())  addToHistory('cc_name_history',  f.name.trim())
     onSave({ cardId: f.cardId, item: { name: f.name.trim() || f.category, payee: f.payee.trim(), amount: a, category: f.category, date: f.date, spendType: f.spendType } })
+    if (f.keepOpen) {
+      // 1 件ぶんだけ空にする。日付・カード・分類は次の 1 件でもたいてい同じなので残す。
+      setAmount(''); setPayee(''); setName('')
+      catTouchedRef.current = false
+      spendTouchedRef.current = false
+      refreshHistories()
+      setSavedCount((n) => n + 1)
+      return
+    }
     doClose()
-  }, [onSave, doClose])
+  }, [onSave, doClose, refreshHistories])
 
   // 金額（電卓）以外のフォームは amount に依存しない。
   // メモ化して、キー入力ごとに Select / InputBase / 候補チップまで
@@ -435,7 +496,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
         <Typography sx={ILABEL}>分類</Typography>
         <Select
           value={categories.includes(category) ? category : (categories[0] ?? '')}
-          onChange={e => setCategory(e.target.value)}
+          onChange={e => { catTouchedRef.current = true; setCategory(e.target.value) }}
           variant="standard"
           disableUnderline
           sx={IVALUE}
@@ -452,7 +513,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
         <Typography sx={ILABEL}>消費分類</Typography>
         <Stack direction="row" gap={0.75}>
           {SPEND_TYPES.map(t => (
-            <Box key={t} onClick={() => setSpendType(t)} sx={{
+            <Box key={t} onClick={() => { spendTouchedRef.current = true; setSpendType(t) }} sx={{
               px: 1.25, py: 0.4, borderRadius: 2, cursor: 'pointer', fontSize: 13, userSelect: 'none',
               bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
               color: spendType === t ? '#fff' : '#757575',
@@ -468,13 +529,14 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
         <InputBase fullWidth placeholder="省略可" value={payee}
           onChange={e => setPayee(e.target.value)}
           onFocus={() => setShowPayeeSugg(true)}
-          onBlur={() => setTimeout(() => setShowPayeeSugg(false), 150)}
+          onBlur={e => { applyPayeeMeta(e.target.value); setTimeout(() => setShowPayeeSugg(false), 150) }}
           sx={IVALUE} />
       </Box>
       {showPayeeSugg && payeeSugg.length > 0 && (
         <Box sx={ISUGG_BOX}>
           {payeeSugg.map(s => (
-            <Chip key={s} label={s} size="small" onMouseDown={() => setPayee(s)} sx={ISUGG_CHIP} />
+            <Chip key={s} label={s} size="small"
+              onMouseDown={() => { setPayee(s); applyPayeeMeta(s) }} sx={ISUGG_CHIP} />
           ))}
         </Box>
       )}
@@ -497,7 +559,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
       )}
     </Box>
   ), [open, date, cardId, category, categories, spendType, payee, name,
-      showPayeeSugg, showNameSugg, payeeSugg, nameSugg, onEditCategories])
+      showPayeeSugg, showNameSugg, payeeSugg, nameSugg, onEditCategories, applyPayeeMeta])
 
   if (!open) return null
 
@@ -519,16 +581,38 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
       {/* フォーム（スクロール可）— amount に依存しないためメモ化済み */}
       {formArea}
 
-      {/* 金額ディスプレイ */}
-      <Box sx={{ bgcolor: '#263238', px: 2, py: 1, flexShrink: 0, display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 0.5 }}>
-        <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 18, mr: 0.5 }}>¥</Typography>
-        <Typography sx={{ color: '#fff', fontSize: 34, fontWeight: 700, fontVariantNumeric: 'tabular-nums', minHeight: 40 }}>
-          {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
-        </Typography>
+      {/* 金額ディスプレイ（左は連続入力の切り替え。空いている場所なので行が増えない） */}
+      <Box sx={{ bgcolor: '#263238', px: 2, py: 1, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+        <Stack direction="row" alignItems="center" gap={1} sx={{ minWidth: 0 }}>
+          <Box component="button" type="button" aria-pressed={keepOpen}
+            onClick={() => setKeepOpen(v => !v)}
+            sx={{
+              px: 1.25, py: 0.75, borderRadius: 2, cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap',
+              fontFamily: 'inherit', border: '1px solid',
+              borderColor: keepOpen ? '#4fc3f7' : 'rgba(255,255,255,.25)',
+              bgcolor: keepOpen ? 'rgba(79,195,247,.18)' : 'transparent',
+              color: keepOpen ? '#4fc3f7' : 'rgba(255,255,255,.6)',
+              fontWeight: keepOpen ? 700 : 400,
+            }}>
+            連続入力
+          </Box>
+          {savedCount > 0 && (
+            <Typography sx={{ fontSize: 11, color: 'rgba(255,255,255,.5)', whiteSpace: 'nowrap' }}>
+              {savedCount}件追加
+            </Typography>
+          )}
+        </Stack>
+        <Stack direction="row" alignItems="baseline" gap={0.5} sx={{ flexShrink: 0 }}>
+          <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 18, mr: 0.5 }}>¥</Typography>
+          <Typography sx={{ color: '#fff', fontSize: 34, fontWeight: 700, fontVariantNumeric: 'tabular-nums', minHeight: 40 }}>
+            {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
+          </Typography>
+        </Stack>
       </Box>
 
       {/* 電卓 */}
-      <CalcPad valueRef={amountRef} onChange={setAmount} onConfirm={doSave} disabled={parseAmount(amount) <= 0} />
+      <CalcPad valueRef={amountRef} onChange={setAmount} onConfirm={doSave}
+        disabled={parseAmount(amount) <= 0} confirmLabel="保存" />
     </Box>
   )
 }

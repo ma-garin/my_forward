@@ -21,6 +21,7 @@
 | `life_weekly_budget` | `number` | 週予算（LivingExpenseCard用） | `loadWeeklyBudget()` / `saveWeeklyBudget(v)` |
 | `cc_payee_history` | `string[]` | 支払先の入力履歴（支出追加の候補） | `loadHistory` / `addToHistory`（CreditCard.jsx 内） |
 | `cc_name_history` | `string[]` | 項目名の入力履歴（同上） | 同上 |
+| `cc_payee_meta` | `{ [payee: string]: { category: string, spendType: string } }` | 支払先ごとに前回選んだ分類・消費分類。支出追加で支払先を選ぶと自動で埋める | `loadPayeeMeta` / `savePayeeMeta`（CreditCard.jsx 内） |
 | `cc_init_v4` | `string` | 初期データ投入済みフラグ | 自動管理 |
 
 ## 給与
