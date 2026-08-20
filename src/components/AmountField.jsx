@@ -93,8 +93,11 @@ const CalcKey = memo(function CalcKey({ sx, onPress, arg, disabled, instant = tr
  * 入力値は `valueRef`（呼び出し側が持つ ref）から読む。value を prop で受けると
  * 1 タップごとに props が変わって memo が必ず外れ、パッド全体が再レンダーされる。
  * 表示に使う state は演算子ハイライト用の `activeOp` だけに絞る。
+ *
+ * 確定キーの文言は `confirmLabel` で変えられる。金額シートは値を確定して閉じる
+ * だけなので「確認」、支出入力画面はそのまま保存するので「保存」を渡す。
  */
-export const CalcPad = memo(function CalcPad({ valueRef, onChange, onConfirm, disabled }) {
+export const CalcPad = memo(function CalcPad({ valueRef, onChange, onConfirm, disabled, confirmLabel = '確認' }) {
   const [activeOp, setActiveOp] = useState(null)
 
   // ハンドラは ref 経由で最新値を読むので依存ゼロ＝参照が固定される。
@@ -183,7 +186,7 @@ export const CalcPad = memo(function CalcPad({ valueRef, onChange, onConfirm, di
       {numKey('0', SX_ZERO)}
       {numKey('00')}
       <CalcKey sx={disabled ? SX_CONFIRM_OFF : SX_CONFIRM} onPress={pressConfirm} disabled={disabled} instant={false}>
-        確認
+        {confirmLabel}
       </CalcKey>
     </Box>
   )
