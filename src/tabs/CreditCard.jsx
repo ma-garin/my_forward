@@ -66,10 +66,26 @@ function nextCutoffDate(card, from = new Date()) {
   return candidate
 }
 
+function payDateForCutoff(card, cutoffDate) {
+  return nextBusinessDay(new Date(cutoffDate.getFullYear(), cutoffDate.getMonth() + 1, card.paymentDay))
+}
+
 function nextCardCycleDates(card, from = new Date()) {
   const cutoffDate = nextCutoffDate(card, from)
-  const payDate = nextBusinessDay(new Date(cutoffDate.getFullYear(), cutoffDate.getMonth() + 1, card.paymentDay))
-  return { cutoffDate, payDate }
+  return { cutoffDate, payDate: payDateForCutoff(card, cutoffDate) }
+}
+
+// ym（請求月）自体から締め日を求める。ym の締め日は「ym の月+1」に落ちる
+// （例: cutoffDay=15 なら ym=2026-08 の締めは 9/15）。ym の月をそのまま使うと
+// 1 ヶ月早い日付になる（実際に混入したバグ）
+function cutoffDateForYm(card, ym) {
+  const [y, m] = ym.split('-').map(Number)
+  return card.cutoffDay === 0 ? new Date(y, m, 0) : new Date(y, m, card.cutoffDay)
+}
+
+function cycleDatesForYm(card, ym) {
+  const cutoffDate = cutoffDateForYm(card, ym)
+  return { cutoffDate, payDate: payDateForCutoff(card, cutoffDate) }
 }
 
 function daysUntil(date, from = new Date()) {
@@ -79,7 +95,8 @@ function daysUntil(date, from = new Date()) {
 
 function countdownLabel(date, from = new Date()) {
   const days = daysUntil(date, from)
-  return days === 0 ? '今日' : `あと${days}日`
+  const label = days === 0 ? '今日' : `あと${days}日`
+  return `${label}（${fmtCycleDate(date)}）`
 }
 
 function fmtCycleDate(date) {
@@ -772,9 +789,7 @@ export default function CreditCard() {
             const { cutoffDate, payDate } = nextCardCycleDates(card, today)
             return `締め日まで ${countdownLabel(cutoffDate, today)}　支払日まで ${countdownLabel(payDate, today)}`
           }
-          const [y, m] = ym.split('-').map(Number)
-          const cutoffDate = card.cutoffDay === 0 ? new Date(y, m, 0) : new Date(y, m - 1, card.cutoffDay)
-          const payDate = nextBusinessDay(new Date(y, m, card.paymentDay))
+          const { cutoffDate, payDate } = cycleDatesForYm(card, ym)
           return `締め日 ${fmtCycleDate(cutoffDate)}　支払日 ${fmtCycleDate(payDate)}`
         }
 
@@ -895,11 +910,7 @@ export default function CreditCard() {
                       </Stack>
                     )
                   }
-                  const [y, m] = ym.split('-').map(Number)
-                  const cutoffDate = card.cutoffDay === 0
-                    ? new Date(y, m, 0)
-                    : new Date(y, m - 1, card.cutoffDay)
-                  const payDate = nextBusinessDay(new Date(y, m, card.paymentDay))
+                  const { cutoffDate, payDate } = cycleDatesForYm(card, ym)
                   return (
                     <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
                       <Typography variant="caption" sx={{ opacity: .75 }}>

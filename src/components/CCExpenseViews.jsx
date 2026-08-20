@@ -23,17 +23,34 @@ const CHECKBOX_SX = {
   '& .MuiSvgIcon-root': { fontSize: 20 },
 }
 
-// 1 行目は項目名。開始位置が行ごとに揃い、名前に幅を使える。
-const NAME_LINE_SX        = { fontSize: 13.5, fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
-const NAME_LINE_BILLED_SX = { ...NAME_LINE_SX, textDecoration: 'line-through', color: '#9e9e9e' }
+// 1 行目はカテゴリ＋支払先。色ドットは固定サイズなので、カテゴリ名が何文字でも
+// 文字の開始位置は動かない。1 行に流して溢れは省略する（折り返すと行高が変わる）。
+const HEAD_LINE_SX        = { fontSize: 13.5, fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+const HEAD_LINE_BILLED_SX = { ...HEAD_LINE_SX, textDecoration: 'line-through', color: '#9e9e9e' }
 
-// カテゴリは色ドット＋文字で補足行に置く。チップを名前の前に置くと幅が可変で
-// 名前の開始位置が揃わず、固定幅にすると名前が切れるため。
 const DOT_SX  = { width: 7, height: 7, borderRadius: '50%', flexShrink: 0 }
+// 補足行はドット幅＋隙間だけ字下げして、見出しの文字と開始位置を合わせる
 const META_SX = {
-  fontSize: 10.5, color: 'text.secondary', lineHeight: 1.25, minWidth: 0,
+  fontSize: 10.5, color: 'text.secondary', lineHeight: 1.25, minWidth: 0, pl: '11px',
   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
 }
+
+// 行の左端は固定幅の枠。固定費は引き落としチェック、変動費は消費分類が入る。
+// 枠を固定幅にすることで、分類やカテゴリの文字数に関係なく見出しの開始位置が揃う
+// （分類チップを項目名の後ろに置いていたときは、名前の長さでチップ位置がずれていた）。
+const SPEND_SLOT_SX = { width: 34, flexShrink: 0, display: 'flex', justifyContent: 'center' }
+
+// チップは枠いっぱいに広げる。消費/投資/浪費で見た目の幅が変わらない。
+const SPEND_CHIP_BASE_SX = {
+  height: 15, fontSize: 8, width: '100%',
+  '& .MuiChip-label': { px: 0, width: '100%', textAlign: 'center' },
+}
+const SPEND_CHIP_FALLBACK_SX = { ...SPEND_CHIP_BASE_SX, bgcolor: '#eceff1', color: '#fff' }
+const SPEND_CHIP_SX = Object.fromEntries(
+  Object.entries(SPEND_TYPE_COLORS).map(([type, color]) => [
+    type, { ...SPEND_CHIP_BASE_SX, bgcolor: color, color: '#fff' },
+  ]),
+)
 
 const AMOUNT_SX   = { fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }
 const SUBTOTAL_SX = { fontSize: 9, color: 'text.disabled', fontVariantNumeric: 'tabular-nums' }
@@ -48,7 +65,7 @@ const MIN0_SX        = { minWidth: 0 }
  * 行タップで編集、左スワイプで削除（iOS のリストと同じ作法）。
  * 小さいアイコンを狙わせないことで、右下に浮く FAB と操作が競合しなくなる。
  *
- * 左: [チェック（固定費のみ）] 項目名 / 消費分類 と、カテゴリ・支払先の補足行
+ * 左: [チェック（固定費）| 消費分類（変動費）] カテゴリ・支払先 と、項目名の補足行
  * 右: 金額 / 累計 と chevron（タップできることを示す）
  *
  * ハンドラは item / id を引数で受ける形にしてある（行ごとにクロージャを作らない
@@ -66,30 +83,32 @@ export const ExpenseRow = memo(function ExpenseRow({
       >
         <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
           <Stack direction="row" alignItems="center" gap={0.75} sx={LEFT_STACK_SX}>
-            {onToggleBilled && (
+            {onToggleBilled ? (
               <Checkbox
                 checked={billed} size="small" aria-label="引き落とし済み"
                 onClick={(e) => e.stopPropagation()}
                 onChange={() => onToggleBilled(item.id)}
                 sx={CHECKBOX_SX}
               />
+            ) : (
+              // 返金は分類を出さないが、枠は空のまま残して見出しの開始位置を揃える
+              <Box sx={SPEND_SLOT_SX}>
+                {spendType && sign !== 1 && (
+                  <Chip label={spendType} size="small"
+                    sx={SPEND_CHIP_SX[spendType] ?? SPEND_CHIP_FALLBACK_SX} />
+                )}
+              </Box>
             )}
             <Box sx={MIN0_SX}>
-              <Stack direction="row" alignItems="center" gap={0.5}>
-                <Typography sx={billed ? NAME_LINE_BILLED_SX : NAME_LINE_SX}>{name}</Typography>
-                {spendType && sign !== 1 && (
-                  <Chip label={spendType} size="small" sx={{
-                    height: 15, fontSize: 8, flexShrink: 0,
-                    bgcolor: SPEND_TYPE_COLORS[spendType] ?? '#eceff1', color: '#fff',
-                  }} />
-                )}
-              </Stack>
               <Stack direction="row" alignItems="center" gap={0.5} sx={MIN0_SX}>
                 <Box sx={{ ...DOT_SX, bgcolor: CATEGORY_COLORS[category] ?? '#cfd8dc' }} />
-                <Typography sx={META_SX}>
-                  {[category, payee, ...(notes ?? [])].filter(Boolean).join(' · ')}
+                <Typography sx={billed ? HEAD_LINE_BILLED_SX : HEAD_LINE_SX}>
+                  {[category, payee].filter(Boolean).join(' · ')}
                 </Typography>
               </Stack>
+              <Typography sx={META_SX}>
+                {[name, ...(notes ?? [])].filter(Boolean).join(' · ')}
+              </Typography>
             </Box>
           </Stack>
           <Stack alignItems="center" direction="row" gap={0.25} sx={RIGHT_STACK_SX}>
