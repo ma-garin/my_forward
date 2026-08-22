@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Box, Typography, Stack, IconButton } from '@mui/material'
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
-import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import { Box } from '@mui/material'
+import MonthNav from '../components/MonthNav'
 import CombinedSummary from '../components/CombinedSummary'
 import LivingExpenseCard from '../components/LivingExpenseCard'
 import IncomeSummaryCard from '../components/IncomeSummaryCard'
@@ -32,6 +31,7 @@ export default function Kakeibo() {
   const [refreshKey, setRefreshKey] = useState(0)
 
   const changeMonth = (n) => setYm(prev => addMonth(prev, n))
+  const goToMonth   = (y, m) => setYm(ymStr(y, m))
 
   const [year, month] = ym.split('-').map(Number)
   const billingYm = addMonth(ym, -1)
@@ -68,13 +68,7 @@ export default function Kakeibo() {
     <Box sx={{ px: 2, pt: 2, pb: 10 }}>
 
       {/* 月ナビゲーション */}
-      <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
-        <IconButton size="small" aria-label="前の月" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
-        <Typography variant="subtitle2" fontWeight={600} sx={{ minWidth: 80, textAlign: 'center' }}>
-          {year}年{month}月
-        </Typography>
-        <IconButton size="small" aria-label="次の月" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
-      </Stack>
+      <MonthNav year={year} month={month} onStep={changeMonth} onJump={goToMonth} />
 
       {/* 収支サマリー */}
       <IncomeSummaryCard fixedList={allFixed} varList={allVar} ym={ym} salaryYm={billingYm} />

@@ -3,7 +3,7 @@ import {
   Box, Card, CardContent, Typography, Stack, Chip, Divider,
   IconButton, Button, TextField, Dialog, DialogTitle, DialogContent,
   DialogActions, Select, MenuItem, FormControl, InputLabel,
-  Fab, Snackbar, Alert, Collapse, InputBase,
+  Fab, Snackbar, Alert, Collapse, InputBase, Menu,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -17,10 +17,13 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
+import SwapVertIcon from '@mui/icons-material/SwapVert'
+import SearchIcon from '@mui/icons-material/Search'
+import CloseIcon from '@mui/icons-material/Close'
 import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm } from '../utils/finance'
 import {
   CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
-  prevBusinessDay, nextBusinessDay, sumLiving, getBillingYmForDate,
+  prevBusinessDay, nextBusinessDay, sumLiving,
   loadFixed, saveFixed, loadVar, saveVar,
   CARD_LIST, billingYmForCard, upsertFixedItem, upsertVarItem,
   loadLimit, saveLimit, loadBilled, saveBilled,
@@ -32,6 +35,7 @@ import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/
 import LivingExpenseCard from '../components/LivingExpenseCard'
 import CombinedSummary from '../components/CombinedSummary'
 import BudgetBreakdown from '../components/BudgetBreakdown'
+import MonthNav from '../components/MonthNav'
 import { useAfterPaint } from '../utils/useAfterPaint'
 import { useThemeMode } from '../ThemeModeContext'
 import Section from '../components/apple/Section'
@@ -53,28 +57,8 @@ function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
 
-function nextCutoffDate(card, from = new Date()) {
-  const today = startOfDay(from)
-  const year = today.getFullYear()
-  const month = today.getMonth()
-  let candidate = card.cutoffDay === 0
-    ? new Date(year, month + 1, 0)
-    : new Date(year, month, card.cutoffDay)
-  if (candidate < today) {
-    candidate = card.cutoffDay === 0
-      ? new Date(year, month + 2, 0)
-      : new Date(year, month + 1, card.cutoffDay)
-  }
-  return candidate
-}
-
 function payDateForCutoff(card, cutoffDate) {
   return nextBusinessDay(new Date(cutoffDate.getFullYear(), cutoffDate.getMonth() + 1, card.paymentDay))
-}
-
-function nextCardCycleDates(card, from = new Date()) {
-  const cutoffDate = nextCutoffDate(card, from)
-  return { cutoffDate, payDate: payDateForCutoff(card, cutoffDate) }
 }
 
 // ym（請求月）自体から締め日を求める。ym の締め日は「ym の月+1」に落ちる
@@ -95,14 +79,24 @@ function daysUntil(date, from = new Date()) {
   return Math.round((startOfDay(date) - startOfDay(from)) / MS_PER_DAY)
 }
 
-function countdownLabel(date, from = new Date()) {
-  const days = daysUntil(date, from)
-  const label = days === 0 ? '今日' : `あと${days}日`
-  return `${label}（${fmtCycleDate(date)}）`
-}
-
 function fmtCycleDate(date) {
   return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+// 締め日・支払日は「まだ来ていなければ残り日数、過ぎていれば日付だけ」を出す。
+// 表示中の月が今の請求サイクルかどうかで分けると、前月ぶんの支払いがまだ
+// 残っていても残り日数が消えてしまう（実際にそうなっていた）。
+function cycleLabel(prefix, date, from = new Date()) {
+  const days = daysUntil(date, from)
+  if (days > 0)   return `${prefix}まで あと${days}日（${fmtCycleDate(date)}）`
+  if (days === 0) return `${prefix} 今日（${fmtCycleDate(date)}）`
+  return `${prefix} ${fmtCycleDate(date)}`
+}
+
+// 表示中の請求月（ym）の締め日・支払日をそのまま並べる
+function cycleText(card, ym, from = new Date()) {
+  const { cutoffDate, payDate } = cycleDatesForYm(card, ym)
+  return `${cycleLabel('締め日', cutoffDate, from)}　${cycleLabel('支払日', payDate, from)}`
 }
 
 function loadHistory(key) {
@@ -125,24 +119,45 @@ function addToHistory(key, value) {
   }
 }
 
-// 変動費リストの日付の並び順（true=新しい順）。表示の好みだけで集計には影響しない
-// ため、bumpDataVersion は呼ばない（他タブを作り直す必要がない）。
-const VAR_SORT_KEY = 'cc_var_sort_desc'
+// 変動費リストの並び順。表示の好みだけで集計には影響しないため、
+// bumpDataVersion は呼ばない（他タブを作り直す必要がない）。
+const VAR_SORT_KEY     = 'cc_var_sort'
+const VAR_SORT_KEY_OLD = 'cc_var_sort_desc' // 旧形式（'1'=新しい順）
 
-function loadVarSortDesc() {
+const VAR_SORTS = [
+  { value: 'date_asc',    label: '古い順' },
+  { value: 'date_desc',   label: '新しい順' },
+  { value: 'amount_desc', label: '高い順' },
+  { value: 'amount_asc',  label: '安い順' },
+]
+const VAR_SORT_VALUES = VAR_SORTS.map((s) => s.value)
+
+function loadVarSort() {
   try {
-    return localStorage.getItem(VAR_SORT_KEY) === '1'
+    const saved = localStorage.getItem(VAR_SORT_KEY)
+    if (VAR_SORT_VALUES.includes(saved)) return saved
+    // 日付の昇順/降順しかなかった頃の値を引き継ぐ
+    return localStorage.getItem(VAR_SORT_KEY_OLD) === '1' ? 'date_desc' : 'date_asc'
   } catch {
-    return false
+    return 'date_asc'
   }
 }
 
-function saveVarSortDesc(desc) {
+function saveVarSort(sort) {
   try {
-    localStorage.setItem(VAR_SORT_KEY, desc ? '1' : '0')
+    localStorage.setItem(VAR_SORT_KEY, sort)
   } catch {
     // 表示の好みなので、保存に失敗しても並べ替え自体は続行する
   }
+}
+
+// 支払先・項目名・カテゴリのどれかに含まれていれば残す
+function matchesQuery(item, q) {
+  if (!q) return true
+  const needle = q.trim().toLowerCase()
+  if (!needle) return true
+  return [item.payee, item.name, item.category]
+    .some((v) => (v ?? '').toLowerCase().includes(needle))
 }
 
 // 支払先ごとに前回選んだ分類・消費分類を覚えておき、次に同じ支払先を選んだときに
@@ -266,7 +281,7 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onTogg
       running += item.amount
       // 固定費は消費分類を持たない。既存データに残っていても行には出さない。
       const { spendType: _drop, ...rest } = item
-      const row  = { ...rest, subtotal: running, notes: recurrenceNotes(item) }
+      const row  = { ...rest, sub: `累計 ¥${fmt(running)}`, notes: recurrenceNotes(item) }
       const key  = item.day == null ? '—' : String(item.day)
       const last = out[out.length - 1]
       if (last && last.key === key) { last.items.push(row); last.total += item.amount }
@@ -290,7 +305,7 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onTogg
             <ExpenseRow
               key={item.id}
               item={item}
-              subtotal={item.subtotal}
+              sub={item.sub}
               notes={item.notes}
               billed={billedIds.includes(item.id)}
               onToggleBilled={onToggleBilled}
@@ -673,12 +688,27 @@ export default function CreditCard() {
   const [snack,        setSnack]        = useState({ open: false, severity: 'success', message: '' })
   const [fixedOpen,    setFixedOpen]    = useState(false)
   const [varOpen,      setVarOpen]      = useState(false)
-  const [varDesc,      setVarDesc]      = useState(loadVarSortDesc)
+  const [varSort,      setVarSort]      = useState(loadVarSort)
+  const [sortMenuAt,   setSortMenuAt]   = useState(null)
+  const [searchOpen,   setSearchOpen]   = useState(false)
+  const [query,        setQuery]        = useState('')
 
   // 見出しの折りたたみと同じ場所に置くので、開閉に伝播させない
-  const toggleVarSort = useCallback((e) => {
+  const openSortMenu = useCallback((e) => {
     e.stopPropagation()
-    setVarDesc((prev) => { saveVarSortDesc(!prev); return !prev })
+    setSortMenuAt(e.currentTarget)
+  }, [])
+  const pickSort = useCallback((value) => {
+    saveVarSort(value)
+    setVarSort(value)
+    setSortMenuAt(null)
+  }, [])
+  const toggleSearch = useCallback((e) => {
+    e.stopPropagation()
+    setSearchOpen((prev) => {
+      if (prev) setQuery('') // 閉じたら絞り込みも解除する
+      return !prev
+    })
   }, [])
   const [addOpen,      setAddOpen]      = useState(false)
 
@@ -693,16 +723,20 @@ export default function CreditCard() {
     setBilledIds(loadBilled(id, ym))
   }
 
-  const changeMonth = useCallback((delta) => {
-    let y = year, m = month + delta
-    if (m > 12) { y++; m = 1 }
-    if (m < 1)  { y--; m = 12 }
+  const goToMonth = useCallback((y, m) => {
     const newYm = ymStr(y, m)
     setYear(y)
     setMonth(m)
     setVarList(loadVar(cardId, newYm))
     setBilledIds(loadBilled(cardId, newYm))
-  }, [year, month, cardId])
+  }, [cardId])
+
+  const changeMonth = useCallback((delta) => {
+    let y = year, m = month + delta
+    if (m > 12) { y++; m = 1 }
+    if (m < 1)  { y--; m = 12 }
+    goToMonth(y, m)
+  }, [year, month, goToMonth])
 
   const toggleBilled = useCallback((itemId) => {
     const next = billedIds.includes(itemId)
@@ -820,6 +854,8 @@ export default function CreditCard() {
   const hdrAmtSx     = apple ? { color: ios.label, fontWeight: 600, fontSize: 15 } : { color: 'rgba(255,255,255,.8)', fontWeight: 600 }
   const hdrChipSx    = apple ? { height: 18, fontSize: 10, bgcolor: 'rgba(118,118,128,0.12)', color: ios.secondary } : { height: 16, fontSize: 9, bgcolor: 'rgba(255,255,255,.2)', color: '#fff' }
   const hdrAddColor  = apple ? ios.accent : '#fff'
+  // 見出しは詰まりやすい。タイトルだけは縮めず折り返さない
+  const hdrTitleNoWrapSx = { ...hdrTitleSx, whiteSpace: 'nowrap', flexShrink: 0 }
   // 隣の年月チップはただのラベルなので、押せることが分かるよう枠線を付ける
   const hdrSortChipSx = apple
     ? { height: 22, fontSize: 10, color: ios.accent, bgcolor: 'transparent', border: `1px solid ${ios.accent}`,
@@ -827,12 +863,24 @@ export default function CreditCard() {
     : { height: 20, fontSize: 9, color: '#fff', bgcolor: 'transparent', border: '1px solid rgba(255,255,255,.45)',
         '& .MuiChip-icon': { fontSize: 11, ml: '5px', mr: '-3px', color: '#fff' } }
 
+  const varSortLabel = VAR_SORTS.find((s) => s.value === varSort)?.label ?? '古い順'
+
   const { filteredFixed, fixedTotal, varTotal, grandTotal } = useMemo(() => {
     const filteredFixed = fixedList.filter((x) => isActiveForYm(x, ym))
     const fixedTotal = filteredFixed.reduce((s, x) => s + x.amount, 0)
     const varTotal   = varList.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
     return { filteredFixed, fixedTotal, varTotal, grandTotal: fixedTotal + varTotal }
   }, [fixedList, varList, ym])
+
+  // 絞り込み結果。日別グラフとリストの両方に渡すので、絞り込むと下の表示が揃う。
+  // カード上部の合計は月全体のままにする（絞り込みで使用額が変わると誤解を生む）。
+  const { shownVarList, hitTotal } = useMemo(() => {
+    const shownVarList = query ? varList.filter((x) => matchesQuery(x, query)) : varList
+    return {
+      shownVarList,
+      hitTotal: shownVarList.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0),
+    }
+  }, [varList, query])
 
   // カテゴリ別集計の先月比用（同一カードの前月分）
   const prevYm = ymStr(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1)
@@ -851,13 +899,7 @@ export default function CreditCard() {
     <Box sx={{ px: 2, pt: 2, pb: 10 }}>
 
       {/* 月ナビゲーション */}
-      <Stack direction="row" alignItems="center" justifyContent="center" sx={{ mb: 1.5 }}>
-        <IconButton size="small" aria-label="前の月" onClick={() => changeMonth(-1)}><ChevronLeftIcon /></IconButton>
-        <Typography variant="subtitle2" fontWeight={600} sx={{ minWidth: 80, textAlign: 'center' }}>
-          {year}年{month}月
-        </Typography>
-        <IconButton size="small" aria-label="次の月" onClick={() => changeMonth(1)}><ChevronRightIcon /></IconButton>
-      </Stack>
+      <MonthNav year={year} month={month} onStep={changeMonth} onJump={goToMonth} />
 
       {/* カード選択 */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
@@ -899,18 +941,8 @@ export default function CreditCard() {
         const livingTotal = sumLiving(varList)
         const otherVarTotal = varTotal - livingTotal
 
-        // 締め日/支払日のカウントダウン表示（共通ロジック）
-        const cycleNode = (secondaryColor) => {
-          const today = new Date()
-          const todayStr = today.toISOString().slice(0, 10)
-          const todayBillingYm = getBillingYmForDate(todayStr, card.cutoffDay)
-          if (todayBillingYm === ym) {
-            const { cutoffDate, payDate } = nextCardCycleDates(card, today)
-            return `締め日まで ${countdownLabel(cutoffDate, today)}　支払日まで ${countdownLabel(payDate, today)}`
-          }
-          const { cutoffDate, payDate } = cycleDatesForYm(card, ym)
-          return `締め日 ${fmtCycleDate(cutoffDate)}　支払日 ${fmtCycleDate(payDate)}`
-        }
+        // 締め日/支払日の表示（日付ごとに「未到来なら残り日数」を出す）
+        const cycleNode = () => cycleText(card, ym)
 
         // ─── Apple（iOS 設定アプリ風）ヒーロー ─────────────
         if (apple) {
@@ -1013,30 +1045,14 @@ export default function CreditCard() {
                   {cutoffLabel(card)} {paymentLabel(card)}
                 </Typography>
                 {(() => {
-                  const today = new Date()
-                  const todayStr = today.toISOString().slice(0, 10)
-                  const todayBillingYm = getBillingYmForDate(todayStr, card.cutoffDay)
-                  if (todayBillingYm === ym) {
-                    const { cutoffDate, payDate } = nextCardCycleDates(card, today)
-                    return (
-                      <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-                        <Typography variant="caption" sx={{ opacity: .75 }}>
-                          締め日まで {countdownLabel(cutoffDate, today)}
-                        </Typography>
-                        <Typography variant="caption" sx={{ opacity: .75 }}>
-                          支払日まで {countdownLabel(payDate, today)}
-                        </Typography>
-                      </Stack>
-                    )
-                  }
                   const { cutoffDate, payDate } = cycleDatesForYm(card, ym)
                   return (
                     <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
                       <Typography variant="caption" sx={{ opacity: .75 }}>
-                        締め日 {fmtCycleDate(cutoffDate)}
+                        {cycleLabel('締め日', cutoffDate)}
                       </Typography>
                       <Typography variant="caption" sx={{ opacity: .75 }}>
-                        支払日 {fmtCycleDate(payDate)}
+                        {cycleLabel('支払日', payDate)}
                       </Typography>
                     </Stack>
                   )
@@ -1111,26 +1127,34 @@ export default function CreditCard() {
         >
           <Stack direction="row" alignItems="center" gap={1}>
             <ExpandMoreIcon sx={{ fontSize: 16, color: hdrIconColor, transform: varOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
-            <Typography variant="caption" sx={hdrTitleSx}>変動費</Typography>
-            <Chip label={`${year}年${month}月`} size="small" sx={hdrChipSx} />
+            <Typography variant="caption" sx={hdrTitleNoWrapSx}>変動費</Typography>
+            {/* 年月は画面上部の月ナビと同じなので、絞り込み・並び順を置くこの行では出さない
+                （並べると「変動費」が縦に折り返すほど詰まる） */}
             <Chip
               size="small"
-              onClick={toggleVarSort}
-              aria-label={`日付の並び順を切り替え（現在: ${varDesc ? '新しい順' : '古い順'}）`}
-              icon={varDesc ? <ArrowDownwardIcon /> : <ArrowUpwardIcon />}
-              label={varDesc ? '新しい順' : '古い順'}
+              onClick={openSortMenu}
+              aria-label={`並び順を変える（現在: ${varSortLabel}）`}
+              icon={varSort === 'date_asc' ? <ArrowUpwardIcon />
+                : varSort === 'date_desc' ? <ArrowDownwardIcon />
+                : <SwapVertIcon />}
+              label={varSortLabel}
               sx={hdrSortChipSx}
             />
           </Stack>
-          <Stack direction="row" alignItems="center" gap={1}>
+          <Stack direction="row" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
             <Stack alignItems="flex-end">
               <Typography variant="caption" sx={hdrAmtSx}>¥{fmt(varTotal)}</Typography>
               {prevVarTotal > 0 && (
-                <Typography variant="caption" sx={{ fontSize: 9, color: varDiff > 0 ? (apple ? ios.red : '#ef9a9a') : (apple ? ios.green : '#a5d6a7') }}>
+                <Typography variant="caption" sx={{ fontSize: 9, whiteSpace: 'nowrap', color: varDiff > 0 ? (apple ? ios.red : '#ef9a9a') : (apple ? ios.green : '#a5d6a7') }}>
                   先月比 {varDiff >= 0 ? '+' : '−'}¥{fmt(Math.abs(varDiff))}
                 </Typography>
               )}
             </Stack>
+            <IconButton size="small" aria-label={searchOpen ? '絞り込みを閉じる' : '絞り込む'}
+              onClick={toggleSearch}
+              sx={{ p: 0.75, color: searchOpen ? (apple ? ios.accent : '#fff') : hdrIconColor }}>
+              <SearchIcon sx={{ fontSize: 18 }} />
+            </IconButton>
             <IconButton size="small" aria-label="変動費を追加" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'var' }) }} sx={{ p: 0.75, color: hdrAddColor }}>
               <AddIcon sx={{ fontSize: 18 }} />
             </IconButton>
@@ -1140,10 +1164,32 @@ export default function CreditCard() {
         })()}
         <Collapse in={varOpen}>
           <CardContent sx={{ px: 0, py: 0, '&:last-child': { pb: 0 } }}>
-            <DailyBarChart varList={varList} />
+            {searchOpen && (
+              <Box sx={{ px: 2, py: 1, borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <SearchIcon sx={{ fontSize: 18, color: 'text.disabled', flexShrink: 0 }} />
+                <InputBase
+                  fullWidth autoFocus value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="支払先・項目名・カテゴリ"
+                  sx={{ fontSize: 14 }}
+                />
+                {query && (
+                  <>
+                    <Typography sx={{ fontSize: 11, color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                      {shownVarList.length}件 ¥{fmt(hitTotal)}
+                    </Typography>
+                    <IconButton size="small" aria-label="絞り込みを消す" onClick={() => setQuery('')} sx={{ p: 0.5 }}>
+                      <CloseIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                    </IconButton>
+                  </>
+                )}
+              </Box>
+            )}
+            <DailyBarChart varList={shownVarList} />
             <VarExpenseTable
-              varList={varList}
-              desc={varDesc}
+              varList={shownVarList}
+              sort={varSort}
+              emptyText={query ? '該当する支出がありません' : undefined}
               onEdit={openVarEdit}
               onDelete={deleteVar}
             />
@@ -1231,6 +1277,16 @@ export default function CreditCard() {
             color="error" variant="contained" size="small">削除</Button>
         </DialogActions>
       </Dialog>
+
+      {/* 変動費の並び順 */}
+      <Menu open={!!sortMenuAt} anchorEl={sortMenuAt} onClose={() => setSortMenuAt(null)}>
+        {VAR_SORTS.map((s) => (
+          <MenuItem key={s.value} selected={s.value === varSort} onClick={() => pickSort(s.value)}
+            sx={{ fontSize: 14 }}>
+            {s.label}
+          </MenuItem>
+        ))}
+      </Menu>
 
       {/* 保存通知 */}
       <Snackbar

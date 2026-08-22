@@ -71,6 +71,7 @@ SettingsMain.jsx → SalarySettings.jsx / CardSettings.jsx / DataSettings.jsx
 | `ExpenseDialog` | `components/ExpenseDialog.jsx` | 固定費・変動費・カテゴリ別集計の編集ダイアログ |
 | `AmountField` / `CalcPad` | `components/AmountField.jsx` | 金額入力（電卓シート） |
 | `SwipeRow` | `components/apple/SwipeRow.jsx` | 行タップ + 左スワイプ削除 |
+| `MonthNav` | `components/MonthNav.jsx` | 月ナビ（前後移動 + 年月タップで直接ジャンプ） |
 
 ### 行の操作
 
