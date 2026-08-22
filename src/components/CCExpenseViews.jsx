@@ -144,13 +144,14 @@ const shortDate = (d) => {
   return `${parseInt(m)}/${parseInt(day)}`
 }
 
-export function VarExpenseTable({ varList, onEdit, onDelete }) {
+export function VarExpenseTable({ varList, desc = false, onEdit, onDelete }) {
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, item }
 
-  // 累計とグループ化は varList が変わったときだけ計算する
+  // 累計とグループ化は varList / 並び順が変わったときだけ計算する
   const grouped = useMemo(() => {
     const out = []
     let running = 0
+    // varList は日付の古い順で保存されている（ccStorage の byDate）
     varList.forEach(item => {
       running += item.amount
       const row  = { ...item, subtotal: running }
@@ -159,8 +160,11 @@ export function VarExpenseTable({ varList, onEdit, onDelete }) {
       if (last && last.date === d) { last.items.push(row); last.total += item.amount }
       else out.push({ date: d, items: [row], total: item.amount })
     })
-    return out
-  }, [varList])
+    if (!desc) return out
+    // 累計は「その日までの合計」なので、必ず古い順で積んでから並べ替える。
+    // 表示順のまま積み直すと、新しい順のときに累計の意味が変わってしまう。
+    return out.reverse().map(g => ({ ...g, items: [...g.items].reverse() }))
+  }, [varList, desc])
 
   const openCtxMenu = useCallback((e, item) => {
     e.preventDefault()
