@@ -66,13 +66,16 @@ const MIN0_SX        = { minWidth: 0 }
  * 小さいアイコンを狙わせないことで、右下に浮く FAB と操作が競合しなくなる。
  *
  * 左: [チェック（固定費）| 消費分類（変動費）] カテゴリ・支払先 と、項目名の補足行
- * 右: 金額 / 累計 と chevron（タップできることを示す）
+ * 右: 金額 / `sub`（累計・構成比など呼び出し側が決めた 1 行）と chevron
+ *
+ * `sub` は文字列で受ける。並び順によって出したいものが変わる（日付順なら累計、
+ * 金額順なら日付と構成比）ので、行側では意味を決めない。
  *
  * ハンドラは item / id を引数で受ける形にしてある（行ごとにクロージャを作らない
  * ので、呼び出し側が参照を固定していれば memo が効く）。
  */
 export const ExpenseRow = memo(function ExpenseRow({
-  item, subtotal, notes, billed = false, onToggleBilled, onEdit, onDelete, onContextMenu,
+  item, sub, notes, billed = false, onToggleBilled, onEdit, onDelete, onContextMenu,
 }) {
   const { category, spendType, sign, name, payee, amount } = item
   return (
@@ -114,9 +117,7 @@ export const ExpenseRow = memo(function ExpenseRow({
           <Stack alignItems="center" direction="row" gap={0.25} sx={RIGHT_STACK_SX}>
             <Stack alignItems="flex-end">
               <Typography variant="body2" sx={AMOUNT_SX}>¥{fmt(amount)}</Typography>
-              {subtotal != null && (
-                <Typography variant="caption" sx={SUBTOTAL_SX}>累計 ¥{fmt(subtotal)}</Typography>
-              )}
+              {sub && <Typography variant="caption" sx={SUBTOTAL_SX}>{sub}</Typography>}
             </Stack>
             <ChevronRightIcon sx={CHEVRON_SX} />
           </Stack>
@@ -144,27 +145,55 @@ const shortDate = (d) => {
   return `${parseInt(m)}/${parseInt(day)}`
 }
 
-export function VarExpenseTable({ varList, desc = false, onEdit, onDelete }) {
+// 返金（sign=1）はマイナス扱い。金額順で上に来ないよう符号を戻して比べる。
+const signedAmount = (x) => (x.sign === 1 ? -x.amount : x.amount)
+
+/**
+ * 変動費リスト。
+ *
+ * `sort` は 'date_asc' | 'date_desc' | 'amount_desc' | 'amount_asc'。
+ * 日付順は日付ごとに見出しを出して累計を添える。金額順は日付でまとめる意味が
+ * ないので見出しなしの 1 本のリストにし、行が失う日付を補足行に入れる。
+ */
+export function VarExpenseTable({ varList, sort = 'date_asc', emptyText, onEdit, onDelete }) {
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, item }
 
-  // 累計とグループ化は varList / 並び順が変わったときだけ計算する
+  // 並べ替えとグループ化は varList / 並び順が変わったときだけ計算する
   const grouped = useMemo(() => {
+    if (sort === 'amount_desc' || sort === 'amount_asc') {
+      const total  = varList.reduce((s, x) => s + signedAmount(x), 0)
+      const sorted = [...varList].sort((a, b) => sort === 'amount_desc'
+        ? signedAmount(b) - signedAmount(a)
+        : signedAmount(a) - signedAmount(b))
+      // 見出しを持たない 1 グループ。日付と、月合計に占める割合を補足行に出す。
+      return [{
+        date: '__amount__',
+        header: null,
+        items: sorted.map(item => ({
+          ...item,
+          sub: total > 0
+            ? `${shortDate(item.date)} · ${Math.round(signedAmount(item) / total * 100)}%`
+            : shortDate(item.date),
+        })),
+      }]
+    }
+
     const out = []
     let running = 0
     // varList は日付の古い順で保存されている（ccStorage の byDate）
     varList.forEach(item => {
       running += item.amount
-      const row  = { ...item, subtotal: running }
+      const row  = { ...item, sub: `累計 ¥${fmt(running)}` }
       const last = out[out.length - 1]
       const d    = item.date ?? '—'
       if (last && last.date === d) { last.items.push(row); last.total += item.amount }
-      else out.push({ date: d, items: [row], total: item.amount })
+      else out.push({ date: d, header: d, items: [row], total: item.amount })
     })
-    if (!desc) return out
+    if (sort === 'date_asc') return out
     // 累計は「その日までの合計」なので、必ず古い順で積んでから並べ替える。
     // 表示順のまま積み直すと、新しい順のときに累計の意味が変わってしまう。
     return out.reverse().map(g => ({ ...g, items: [...g.items].reverse() }))
-  }, [varList, desc])
+  }, [varList, sort])
 
   const openCtxMenu = useCallback((e, item) => {
     e.preventDefault()
@@ -173,21 +202,21 @@ export function VarExpenseTable({ varList, desc = false, onEdit, onDelete }) {
 
   if (varList.length === 0) return (
     <Typography variant="caption" color="text.disabled" sx={{ py: 1, display: 'block' }}>
-      この月の変動費を追加してください
+      {emptyText ?? 'この月の変動費を追加してください'}
     </Typography>
   )
 
   return (
     <>
       <Box>
-        {grouped.map(({ date, items, total }) => (
+        {grouped.map(({ date, header, items, total }) => (
           <Box key={date}>
-            <ExpenseGroupHeader label={shortDate(date)} total={total} />
+            {header != null && <ExpenseGroupHeader label={shortDate(header)} total={total} />}
             {items.map(item => (
               <ExpenseRow
                 key={item.id}
                 item={item}
-                subtotal={item.subtotal}
+                sub={item.sub}
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onContextMenu={openCtxMenu}
