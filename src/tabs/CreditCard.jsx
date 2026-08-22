@@ -15,6 +15,8 @@ import SettingsIcon from '@mui/icons-material/Settings'
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm } from '../utils/finance'
 import {
   CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
@@ -120,6 +122,26 @@ function addToHistory(key, value) {
     localStorage.setItem(key, JSON.stringify(next))
   } catch {
     // 履歴候補は補助機能なので、保存失敗時も入力処理は続行する
+  }
+}
+
+// 変動費リストの日付の並び順（true=新しい順）。表示の好みだけで集計には影響しない
+// ため、bumpDataVersion は呼ばない（他タブを作り直す必要がない）。
+const VAR_SORT_KEY = 'cc_var_sort_desc'
+
+function loadVarSortDesc() {
+  try {
+    return localStorage.getItem(VAR_SORT_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function saveVarSortDesc(desc) {
+  try {
+    localStorage.setItem(VAR_SORT_KEY, desc ? '1' : '0')
+  } catch {
+    // 表示の好みなので、保存に失敗しても並べ替え自体は続行する
   }
 }
 
@@ -651,6 +673,13 @@ export default function CreditCard() {
   const [snack,        setSnack]        = useState({ open: false, severity: 'success', message: '' })
   const [fixedOpen,    setFixedOpen]    = useState(false)
   const [varOpen,      setVarOpen]      = useState(false)
+  const [varDesc,      setVarDesc]      = useState(loadVarSortDesc)
+
+  // 見出しの折りたたみと同じ場所に置くので、開閉に伝播させない
+  const toggleVarSort = useCallback((e) => {
+    e.stopPropagation()
+    setVarDesc((prev) => { saveVarSortDesc(!prev); return !prev })
+  }, [])
   const [addOpen,      setAddOpen]      = useState(false)
 
   const notify = (severity, message) => setSnack({ open: true, severity, message })
@@ -791,6 +820,12 @@ export default function CreditCard() {
   const hdrAmtSx     = apple ? { color: ios.label, fontWeight: 600, fontSize: 15 } : { color: 'rgba(255,255,255,.8)', fontWeight: 600 }
   const hdrChipSx    = apple ? { height: 18, fontSize: 10, bgcolor: 'rgba(118,118,128,0.12)', color: ios.secondary } : { height: 16, fontSize: 9, bgcolor: 'rgba(255,255,255,.2)', color: '#fff' }
   const hdrAddColor  = apple ? ios.accent : '#fff'
+  // 隣の年月チップはただのラベルなので、押せることが分かるよう枠線を付ける
+  const hdrSortChipSx = apple
+    ? { height: 22, fontSize: 10, color: ios.accent, bgcolor: 'transparent', border: `1px solid ${ios.accent}`,
+        '& .MuiChip-icon': { fontSize: 12, ml: '5px', mr: '-3px', color: ios.accent } }
+    : { height: 20, fontSize: 9, color: '#fff', bgcolor: 'transparent', border: '1px solid rgba(255,255,255,.45)',
+        '& .MuiChip-icon': { fontSize: 11, ml: '5px', mr: '-3px', color: '#fff' } }
 
   const { filteredFixed, fixedTotal, varTotal, grandTotal } = useMemo(() => {
     const filteredFixed = fixedList.filter((x) => isActiveForYm(x, ym))
@@ -1078,6 +1113,14 @@ export default function CreditCard() {
             <ExpandMoreIcon sx={{ fontSize: 16, color: hdrIconColor, transform: varOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
             <Typography variant="caption" sx={hdrTitleSx}>変動費</Typography>
             <Chip label={`${year}年${month}月`} size="small" sx={hdrChipSx} />
+            <Chip
+              size="small"
+              onClick={toggleVarSort}
+              aria-label={`日付の並び順を切り替え（現在: ${varDesc ? '新しい順' : '古い順'}）`}
+              icon={varDesc ? <ArrowDownwardIcon /> : <ArrowUpwardIcon />}
+              label={varDesc ? '新しい順' : '古い順'}
+              sx={hdrSortChipSx}
+            />
           </Stack>
           <Stack direction="row" alignItems="center" gap={1}>
             <Stack alignItems="flex-end">
@@ -1100,6 +1143,7 @@ export default function CreditCard() {
             <DailyBarChart varList={varList} />
             <VarExpenseTable
               varList={varList}
+              desc={varDesc}
               onEdit={openVarEdit}
               onDelete={deleteVar}
             />

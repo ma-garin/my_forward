@@ -22,6 +22,7 @@
 | `cc_payee_history` | `string[]` | 支払先の入力履歴（支出追加の候補） | `loadHistory` / `addToHistory`（CreditCard.jsx 内） |
 | `cc_name_history` | `string[]` | 項目名の入力履歴（同上） | 同上 |
 | `cc_payee_meta` | `{ [payee: string]: { category: string, spendType: string } }` | 支払先ごとに前回選んだ分類・消費分類。支出追加で支払先を選ぶと自動で埋める | `loadPayeeMeta` / `savePayeeMeta`（CreditCard.jsx 内） |
+| `cc_var_sort_desc` | `'0' \| '1'` | 変動費リストの日付の並び順（`'1'`=新しい順）。表示の好みのみで集計に影響しないため `bumpDataVersion()` は呼ばない | `loadVarSortDesc` / `saveVarSortDesc`（CreditCard.jsx 内） |
 | `cc_init_v4` | `string` | 初期データ投入済みフラグ | 自動管理 |
 
 ## 給与
