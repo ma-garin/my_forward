@@ -27,6 +27,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # APK を Release に置くため
     steps:
       - uses: actions/checkout@v4
 
@@ -57,9 +59,24 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      # PR では成果物として置くだけ（zip 展開が要るがビルド確認用なので十分）
+      - name: Upload APK (artifact)
         uses: actions/upload-artifact@v4
         with:
           name: my-forward-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      # main では Release に APK そのものを置く。
+      # 成果物の zip と違い、スマホのブラウザから直接タップしてインストールできる。
+      # 常に下のURLが最新を指す:
+      #   https://github.com/ma-garin/my_forward/releases/latest/download/app-debug.apk
+      - name: Publish APK (release)
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "android-${{ github.run_number }}" \
+            android/app/build/outputs/apk/debug/app-debug.apk \
+            --title "Android APK #${{ github.run_number }}" \
+            --notes "main の最新ビルド（デバッグ版）。スマホのブラウザから app-debug.apk をタップしてインストールできます。"
