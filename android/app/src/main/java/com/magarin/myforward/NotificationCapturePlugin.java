@@ -5,13 +5,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.provider.Settings;
 
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
-
-import org.json.JSONArray;
 
 /**
  * 通知の取得状況を WebView 側から読むためのブリッジ。
@@ -68,8 +67,9 @@ public class NotificationCapturePlugin extends Plugin {
 
     @PluginMethod
     public void setAllowedPackages(PluginCall call) {
-        JSONArray packages = call.getArray("packages", new JSONArray());
-        NotificationStore.setAllowedPackages(getContext(), packages == null ? new JSONArray() : packages);
+        // getArray は Capacitor の JSArray（JSONArray のサブクラス）を返す
+        JSArray packages = call.getArray("packages", new JSArray());
+        NotificationStore.setAllowedPackages(getContext(), packages == null ? new JSArray() : packages);
         call.resolve();
     }
 
