@@ -506,7 +506,9 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
   // 再レンダーされるのを防ぐ（体感の入力遅れの主因）。
   // 閉じている間は組み立てない（親の再レンダーごとに 90 行分の JSX を作り直さない）
   const formArea = useMemo(() => !open ? null : (
-    <Box sx={{ overflowY: 'auto', bgcolor: '#fff', borderBottom: '1px solid #e0e0e0' }}>
+    // 余りの高さはフォームに持たせる。どこも伸びないと余白が最下部に落ちて
+    // 電卓が宙に浮き、キーが親指の届く位置から外れる（実測で 128px 余っていた）
+    <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', bgcolor: '#fff', borderBottom: '1px solid #e0e0e0' }}>
 
       {/* 日付 */}
       <Box sx={IROW_TAP} onClick={() => dateRef.current?.click()}>
@@ -601,7 +603,9 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
   if (!open) return null
 
   return (
-    <Box sx={{ position: 'fixed', inset: 0, zIndex: 1300, bgcolor: '#fafafa', display: 'flex', flexDirection: 'column', maxWidth: 600, mx: 'auto' }}>
+    // 電卓が下端に付くので、ホームバーの下に最下段のキーが潜らないよう余白を取る
+    <Box sx={{ position: 'fixed', inset: 0, zIndex: 1300, bgcolor: '#fafafa', display: 'flex', flexDirection: 'column',
+      maxWidth: 600, mx: 'auto', pb: 'env(safe-area-inset-bottom)' }}>
 
       {/* ヘッダー */}
       <Box sx={{ bgcolor: 'primary.main', color: '#fff', px: 1, display: 'flex', alignItems: 'center', minHeight: 56, flexShrink: 0 }}>
