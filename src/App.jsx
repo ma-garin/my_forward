@@ -30,6 +30,11 @@ const TABS = [
   { label: '給与',   icon: <AccountBalanceWalletIcon /> },
 ]
 
+// Android アプリは WebView が画面全体に描画されるので、そのままだとヘッダーが
+// ステータスバーに潜り込む。バーの色を上まで伸ばし、中身はその下から始める。
+// ブラウザでは inset が 0 になるだけなので Web 版に影響しない。
+const APPBAR_SX = { pt: 'env(safe-area-inset-top)' }
+
 const SETTINGS_TITLES = {
   salary:        '給与設定',
   card:          'カード設定',
@@ -117,7 +122,7 @@ function AppInner() {
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100svh', maxWidth: 600, mx: 'auto', bgcolor: 'background.default' }}>
 
         {/* AppBar */}
-        <AppBar position="static" color="primary" elevation={0}>
+        <AppBar position="static" color="primary" elevation={0} sx={APPBAR_SX}>
           <Toolbar variant="dense" sx={{ minHeight: 52 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, letterSpacing: 1, flex: 1 }}>
               資産管理
@@ -155,7 +160,7 @@ function AppInner() {
           slotProps={{ paper: { sx: { width: '100vw', maxWidth: 600 } } }}>
 
           {/* 設定ヘッダー */}
-          <AppBar position="static" color="primary" elevation={0}>
+          <AppBar position="static" color="primary" elevation={0} sx={APPBAR_SX}>
             <Toolbar variant="dense" sx={{ minHeight: 52 }}>
               <IconButton color="inherit" edge="start" aria-label="戻る" onClick={settingsPage ? goBack : closeSettings} sx={{ mr: 1 }}>
                 <ArrowBackIcon />

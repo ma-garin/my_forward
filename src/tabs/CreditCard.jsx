@@ -607,8 +607,9 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
     <Box sx={{ position: 'fixed', inset: 0, zIndex: 1300, bgcolor: '#fafafa', display: 'flex', flexDirection: 'column',
       maxWidth: 600, mx: 'auto', pb: 'env(safe-area-inset-bottom)' }}>
 
-      {/* ヘッダー */}
-      <Box sx={{ bgcolor: 'primary.main', color: '#fff', px: 1, display: 'flex', alignItems: 'center', minHeight: 56, flexShrink: 0 }}>
+      {/* ヘッダー（上はステータスバーに潜らないよう余白を取る） */}
+      <Box sx={{ bgcolor: 'primary.main', color: '#fff', px: 1, display: 'flex', alignItems: 'center',
+        minHeight: 56, flexShrink: 0, pt: 'env(safe-area-inset-top)' }}>
         <IconButton onClick={doClose} sx={{ color: '#fff' }}>
           <ArrowBackIcon />
         </IconButton>
