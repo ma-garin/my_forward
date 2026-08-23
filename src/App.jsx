@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { Box, AppBar, Toolbar, Typography, BottomNavigation, BottomNavigationAction, Paper, IconButton, Drawer } from '@mui/material'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
@@ -92,10 +92,33 @@ function AppInner() {
     window.scrollTo(0, 0)
   }, [])
 
-  const openSettings = () => { setSettingsPage(null); setSettingsOpen(true) }
-  const closeSettings = () => setSettingsOpen(false)
-  const navigateTo = (page) => setSettingsPage(page)
-  const goBack = () => setSettingsPage(null)
+  // 設定は履歴に積む。Android の戻るボタンは履歴があればそれを辿り、無ければ
+  // アプリを終了する。積んでおかないと、設定を開いたまま戻るとアプリごと落ちる。
+  // 画面の状態は履歴の state をそのまま映すので、何段戻っても食い違わない。
+  const openSettings = () => {
+    setSettingsPage(null)
+    setSettingsOpen(true)
+    window.history.pushState({ settings: true, page: null }, '')
+  }
+  const navigateTo = (page) => {
+    setSettingsPage(page)
+    window.history.pushState({ settings: true, page }, '')
+  }
+  const closeSettings = () => {
+    if (window.history.state?.settings) window.history.back()
+    else setSettingsOpen(false)
+  }
+  const goBack = closeSettings
+
+  useEffect(() => {
+    const onPop = (e) => {
+      const s = e.state
+      setSettingsOpen(!!s?.settings)
+      setSettingsPage(s?.settings ? (s.page ?? null) : null)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   // ボトムナビ: apple 時は半透明ガラス（コンテンツが下を透けてスクロールする）
   const bottomNavPaperSx = apple
