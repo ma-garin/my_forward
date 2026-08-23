@@ -1,0 +1,65 @@
+name: Build Android APK
+
+# 手動実行と、Android に関わるファイルを触った push で走らせる。
+# Android SDK は GitHub の ubuntu ランナーに同梱されているものを使う。
+on:
+  workflow_dispatch:
+  # ネイティブ側はこの環境でコンパイルを確認できないので、PR でも走らせて
+  # マージ前に Java が通ることを見る
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'src/**'
+      - 'capacitor.config.json'
+      - 'vite.config.js'
+      - 'package.json'
+      - '.github/workflows/android.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'src/**'
+      - 'capacitor.config.json'
+      - 'vite.config.js'
+      - 'package.json'
+      - '.github/workflows/android.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Capacitor 8 の CLI は Node >= 22 を要求する
+          node-version: '22'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web assets for Android
+        env:
+          BUILD_TARGET: capacitor
+        run: npx vite build --outDir dist-android
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-forward-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

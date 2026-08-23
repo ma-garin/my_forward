@@ -9,9 +9,12 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "import-salary": "python3 scripts/parse_salary.py",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:android": "BUILD_TARGET=capacitor vite build --outDir dist-android && cap sync android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@fontsource-variable/inter": "^5.3.0",
@@ -24,6 +27,7 @@
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "@eslint/js": "^9.39.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

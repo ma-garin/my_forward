@@ -1,0 +1,11 @@
+{
+  "appId": "com.magarin.myforward",
+  "appName": "資産管理",
+  "webDir": "dist-android",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

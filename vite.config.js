@@ -8,6 +8,9 @@ import path from 'path'
 const SALARY_DIR = path.resolve(__dirname, '../salary')
 const PARSE_SCRIPT = path.resolve(__dirname, 'scripts/parse_salary.py')
 
+// Android アプリ用のビルドか（npm run build:android から立てる）
+const IS_CAPACITOR = process.env.BUILD_TARGET === 'capacitor'
+
 // 給与フォルダ監視プラグイン
 function salaryWatchPlugin() {
   return {
@@ -49,11 +52,14 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.js'],
   },
-  base: '/my_forward/',
+  // Android（Capacitor）は WebView がアプリのルートから配信するので base を分ける。
+  // GitHub Pages は /my_forward/ 配下なので、そちらは従来どおり。
+  // Service Worker も Capacitor では不要（更新はアプリの再インストールで行う）。
+  base: IS_CAPACITOR ? './' : '/my_forward/',
   plugins: [
     react(),
     salaryWatchPlugin(),
-    VitePWA({
+    ...(IS_CAPACITOR ? [] : [VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
@@ -74,7 +80,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,ico}'],
       },
-    }),
+    })]),
   ],
   build: {
     rollupOptions: {
