@@ -5,7 +5,9 @@ import HistoryIcon from '@mui/icons-material/History'
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
+import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import { isNativeApp } from '../utils/notificationCapture'
 
 const ITEMS = [
   { key: 'appearance',    label: '外観',       sub: 'デザインテーマ（現行 / Apple風）', icon: <PaletteOutlinedIcon /> },
@@ -16,14 +18,22 @@ const ITEMS = [
   { key: 'appInfo',       label: 'アプリ情報',  sub: 'バージョン・変更履歴・ライセンス', icon: <InfoOutlinedIcon /> },
 ]
 
+// 通知の取り込みは Android アプリ版だけの機能。Web 版では項目自体を出さない
+// （開いても「使えません」と出るだけの行を並べない）。
+const NOTIFICATION_ITEM = {
+  key: 'notifications', label: '通知の取り込み', sub: 'クレカ利用通知の記録（Androidアプリのみ）',
+  icon: <NotificationsActiveOutlinedIcon />,
+}
+
 export default function SettingsMain({ onNavigate }) {
+  const items = isNativeApp() ? [...ITEMS, NOTIFICATION_ITEM] : ITEMS
   return (
     <Box>
       <Box sx={{ px: 2, py: 2, borderBottom: '1px solid #eee' }}>
         <Typography variant="h6" fontWeight={700}>設定</Typography>
       </Box>
       <List disablePadding>
-        {ITEMS.map((item, i) => (
+        {items.map((item, i) => (
           <Box key={item.key}>
             <ListItem disablePadding>
               <ListItemButton onClick={() => onNavigate(item.key)} sx={{ py: 1.5 }}>
@@ -35,7 +45,7 @@ export default function SettingsMain({ onNavigate }) {
                 <ChevronRightIcon sx={{ color: 'text.disabled' }} />
               </ListItemButton>
             </ListItem>
-            {i < ITEMS.length - 1 && <Divider />}
+            {i < items.length - 1 && <Divider />}
           </Box>
         ))}
       </List>

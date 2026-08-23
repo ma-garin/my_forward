@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">資産管理</string>
+    <string name="title_activity_main">資産管理</string>
+    <string name="package_name">com.magarin.myforward</string>
+    <string name="custom_url_scheme">com.magarin.myforward</string>
+</resources>

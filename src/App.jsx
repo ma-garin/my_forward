@@ -21,6 +21,7 @@ import CardSettings from './settings/CardSettings'
 import DataSettings from './settings/DataSettings'
 import AppInfo from './settings/AppInfo'
 import AppearanceSettings from './settings/AppearanceSettings'
+import NotificationCaptureSettings from './settings/NotificationCaptureSettings'
 
 const TABS = [
   { label: 'クレカ', icon: <CreditCardIcon /> },
@@ -36,6 +37,7 @@ const SETTINGS_TITLES = {
   salaryHistory: '給与履歴',
   appInfo:       'アプリ情報',
   appearance:    '外観',
+  notifications: '通知の取り込み',
 }
 
 export default function App() {
@@ -173,6 +175,7 @@ function AppInner() {
             {settingsPage === 'salaryHistory' && <SalaryHistory />}
             {settingsPage === 'appInfo'       && <AppInfo />}
             {settingsPage === 'appearance'    && <AppearanceSettings />}
+            {settingsPage === 'notifications' && <NotificationCaptureSettings />}
           </Box>
         </Drawer>
       </Box>
