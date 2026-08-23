@@ -9,7 +9,11 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 // ─── PDF → テキストアイテム抽出 ──────────────────────────────
 async function extractPage(arrayBuffer) {
-  const doc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+  // isEvalSupported: false は CVE-2024-4367 の緩和策。pdf.js 4.2.67 未満は
+  // フォント定義の値を無害化せず new Function に渡すため、細工された PDF を
+  // 開くと任意の JS が実行される。ここはテキスト抽出しかせず、グリフ描画に
+  // 使う経路なので、切っても表示・解析結果は変わらない。
+  const doc = await pdfjsLib.getDocument({ data: arrayBuffer, isEvalSupported: false }).promise
   const page = await doc.getPage(1)
   const content = await page.getTextContent()
   const viewport = page.getViewport({ scale: 1.0 })
