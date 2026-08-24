@@ -5,7 +5,9 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // dist-android は build:android の出力、android/ は Capacitor が生成する
+  // ネイティブ側。どちらも見ないと lint の結果がビルド済みコードのエラーで埋まる
+  globalIgnores(['dist', 'dist-android', 'android']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

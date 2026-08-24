@@ -23,6 +23,7 @@ import AppInfo from './settings/AppInfo'
 import AppearanceSettings from './settings/AppearanceSettings'
 import NotificationCaptureSettings from './settings/NotificationCaptureSettings'
 import { useAndroidBack, pushScreen } from './utils/useAndroidBack'
+import { useKeyboardInset } from './utils/useKeyboardInset'
 
 const TABS = [
   { label: 'クレカ', icon: <CreditCardIcon /> },
@@ -60,6 +61,7 @@ const HIDE = { display: 'none' }
 
 function AppInner() {
   useAndroidBack()
+  useKeyboardInset()
   const { mode } = useThemeMode()
   const apple = mode === 'apple'
   const activeTheme = apple ? appleTheme : classicTheme
