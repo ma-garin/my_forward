@@ -38,12 +38,6 @@
 | `salary_extra_withholding` | `WHItem[]` | 追加源泉徴収データ（SalaryHistory） |
 | `salary_bonus_cycle_settings` | `object` | 賞与サイクル設定（`finance.js` の `BONUS_CYCLE_KEY`） |
 
-## アプリ設定
-
-| キー | 型 | 内容 |
-|------|---|------|
-| `app_theme` | `'apple' \| 'classic'` | 外観テーマ。未設定時は `'apple'`（`ThemeModeContext.jsx`） |
-
 ## データ版数（メモリ上のみ）
 
 `ccStorage` は保存が起きるたびに増える版数をメモリに持つ。localStorage には

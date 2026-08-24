@@ -57,7 +57,7 @@ App.jsx
 設定画面:
 ```
 SettingsMain.jsx → SalarySettings.jsx / CardSettings.jsx / DataSettings.jsx
-                 → SalaryHistory.jsx（給与履歴グラフ）/ AppearanceSettings.jsx / AppInfo.jsx
+                 → SalaryHistory.jsx（給与履歴グラフ）/ AppInfo.jsx
 ```
 
 ## 共通コンポーネント（重要）
@@ -70,7 +70,7 @@ SettingsMain.jsx → SalarySettings.jsx / CardSettings.jsx / DataSettings.jsx
 | `ExpenseGroupHeader` | 同上 | グループ見出し（変動費=日付 / 固定費=支払日） |
 | `ExpenseDialog` | `components/ExpenseDialog.jsx` | 固定費・変動費・カテゴリ別集計の編集ダイアログ |
 | `AmountField` / `CalcPad` | `components/AmountField.jsx` | 金額入力（電卓シート） |
-| `SwipeRow` | `components/apple/SwipeRow.jsx` | 行タップ + 左スワイプ削除 |
+| `SwipeRow` | `components/SwipeRow.jsx` | 行タップ + 左スワイプ削除 |
 | `MonthNav` | `components/MonthNav.jsx` | 月ナビ（前後移動 + 年月タップで直接ジャンプ） |
 
 ### 行の操作
@@ -148,9 +148,7 @@ CARDS = {
 
 ## テーマ
 
-`app_theme` に `'apple'`（デフォルト）/ `'classic'` を保存（`ThemeModeContext.jsx`）。
-`src/theme.js` が両テーマを定義する。
+`src/theme.js` の 1 つだけ。切り替えは持たない。
 
-- Apple 風テーマは AppBar・ボトムナビ・Drawer にすりガラス（`backdrop-filter`）を掛ける
-- 電卓シートだけは不透明にする（`OPAQUE_SHEET`）。半透明のままだとキー入力の
-  たびに背景全体のぼかしが再計算され、入力が 1 テンポ遅れるため
+以前は Apple 風テーマを併存させていたが、画面ごとに `mode === 'apple'` の
+分岐を抱えることになり、見せ方が二重管理になっていたため取りやめた。

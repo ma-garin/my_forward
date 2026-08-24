@@ -21,10 +21,6 @@ import {
 } from '../utils/finance'
 import AmountField, { parseAmount } from '../components/AmountField'
 import CardHeaderBar from '../components/CardHeaderBar'
-import { useThemeMode } from '../ThemeModeContext'
-import Section from '../components/apple/Section'
-import HeroValue from '../components/apple/HeroValue'
-import { ios } from '../components/apple/tokens'
 
 function save(ym, fixed, overtime, customUnit = '', payItems = [], dedItems = [], bonusTakeHome = '') {
   saveSalaryMonth(ym, { fixed, overtime, customUnit, payItems, dedItems, bonusTakeHome })
@@ -374,8 +370,6 @@ export default function SalarySimulation() {
   const salaryTakeHome = baseRow.takeHome + customPayTotal - customDedTotal
   const displayTakeHome = salaryTakeHome
   const displayTotalPay = baseRow.totalPay + customPayTotal
-  const { mode } = useThemeMode()
-  const apple = mode === 'apple'
   const displayTotalDed = baseRow.totalDed + customDedTotal
 
   const editFixed = useCallback((key, val) => {
@@ -455,31 +449,20 @@ export default function SalarySimulation() {
       </Stack>
 
       {/* 手取りサマリー */}
-      {apple ? (
-        <Section header={`${ym} の手取り（シミュレーション）`}>
-          <Box sx={{ px: 2, py: 1.75 }}>
-            <HeroValue value={fmt(displayTakeHome)} size={36} />
-            <Typography sx={{ fontSize: 13, color: ios.secondary, mt: 0.5 }}>
-              総支給 ¥{fmt(displayTotalPay)}{rowC != null ? '（自由入力単価）' : ''}
-            </Typography>
-          </Box>
-        </Section>
-      ) : (
-        <Card sx={{ mb: 2, bgcolor: '#263238', color: '#fff' }}>
-          <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
-            <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>{ym} の手取り（シミュレーション）</Typography>
-            {rowC != null && (
-              <Typography variant="caption" sx={{ opacity: .6, fontSize: 9, color: '#90caf9' }}>自由入力単価</Typography>
-            )}
-            <Typography variant="h4" sx={{ fontWeight: 700, mt: 0.25, letterSpacing: -0.5 }}>
-              ¥{fmt(displayTakeHome)}
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: .55, fontSize: 10, mt: 0.25 }}>
-              総支給 ¥{fmt(displayTotalPay)}
-            </Typography>
-          </CardContent>
-        </Card>
-      )}
+      <Card sx={{ mb: 2, bgcolor: '#263238', color: '#fff' }}>
+        <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
+          <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>{ym} の手取り（シミュレーション）</Typography>
+          {rowC != null && (
+            <Typography variant="caption" sx={{ opacity: .6, fontSize: 9, color: '#90caf9' }}>自由入力単価</Typography>
+          )}
+          <Typography variant="h4" sx={{ fontWeight: 700, mt: 0.25, letterSpacing: -0.5 }}>
+            ¥{fmt(displayTakeHome)}
+          </Typography>
+          <Typography variant="caption" sx={{ opacity: .55, fontSize: 10, mt: 0.25 }}>
+            総支給 ¥{fmt(displayTotalPay)}
+          </Typography>
+        </CardContent>
+      </Card>
 
       {/* 残業時間 */}
       <SectionCard title="残業時間">

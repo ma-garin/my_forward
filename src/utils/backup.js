@@ -2,8 +2,8 @@
  * バックアップの読み書き。
  *
  * localStorage の値はすべて文字列。以前は書き出すときに JSON.parse していたため、
- * テーマ（app_theme）や並び順（cc_var_sort）のような素の文字列が「解釈できない」
- * として黙って捨てられ、復元しても戻らなかった。生の文字列のまま扱う。
+ * 並び順（cc_var_sort）のような素の文字列が「解釈できない」として黙って捨てられ、
+ * 復元しても戻らなかった。生の文字列のまま扱う。
  */
 
 /** バックアップに含めるキー */
@@ -11,7 +11,6 @@ export function isBackupKey(k) {
   return k === 'salary_simulation'
       || k === 'salary_simulation_monthly'
       || k === 'life_weekly_budget'
-      || k === 'app_theme'
       || k.startsWith('salary_base_')
       || k.startsWith('salary_extra_')
       || k.startsWith('cc_')

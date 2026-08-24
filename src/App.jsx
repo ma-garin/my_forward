@@ -7,8 +7,7 @@ import HomeIcon from '@mui/icons-material/Home'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
 import SettingsIcon from '@mui/icons-material/Settings'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import { classicTheme, appleTheme } from './theme'
-import { ThemeModeProvider, useThemeMode } from './ThemeModeContext'
+import theme from './theme'
 import { getDataVersion } from './utils/ccStorage'
 import SalarySimulation from './tabs/SalarySimulation'
 import CreditCard from './tabs/CreditCard'
@@ -20,7 +19,6 @@ import SalarySettings from './settings/SalarySettings'
 import CardSettings from './settings/CardSettings'
 import DataSettings from './settings/DataSettings'
 import AppInfo from './settings/AppInfo'
-import AppearanceSettings from './settings/AppearanceSettings'
 import NotificationCaptureSettings from './settings/NotificationCaptureSettings'
 import { useAndroidBack, pushScreen } from './utils/useAndroidBack'
 import { useKeyboardInset } from './utils/useKeyboardInset'
@@ -37,22 +35,22 @@ const TABS = [
 // ブラウザでは inset が 0 になるだけなので Web 版に影響しない。
 const APPBAR_SX = { pt: 'env(safe-area-inset-top)' }
 
+const BOTTOM_NAV_SX = {
+  position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+  width: '100%', maxWidth: 600, zIndex: 100, pb: 'env(safe-area-inset-bottom)',
+}
+
 const SETTINGS_TITLES = {
   salary:        '給与設定',
   card:          'カード設定',
   data:          'データ管理',
   salaryHistory: '給与履歴',
   appInfo:       'アプリ情報',
-  appearance:    '外観',
   notifications: '通知の取り込み',
 }
 
 export default function App() {
-  return (
-    <ThemeModeProvider>
-      <AppInner />
-    </ThemeModeProvider>
-  )
+  return <AppInner />
 }
 
 const TAB_COMPONENTS = [CreditCard, Kakeibo, Cashflow, SalarySimulation]
@@ -62,9 +60,6 @@ const HIDE = { display: 'none' }
 function AppInner() {
   useAndroidBack()
   useKeyboardInset()
-  const { mode } = useThemeMode()
-  const apple = mode === 'apple'
-  const activeTheme = apple ? appleTheme : classicTheme
 
   const [activeTab,    setActiveTab]    = useState(0)
   const [refreshKeys,  setRefreshKeys]  = useState([0, 0, 0, 0])
@@ -124,27 +119,8 @@ function AppInner() {
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
-  // ボトムナビ: apple 時は半透明ガラス（コンテンツが下を透けてスクロールする）
-  const bottomNavPaperSx = apple
-    ? {
-        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-        width: '100%', maxWidth: 600, zIndex: 100, pb: 'env(safe-area-inset-bottom)',
-        bgcolor: 'rgba(255,255,255,0.72)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        borderTop: '1px solid rgba(255,255,255,0.5)',
-        boxShadow: '0 -0.5px 0 rgba(0,0,0,0.08)',
-        '@media (prefers-reduced-transparency: reduce)': {
-          bgcolor: 'background.paper', backdropFilter: 'none', WebkitBackdropFilter: 'none',
-        },
-      }
-    : {
-        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-        width: '100%', maxWidth: 600, zIndex: 100, pb: 'env(safe-area-inset-bottom)',
-      }
-
   return (
-    <ThemeProvider theme={activeTheme}>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100svh', maxWidth: 600, mx: 'auto', bgcolor: 'background.default' }}>
 
@@ -174,7 +150,7 @@ function AppInner() {
         </Box>
 
         {/* Bottom Navigation */}
-        <Paper sx={bottomNavPaperSx} elevation={apple ? 0 : 3}>
+        <Paper sx={BOTTOM_NAV_SX} elevation={3}>
           <BottomNavigation value={activeTab} onChange={handleTabChange} showLabels sx={{ bgcolor: 'transparent' }}>
             {TABS.map((tab) => (
               <BottomNavigationAction key={tab.label} label={tab.label} icon={tab.icon} sx={{ fontSize: 11 }} />
@@ -206,7 +182,6 @@ function AppInner() {
             {settingsPage === 'data'          && <DataSettings />}
             {settingsPage === 'salaryHistory' && <SalaryHistory />}
             {settingsPage === 'appInfo'       && <AppInfo />}
-            {settingsPage === 'appearance'    && <AppearanceSettings />}
             {settingsPage === 'notifications' && <NotificationCaptureSettings />}
           </Box>
         </Drawer>
