@@ -419,8 +419,6 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
     setPayeeHistory(loadHistory('cc_payee_history'))
     setNameHistory(loadHistory('cc_name_history'))
   }, [])
-  const [showPayeeSugg, setShowPayeeSugg] = useState(false)
-  const [showNameSugg,  setShowNameSugg]  = useState(false)
   // 連続入力: 保存しても閉じず、次の 1 件を続けて入れる
   const [keepOpen,   setKeepOpen]   = useState(false)
   const [savedCount, setSavedCount] = useState(0)
@@ -568,15 +566,14 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
         <Typography sx={ILABEL}>支払先</Typography>
         <InputBase fullWidth placeholder="省略可" value={payee}
           onChange={e => setPayee(e.target.value)}
-          onFocus={() => setShowPayeeSugg(true)}
-          onBlur={e => { applyPayeeMeta(e.target.value); setTimeout(() => setShowPayeeSugg(false), 150) }}
+          onBlur={e => applyPayeeMeta(e.target.value)}
           sx={IVALUE} />
       </Box>
-      {showPayeeSugg && payeeSugg.length > 0 && (
+      {payeeSugg.length > 0 && (
         <Box sx={ISUGG_BOX}>
           {payeeSugg.map(s => (
             <Chip key={s} label={s} size="small"
-              onMouseDown={() => { setPayee(s); applyPayeeMeta(s) }} sx={ISUGG_CHIP} />
+              onPointerDown={() => { setPayee(s); applyPayeeMeta(s) }} sx={ISUGG_CHIP} />
           ))}
         </Box>
       )}
@@ -586,20 +583,18 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
         <Typography sx={ILABEL}>項目名</Typography>
         <InputBase fullWidth placeholder="省略可" value={name}
           onChange={e => setName(e.target.value)}
-          onFocus={() => setShowNameSugg(true)}
-          onBlur={() => setTimeout(() => setShowNameSugg(false), 150)}
           sx={IVALUE} />
       </Box>
-      {showNameSugg && nameSugg.length > 0 && (
+      {nameSugg.length > 0 && (
         <Box sx={ISUGG_BOX}>
           {nameSugg.map(s => (
-            <Chip key={s} label={s} size="small" onMouseDown={() => setName(s)} sx={ISUGG_CHIP} />
+            <Chip key={s} label={s} size="small" onPointerDown={() => setName(s)} sx={ISUGG_CHIP} />
           ))}
         </Box>
       )}
     </Box>
   ), [open, date, cardId, category, categories, spendType, payee, name,
-      showPayeeSugg, showNameSugg, payeeSugg, nameSugg, onEditCategories, applyPayeeMeta])
+      payeeSugg, nameSugg, onEditCategories, applyPayeeMeta])
 
   if (!open) return null
 
