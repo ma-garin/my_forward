@@ -599,8 +599,12 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
   if (!open) return null
 
   return (
-    // 電卓が下端に付くので、ホームバーの下に最下段のキーが潜らないよう余白を取る
-    <Box sx={{ position: 'fixed', inset: 0, zIndex: 1300, bgcolor: '#fafafa', display: 'flex', flexDirection: 'column',
+    // 電卓が下端に付くので、ホームバーの下に最下段のキーが潜らないよう余白を取る。
+    // 高さに --kb-inset（キーボードで WebView が縮んだ分）を足し戻すと、
+    // キーボードが出てもこの画面は元の高さのまま＝上に重なるだけになる。
+    // 足さないと電卓もフォームも潰れる（useKeyboardInset.js）
+    <Box sx={{ position: 'fixed', top: 0, left: 0, right: 0, height: 'calc(100% + var(--kb-inset, 0px))',
+      zIndex: 1300, bgcolor: '#fafafa', display: 'flex', flexDirection: 'column',
       maxWidth: 600, mx: 'auto', pb: 'env(safe-area-inset-bottom)' }}>
 
       {/* ヘッダー（上はステータスバーに潜らないよう余白を取る） */}
