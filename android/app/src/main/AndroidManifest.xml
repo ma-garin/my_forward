@@ -48,4 +48,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+        更新の取得。ストア配布ではないので、新しい APK を自分で受け取って
+        インストーラに渡す。実際にインストールするか決めるのはユーザー。
+    -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>
