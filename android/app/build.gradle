@@ -1,5 +1,9 @@
 apply plugin: 'com.android.application'
 
+// CI が渡すビルド番号を versionCode にする。1 に固定していると OS からは常に
+// 同じ版に見え、更新として扱われない。手元ビルドは 1 のまま。
+def buildNumber = (System.getenv('ANDROID_VERSION_CODE') ?: '1') as int
+
 android {
     namespace = "com.magarin.myforward"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +11,9 @@ android {
         applicationId "com.magarin.myforward"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode buildNumber
+        // アプリ情報の表示（APP_VERSION）と合わせる。インストーラにもこれが出る
+        versionName "1.4.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

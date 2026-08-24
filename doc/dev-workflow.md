@@ -90,6 +90,26 @@ chore: その他
   `calc(100% + var(--kb-inset, 0px))` にして元の高さを保つ。
   `--kb-inset` は `utils/useKeyboardInset.js` が縮んだ分を実測して入れる
 
+## APK の署名
+
+`assembleDebug` は `~/.android/debug.keystore` で署名する。この鍵は無ければ
+Gradle がその場で作るため、まっさらな CI ランナーでは**ビルドごとに別の鍵**に
+なる。署名が変わると上書きインストールが失敗し、インストーラは理由を出さず
+「アプリがインストールされていません」とだけ言う。
+
+そのため、鍵はリポジトリシークレット `ANDROID_KEYSTORE_BASE64` に入れて固定し、
+ビルド前に `~/.android/debug.keystore` へ書き戻している
+（`.github/workflows/android.yml` の Restore signing key）。
+
+- 別名 `androiddebugkey` / パスワード `android`（Android のデバッグ鍵の既定値）。
+  既定値に合わせてあるので `build.gradle` に signingConfig は要らない
+- シークレットが未設定でもビルドは通る（警告を出すだけ）。ただし出来た APK は
+  上書きインストールできない
+- 鍵を作り直すと、既に入っているアプリには**上書きできなくなる**（入れ直しが要る）
+
+`versionCode` は CI が `ANDROID_VERSION_CODE`（run_number）で渡す。1 に固定
+していると OS からは常に同じ版に見え、更新として扱われない。
+
 ## バックアップ
 
 設定画面（右上の歯車 → データ管理）から全データの一括エクスポート/インポートが可能。
