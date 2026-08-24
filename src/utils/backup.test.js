@@ -4,10 +4,6 @@ import { isBackupKey, createExportData, restoreExportData, getAllKeys } from './
 beforeEach(() => localStorage.clear())
 
 describe('isBackupKey', () => {
-  it('テーマを含む（含まれておらず復元できなかった）', () => {
-    expect(isBackupKey('app_theme')).toBe(true)
-  })
-
   it('家計・給与のキーを含む', () => {
     ;['cc_var_jcb_2026-08', 'cc_var_sort', 'salary_simulation', 'life_weekly_budget']
       .forEach((k) => expect(isBackupKey(k)).toBe(true))
@@ -20,16 +16,16 @@ describe('isBackupKey', () => {
 
 describe('往復（書き出して読み戻す）', () => {
   it('素の文字列が保たれる（JSON として解釈できず落ちていた値）', () => {
-    localStorage.setItem('app_theme', 'apple')
     localStorage.setItem('cc_var_sort', 'date_desc')
+    localStorage.setItem('cc_payee_history', '["ピーコック"]')
 
-    const data = createExportData(getAllKeys())
-    expect(data).toEqual({ app_theme: 'apple', cc_var_sort: 'date_desc' })
+    const data = createExportData(getAllKeys().filter(isBackupKey))
+    expect(data).toEqual({ cc_var_sort: 'date_desc', cc_payee_history: '["ピーコック"]' })
 
     localStorage.clear()
     restoreExportData(data)
-    expect(localStorage.getItem('app_theme')).toBe('apple')
     expect(localStorage.getItem('cc_var_sort')).toBe('date_desc')
+    expect(localStorage.getItem('cc_payee_history')).toBe('["ピーコック"]')
   })
 
   it('JSON の値も壊れない', () => {
@@ -46,7 +42,7 @@ describe('往復（書き出して読み戻す）', () => {
   })
 
   it('書き出した件数と復元した件数が一致する', () => {
-    localStorage.setItem('app_theme', 'classic')
+    localStorage.setItem('cc_var_sort', 'date_asc')
     localStorage.setItem('cc_limit_jcb', '200000')
     const data = createExportData(getAllKeys())
     localStorage.clear()

@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { Box, Typography, TextField, Button, InputAdornment, Drawer, Stack } from '@mui/material'
 import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined'
 import { fmt } from '../utils/finance'
-import { OPAQUE_SHEET } from '../theme'
 
 export function fmtInput(raw) {
   const n = parseInt(String(raw ?? '').replace(/,/g, ''), 10)
@@ -194,7 +193,7 @@ export const CalcPad = memo(function CalcPad({ valueRef, onChange, onConfirm, di
 
 // ─── 金額入力フィールド ─────────────────────────────────────
 
-const SHEET_PAPER_SX = { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto', ...OPAQUE_SHEET }
+const SHEET_PAPER_SX = { borderRadius: '16px 16px 0 0', px: 2, pt: 1.5, pb: 3, maxWidth: 600, mx: 'auto' }
 const SHEET_TIMEOUT = { enter: 220, exit: 180 }
 
 export default function AmountField({ value, onChange, large = false, dark = false, label, placeholder = '0', autoFocus = false, inputSx = {}, allowZero = false }) {

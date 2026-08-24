@@ -1,7 +1,9 @@
 import { useRef } from 'react'
 import { Box } from '@mui/material'
 import { motion, useMotionValue, animate, useReducedMotion } from 'motion/react'
-import { ios } from './tokens'
+
+// 削除アクションの赤。iOS の systemRed に合わせてある
+const DELETE_RED = '#FF3B30'
 
 const ACTION_W = 84
 const DRAG_SLOP = 4   // これを超えて動いたらタップではなくスワイプ扱い
@@ -18,7 +20,7 @@ const DRAG_SLOP = 4   // これを超えて動いたらタップではなくス�
  *  - bg:       前面の背景色（背後の赤を透かさないため不透明にすること）
  *  - children: 行の中身
  */
-export default function SwipeRow({ onDelete, onClick, bg = ios.cardBg, children }) {
+export default function SwipeRow({ onDelete, onClick, bg = '#FFFFFF', children }) {
   const reduce = useReducedMotion()
   const x = useMotionValue(0)
   const draggedRef = useRef(false)
@@ -31,7 +33,7 @@ export default function SwipeRow({ onDelete, onClick, bg = ios.cardBg, children 
           {children}
         </Box>
         <Box component="button" type="button" onClick={onDelete}
-          sx={{ width: 64, border: 'none', bgcolor: ios.red, color: '#fff', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>
+          sx={{ width: 64, border: 'none', bgcolor: DELETE_RED, color: '#fff', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>
           削除
         </Box>
       </Box>
@@ -62,7 +64,7 @@ export default function SwipeRow({ onDelete, onClick, bg = ios.cardBg, children 
   return (
     <Box sx={{ position: 'relative', overflow: 'hidden' }}>
       {/* 背後の削除アクション */}
-      <Box sx={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'flex-end', bgcolor: ios.red }}>
+      <Box sx={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'flex-end', bgcolor: DELETE_RED }}>
         <Box
           component="button" type="button"
           onClick={() => { onDelete?.(); settle(0) }}

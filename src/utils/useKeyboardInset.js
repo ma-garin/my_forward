@@ -16,22 +16,35 @@ import { Keyboard } from '@capacitor/keyboard'
  * 高さはプラグインの通知値ではなく実測（縮む前との差）を使う。アニメーション
  * 中の resize ごとに測るので、開閉の途中でも合計の高さが変わらない。
  *
+ * 「縮む前の高さ」は keyboardWillShow の時点では測れない。イベントが JS に
+ * 届くのは非同期で、その前に WebView が縮んでいることがあるため（実機で
+ * 効かなかった原因）。代わりに、これまでに見た最大の高さを覚えておく。
+ * イベントの順序に関係なく必ず正しい差が出る。
+ *
  * Web では何もしない（キーボードで縮まないため）。
  */
 
 const VAR = '--kb-inset'
 const isNative = () => Capacitor.isNativePlatform()
 
-// キーボードが出る前の高さ。0 は「キーボードが出ていない」を表す
-let baseHeight = 0
-let baseWidth = 0
+// 縮む前の高さ＝これまでに見た最大の高さ。幅が変わったら測り直す
+let maxHeight = 0
+let lastWidth = 0
 
 function setInset(px) {
   document.documentElement.style.setProperty(VAR, `${px}px`)
 }
 
 function measure() {
-  setInset(baseHeight ? Math.max(0, baseHeight - window.innerHeight) : 0)
+  const h = window.innerHeight
+  // 回転・分割画面は幅が変わる。キーボードと区別できるので基準を取り直す
+  if (window.innerWidth !== lastWidth) {
+    lastWidth = window.innerWidth
+    maxHeight = h
+  } else if (h > maxHeight) {
+    maxHeight = h
+  }
+  setInset(Math.max(0, maxHeight - h))
 }
 
 /** 縦スクロールできる一番近い親 */
@@ -59,33 +72,25 @@ export function useKeyboardInset() {
   useEffect(() => {
     if (!isNative()) return
 
+    lastWidth = window.innerWidth
+    maxHeight = window.innerHeight
+    setInset(0)
+
     const handles = []
     let cancelled = false
     const add = (name, fn) => {
       Keyboard.addListener(name, fn).then((h) => (cancelled ? h.remove() : handles.push(h)))
     }
 
-    // 出始めはまだ縮んでいないので、ここで測った高さが元の高さになる。
-    // 欄から欄へ移ったときも呼ばれるため、すでに開いていれば measure だけ。
-    add('keyboardWillShow', () => {
-      if (!baseHeight) {
-        baseHeight = window.innerHeight
-        baseWidth = window.innerWidth
-      }
-      measure()
-    })
+    // イベントは「測り直す合図」としてだけ使う。高さの基準は measure が持つ
+    add('keyboardWillShow', measure)
     add('keyboardDidShow', () => { measure(); ensureFocusVisible() })
-    // 閉じる途中は resize が戻し切るので、終わってから捨てる
-    add('keyboardDidHide', () => { baseHeight = 0; setInset(0) })
+    add('keyboardWillHide', measure)
+    add('keyboardDidHide', measure)
 
     const onResize = () => {
-      // 回転・分割画面は幅が変わる。キーボードと区別できるので測り直す
-      if (baseHeight && window.innerWidth !== baseWidth) {
-        baseHeight = window.innerHeight
-        baseWidth = window.innerWidth
-      }
       measure()
-      if (baseHeight) ensureFocusVisible()
+      ensureFocusVisible()
     }
     window.addEventListener('resize', onResize)
 
@@ -93,7 +98,6 @@ export function useKeyboardInset() {
       cancelled = true
       handles.forEach((h) => h.remove())
       window.removeEventListener('resize', onResize)
-      baseHeight = 0
       setInset(0)
     }
   }, [])

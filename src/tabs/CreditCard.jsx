@@ -38,13 +38,6 @@ import BudgetBreakdown from '../components/BudgetBreakdown'
 import MonthNav from '../components/MonthNav'
 import { useAfterPaint } from '../utils/useAfterPaint'
 import { pushScreen } from '../utils/useAndroidBack'
-import { useThemeMode } from '../ThemeModeContext'
-import Section from '../components/apple/Section'
-import Row from '../components/apple/Row'
-import Segmented from '../components/apple/Segmented'
-import Meter from '../components/apple/Meter'
-import HeroValue from '../components/apple/HeroValue'
-import { ios } from '../components/apple/tokens'
 
 function cutoffLabel(card) {
   return card.cutoffDay === 0 ? '月末締め' : `${card.cutoffDay}日締め`
@@ -324,8 +317,6 @@ function FixedExpenseTable({ fixedList, onEdit, onDelete, billedIds = [], onTogg
 
 function YearlySummary({ year, cardId }) {
   const [open, setOpen] = useState(false)
-  const { mode } = useThemeMode()
-  const apple = mode === 'apple'
   // 12 ヶ月ぶんの localStorage 読み込みは重い。タブを開いた瞬間の描画を止めない
   // よう、最初の描画のあとに計算する（固定費リストはループの外で 1 回だけロード）。
   const summary = useAfterPaint(() => {
@@ -347,14 +338,12 @@ function YearlySummary({ year, cardId }) {
   return (
     <Card sx={{ mb: 1.5 }}>
       <Box onClick={() => setOpen(v => !v)}
-        sx={apple
-          ? { bgcolor: ios.cardBg, borderBottom: `0.5px solid ${ios.separator}`, px: 2, py: 1.1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }
-          : { bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}>
+        sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}>
         <Stack direction="row" alignItems="center" gap={1}>
-          <ExpandMoreIcon sx={{ fontSize: 16, color: apple ? ios.tertiary : '#fff', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
-          <Typography variant="caption" sx={apple ? { color: ios.label, fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em' } : { color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>年間サマリー {year}年</Typography>
+          <ExpandMoreIcon sx={{ fontSize: 16, color: '#fff', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>年間サマリー {year}年</Typography>
         </Stack>
-        <Typography variant="caption" sx={apple ? { color: ios.secondary, fontSize: 13 } : { color: 'rgba(255,255,255,.7)', fontSize: 10 }}>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.7)', fontSize: 10 }}>
           {yearTotal == null ? '集計中…' : `合計 ¥${fmt(yearTotal)}`}
         </Typography>
       </Box>
@@ -847,26 +836,18 @@ export default function CreditCard() {
   }
 
 
-  const { mode } = useThemeMode()
-  const apple = mode === 'apple'
-
-  // 折りたたみヘッダーのテーマ別スタイル（固定費/変動費で共有）
-  const hdrSx = apple
-    ? { bgcolor: ios.cardBg, borderBottom: `0.5px solid ${ios.separator}`, px: 2, py: 1.1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }
-    : { bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }
-  const hdrIconColor = apple ? ios.tertiary : '#fff'
-  const hdrTitleSx   = apple ? { color: ios.label, fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em' } : { color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }
-  const hdrAmtSx     = apple ? { color: ios.label, fontWeight: 600, fontSize: 15 } : { color: 'rgba(255,255,255,.8)', fontWeight: 600 }
-  const hdrChipSx    = apple ? { height: 18, fontSize: 10, bgcolor: 'rgba(118,118,128,0.12)', color: ios.secondary } : { height: 16, fontSize: 9, bgcolor: 'rgba(255,255,255,.2)', color: '#fff' }
-  const hdrAddColor  = apple ? ios.accent : '#fff'
+  // 折りたたみヘッダーのスタイル（固定費/変動費で共有）
+  const hdrSx = { bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }
+  const hdrIconColor = '#fff'
+  const hdrTitleSx   = { color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }
+  const hdrAmtSx     = { color: 'rgba(255,255,255,.8)', fontWeight: 600 }
+  const hdrChipSx    = { height: 16, fontSize: 9, bgcolor: 'rgba(255,255,255,.2)', color: '#fff' }
+  const hdrAddColor  = '#fff'
   // 見出しは詰まりやすい。タイトルだけは縮めず折り返さない
   const hdrTitleNoWrapSx = { ...hdrTitleSx, whiteSpace: 'nowrap', flexShrink: 0 }
   // 隣の年月チップはただのラベルなので、押せることが分かるよう枠線を付ける
-  const hdrSortChipSx = apple
-    ? { height: 22, fontSize: 10, color: ios.accent, bgcolor: 'transparent', border: `1px solid ${ios.accent}`,
-        '& .MuiChip-icon': { fontSize: 12, ml: '5px', mr: '-3px', color: ios.accent } }
-    : { height: 20, fontSize: 9, color: '#fff', bgcolor: 'transparent', border: '1px solid rgba(255,255,255,.45)',
-        '& .MuiChip-icon': { fontSize: 11, ml: '5px', mr: '-3px', color: '#fff' } }
+  const hdrSortChipSx = { height: 20, fontSize: 9, color: '#fff', bgcolor: 'transparent', border: '1px solid rgba(255,255,255,.45)',
+    '& .MuiChip-icon': { fontSize: 11, ml: '5px', mr: '-3px', color: '#fff' } }
 
   const varSortLabel = VAR_SORTS.find((s) => s.value === varSort)?.label ?? '古い順'
 
@@ -908,29 +889,19 @@ export default function CreditCard() {
 
       {/* カード選択 */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-        {apple ? (
-          <Box sx={{ minWidth: 168 }}>
-            <Segmented
-              options={CARD_LIST.map((c) => ({ value: c.id, label: c.shortName }))}
-              value={cardId}
-              onChange={switchCard}
+        <Stack direction="row" spacing={1}>
+          {CARD_LIST.map((c) => (
+            <Chip key={c.id} label={c.shortName} onClick={() => switchCard(c.id)}
+              variant={cardId === c.id ? 'filled' : 'outlined'}
+              sx={{
+                fontWeight: 600, fontSize: 12,
+                bgcolor: cardId === c.id ? c.color : 'transparent',
+                color: cardId === c.id ? '#fff' : 'text.secondary',
+                borderColor: c.color,
+              }}
             />
-          </Box>
-        ) : (
-          <Stack direction="row" spacing={1}>
-            {CARD_LIST.map((c) => (
-              <Chip key={c.id} label={c.shortName} onClick={() => switchCard(c.id)}
-                variant={cardId === c.id ? 'filled' : 'outlined'}
-                sx={{
-                  fontWeight: 600, fontSize: 12,
-                  bgcolor: cardId === c.id ? c.color : 'transparent',
-                  color: cardId === c.id ? '#fff' : 'text.secondary',
-                  borderColor: c.color,
-                }}
-              />
-            ))}
-          </Stack>
-        )}
+          ))}
+        </Stack>
         <IconButton size="small" aria-label="カテゴリ設定" onClick={() => setCatDlgOpen(true)}>
           <SettingsIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
         </IconButton>
@@ -948,52 +919,6 @@ export default function CreditCard() {
 
         // 締め日/支払日の表示（日付ごとに「未到来なら残り日数」を出す）
         const cycleNode = () => cycleText(card, ym)
-
-        // ─── Apple（iOS 設定アプリ風）ヒーロー ─────────────
-        if (apple) {
-          return (
-            <Section header={card.name}>
-              <Box sx={{ px: 2, pt: 1.75, pb: 1.5 }}>
-                {limit > 0 ? (
-                  <Stack direction="row" justifyContent="space-between" alignItems="flex-end">
-                    <HeroValue label="使用額" value={fmt(grandTotal)} color={over ? ios.red : ios.label} size={32} />
-                    <Stack alignItems="flex-end" spacing={0.25}>
-                      <Typography sx={{ fontSize: 12.5, color: ios.secondary }}>上限 ¥{fmt(limit)}</Typography>
-                      <Typography sx={{ fontSize: 15, fontWeight: 600, color: over ? ios.red : ios.green }}>
-                        {over ? `−¥${fmt(grandTotal - limit)}` : `残り ¥${fmt(limit - grandTotal)}`}
-                      </Typography>
-                    </Stack>
-                  </Stack>
-                ) : (
-                  <HeroValue label="使用額" value={fmt(grandTotal)} size={32} />
-                )}
-                {limit > 0 && (
-                  <Box sx={{ mt: 1.25 }}>
-                    <Meter pct={pct} height={7} />
-                    <Typography sx={{ fontSize: 12, color: ios.secondary, mt: 0.5 }}>{pct.toFixed(0)}% 使用</Typography>
-                  </Box>
-                )}
-              </Box>
-              <Row label="固定費" dense value={`¥${fmt(fixedTotal)}`} />
-              <Row label="生活費" dense value={`¥${fmt(livingTotal)}`} />
-              <Row label="その他" dense value={`¥${fmt(otherVarTotal)}`} />
-              <Box sx={{ px: 2, py: 1.25 }}>
-                <Typography sx={{ fontSize: 12.5, color: ios.secondary }}>{cutoffLabel(card)} {paymentLabel(card)}</Typography>
-                <Typography sx={{ fontSize: 12.5, color: ios.secondary, mt: 0.25 }}>{cycleNode()}</Typography>
-              </Box>
-              <Box sx={{ px: 2, pb: 1.75 }}>
-                <Typography sx={{ fontSize: 12, color: ios.secondary, mb: 0.5 }}>月間上限</Typography>
-                <AmountField
-                  allowZero
-                  value={limitInput}
-                  onChange={(raw) => { setLimitInputs(prev => ({ ...prev, [cardId]: raw })); saveLimit(cardId, raw) }}
-                  placeholder="設定なし"
-                  inputSx={{ '& .MuiInputBase-root': { height: 36 } }}
-                />
-              </Box>
-            </Section>
-          )
-        }
 
         return (
           <Card sx={{ mb: 2, bgcolor: card.color, color: '#fff' }}>
@@ -1150,14 +1075,14 @@ export default function CreditCard() {
             <Stack alignItems="flex-end">
               <Typography variant="caption" sx={hdrAmtSx}>¥{fmt(varTotal)}</Typography>
               {prevVarTotal > 0 && (
-                <Typography variant="caption" sx={{ fontSize: 9, whiteSpace: 'nowrap', color: varDiff > 0 ? (apple ? ios.red : '#ef9a9a') : (apple ? ios.green : '#a5d6a7') }}>
+                <Typography variant="caption" sx={{ fontSize: 9, whiteSpace: 'nowrap', color: varDiff > 0 ? '#ef9a9a' : '#a5d6a7' }}>
                   先月比 {varDiff >= 0 ? '+' : '−'}¥{fmt(Math.abs(varDiff))}
                 </Typography>
               )}
             </Stack>
             <IconButton size="small" aria-label={searchOpen ? '絞り込みを閉じる' : '絞り込む'}
               onClick={toggleSearch}
-              sx={{ p: 0.75, color: searchOpen ? (apple ? ios.accent : '#fff') : hdrIconColor }}>
+              sx={{ p: 0.75, color: searchOpen ? '#fff' : hdrIconColor }}>
               <SearchIcon sx={{ fontSize: 18 }} />
             </IconButton>
             <IconButton size="small" aria-label="変動費を追加" onClick={(e) => { e.stopPropagation(); setDlg({ type: 'var' }) }} sx={{ p: 0.75, color: hdrAddColor }}>
@@ -1247,7 +1172,6 @@ export default function CreditCard() {
           position: 'fixed', bottom: 'calc(88px + env(safe-area-inset-bottom))', right: 16, zIndex: 200,
           transition: 'transform .15s ease',
           '&:active': { transform: 'scale(0.9)' },
-          ...(apple ? { bgcolor: ios.accent, '&:hover': { bgcolor: '#0a6fe0' }, boxShadow: '0 6px 20px rgba(0,122,255,0.4)' } : {}),
         }}
       >
         <AddIcon />

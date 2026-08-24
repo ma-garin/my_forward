@@ -3,7 +3,7 @@ import { Box, Typography, Stack, Chip, Menu, MenuItem, Checkbox } from '@mui/mat
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
-import SwipeRow from './apple/SwipeRow'
+import SwipeRow from './SwipeRow'
 import { fmt } from '../utils/finance'
 import { CATEGORY_COLORS, BORDER_LIGHT, SPEND_TYPE_COLORS } from '../utils/ccStorage'
 
