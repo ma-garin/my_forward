@@ -37,6 +37,7 @@ import CombinedSummary from '../components/CombinedSummary'
 import BudgetBreakdown from '../components/BudgetBreakdown'
 import MonthNav from '../components/MonthNav'
 import { useAfterPaint } from '../utils/useAfterPaint'
+import { pushScreen } from '../utils/useAndroidBack'
 import { useThemeMode } from '../ThemeModeContext'
 import Section from '../components/apple/Section'
 import Row from '../components/apple/Row'
@@ -455,7 +456,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
       refreshHistories()
       catTouchedRef.current = false
       spendTouchedRef.current = false
-      window.history.pushState({ addExpenseOpen: true }, '')
+      pushScreen({ addExpenseOpen: true })
       const handlePop = () => onClose()
       window.addEventListener('popstate', handlePop)
       return () => window.removeEventListener('popstate', handlePop)
