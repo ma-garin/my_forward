@@ -2,62 +2,36 @@ import { useState } from 'react'
 import { Box, Typography, Button, Stack, Divider, Alert } from '@mui/material'
 import DownloadIcon from '@mui/icons-material/Download'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
+import { isBackupKey, getAllKeys, createExportData, restoreExportData } from '../utils/backup'
+import { saveFile } from '../utils/saveFile'
 
-function isActiveKey(k) {
-  return k === 'salary_simulation'
-      || k === 'salary_simulation_monthly'
-      || k === 'life_weekly_budget'
-      || k.startsWith('salary_base_')
-      || k.startsWith('salary_extra_')
-      || k.startsWith('cc_')
-}
+const isActiveKey = isBackupKey
 
-function getAllKeys() {
-  const keys = []
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i)
-    if (k) keys.push(k)
+function buildBlob(keys, filename) {
+  const data = createExportData(keys)
+  return {
+    blob: new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
+    fileName: `${filename}_${new Date().toISOString().slice(0, 10)}.json`,
   }
-  return keys
 }
 
-function createJsonExport(keys, filename) {
-  const data = {}
-  keys.forEach(k => {
-    try { data[k] = JSON.parse(localStorage.getItem(k)) } catch {}
-  })
-  const fileName = `${filename}_${new Date().toISOString().slice(0, 10)}.json`
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  const file = typeof File === 'function'
-    ? new File([blob], fileName, { type: 'application/json' })
-    : null
+// 保存の結果をそのまま画面の文言にする
+const SAVE_MESSAGE = { saved: 'ダウンロードしました', shared: '保存先に渡しました', cancelled: '' }
 
-  return { blob, file, fileName }
-}
-
-function downloadJson(keys, filename) {
-  const { blob, fileName } = createJsonExport(keys, filename)
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = fileName
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  setTimeout(() => URL.revokeObjectURL(url), 100)
-  return true
+async function exportJson(keys, filename) {
+  const { blob, fileName } = buildBlob(keys, filename)
+  return SAVE_MESSAGE[await saveFile(blob, fileName)] ?? ''
 }
 
 function importFile(file) {
   const reader = new FileReader()
   reader.onload = (ev) => {
     try {
-      const data = JSON.parse(ev.target.result)
-      Object.entries(data).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)))
-      alert('インポート完了しました。アプリを再読み込みします。')
+      const n = restoreExportData(JSON.parse(ev.target.result))
+      alert(`${n}件を読み込みました。アプリを再読み込みします。`)
       window.location.reload()
-    } catch {
-      alert('ファイルの読み込みに失敗しました')
+    } catch (e) {
+      alert(`ファイルの読み込みに失敗しました\n${e.message ?? ''}`)
     }
   }
   reader.readAsText(file)
@@ -67,9 +41,13 @@ function DataRow({ label, exportFilename, filterKeys }) {
   const [message, setMessage] = useState('')
   const keys = filterKeys(getAllKeys())
 
-  const handleExport = () => {
+  const handleExport = async () => {
     setMessage('')
-    if (downloadJson(keys, exportFilename)) setMessage('ダウンロードしました')
+    try {
+      setMessage(await exportJson(keys, exportFilename))
+    } catch (e) {
+      setMessage(`保存できませんでした: ${e.message ?? ''}`)
+    }
   }
 
   return (
@@ -99,9 +77,13 @@ export default function DataSettings() {
   const activeKeys = getAllKeys().filter(isActiveKey)
   const [bulkMessage, setBulkMessage] = useState('')
 
-  const handleBulkExport = () => {
+  const handleBulkExport = async () => {
     setBulkMessage('')
-    if (downloadJson(activeKeys, 'myforward_backup')) setBulkMessage('ダウンロードしました')
+    try {
+      setBulkMessage(await exportJson(activeKeys, 'myforward_backup'))
+    } catch (e) {
+      setBulkMessage(`保存できませんでした: ${e.message ?? ''}`)
+    }
   }
 
   return (
