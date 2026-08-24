@@ -1,12 +1,12 @@
-import { useState } from 'react'
-import { Box, Typography, Divider, Stack, Chip, Button, Alert, CircularProgress } from '@mui/material'
+import { useState, useRef } from 'react'
+import { Box, Typography, Divider, Stack, Chip, Button, Alert, CircularProgress, LinearProgress, Link } from '@mui/material'
 import { Capacitor } from '@capacitor/core'
 import SmartphoneIcon from '@mui/icons-material/Smartphone'
 import StorageIcon from '@mui/icons-material/Storage'
 import LockIcon from '@mui/icons-material/Lock'
 import WifiOffIcon from '@mui/icons-material/WifiOff'
 import SystemUpdateIcon from '@mui/icons-material/SystemUpdate'
-import { checkForUpdate, buildNumber, APK_URL } from '../utils/appUpdate'
+import { checkForUpdate, buildNumber, APK_URL, downloadApk, installApk, canInstall, openInstallSettings } from '../utils/appUpdate'
 
 const APP_VERSION = '1.4.0'
 
@@ -75,16 +75,29 @@ const TECH_STACK = [
 ]
 
 /**
- * 更新の確認。
+ * 更新の確認と適用。
+ *
  * ストア配布ではないので自動更新が来ない。GitHub の最新リリースと今のビルド番号を
- * 比べて、新しければ APK を開く（外部リンクなのでシステムブラウザが受け取る）。
+ * 比べ、新しければアプリ内で APK を取得してインストーラに渡すところまで行う。
+ * 上書きするかどうかはインストーラの画面でユーザーが決める（データは残る）。
  */
 function UpdateSection() {
-  const [state, setState] = useState(null) // { loading } | { error } | 結果
-  const result = state && !state.loading && !state.error ? state : null
+  const [state, setState] = useState(null)     // { loading } | { error } | 確認結果
+  const [phase, setPhase] = useState('idle')   // idle | downloading | needPermission | installing
+  const [progress, setProgress] = useState(0)
+  const [error, setError] = useState('')
+  // 取得済みの APK。許可を取り直した後の再実行で 13MB を落とし直さない
+  const apkRef = useRef('')
 
-  const run = async () => {
+  const result = state && !state.loading && !state.error ? state : null
+  const busy = phase === 'downloading' || phase === 'installing'
+
+  const check = async () => {
     setState({ loading: true })
+    setError('')
+    setPhase('idle')
+    // 確認し直したら取得済みの APK は捨てる（その間に更に新しい版が出ていることがある）
+    apkRef.current = ''
     try {
       setState(await checkForUpdate())
     } catch (e) {
@@ -92,13 +105,41 @@ function UpdateSection() {
     }
   }
 
+  const update = async () => {
+    setError('')
+    try {
+      if (!apkRef.current) {
+        setPhase('downloading')
+        setProgress(0)
+        apkRef.current = await downloadApk(setProgress)
+      }
+      // 許可が無いとインストーラは何も出さずに戻る。先に確かめて設定へ誘導する
+      if (!(await canInstall())) {
+        setPhase('needPermission')
+        return
+      }
+      setPhase('installing')
+      await installApk(apkRef.current)
+    } catch (e) {
+      setError(e.message ?? '更新できませんでした')
+      setPhase('idle')
+    }
+  }
+
+  // 更新できる（新しい版がある／ビルド番号が判定できない）ときに出すボタン
+  const updateButton = (
+    <Button size="small" onClick={update} disabled={busy}>
+      {phase === 'downloading' ? `${Math.round(progress * 100)}%` : '更新'}
+    </Button>
+  )
+
   return (
     <Box sx={{ mb: 2 }}>
       <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>更新</Typography>
 
       <Button
         variant="outlined" size="small" fullWidth
-        onClick={run} disabled={!!state?.loading}
+        onClick={check} disabled={!!state?.loading || busy}
         startIcon={state?.loading ? <CircularProgress size={14} /> : <SystemUpdateIcon />}
       >
         {state?.loading ? '確認中…' : '更新を確認'}
@@ -109,12 +150,7 @@ function UpdateSection() {
       )}
 
       {result?.hasUpdate && (
-        <Alert severity="info" sx={{ mt: 1, fontSize: 12 }}
-          action={
-            <Button size="small" component="a" href={APK_URL} target="_blank" rel="noreferrer">
-              取得
-            </Button>
-          }>
+        <Alert severity="info" sx={{ mt: 1, fontSize: 12 }} action={updateButton}>
           ビルド {result.latest} が公開されています（現在 {result.current}）。
         </Alert>
       )}
@@ -124,18 +160,33 @@ function UpdateSection() {
       )}
 
       {result?.unknown && (
-        <Alert severity="warning" sx={{ mt: 1, fontSize: 12 }}
-          action={
-            <Button size="small" component="a" href={APK_URL} target="_blank" rel="noreferrer">
-              取得
-            </Button>
-          }>
+        <Alert severity="warning" sx={{ mt: 1, fontSize: 12 }} action={updateButton}>
           ビルド番号を判定できませんでした（最新: {result.tag || '不明'}）。手元でビルドした版の可能性があります。
         </Alert>
       )}
 
+      {phase === 'downloading' && (
+        <LinearProgress variant="determinate" value={progress * 100} sx={{ mt: 1, borderRadius: 1 }} />
+      )}
+
+      {phase === 'needPermission' && (
+        <Alert severity="warning" sx={{ mt: 1, fontSize: 12 }}
+          action={<Button size="small" onClick={openInstallSettings}>設定</Button>}>
+          このアプリからのインストールが許可されていません。設定で許可してから、もう一度「更新」を押してください。
+        </Alert>
+      )}
+
+      {phase === 'installing' && (
+        <Alert severity="success" sx={{ mt: 1, fontSize: 12 }}>
+          インストーラを開きました。画面の指示に従ってください。
+        </Alert>
+      )}
+
+      {error && <Alert severity="error" sx={{ mt: 1, fontSize: 12 }}>{error}</Alert>}
+
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, fontSize: 11 }}>
-        取得すると APK がダウンロードされます。ファイルを開くと上書きインストールされ、データはそのまま残ります。
+        上書きインストールされ、データはそのまま残ります。
+        うまくいかないときは <Link href={APK_URL} target="_blank" rel="noreferrer">APK を直接ダウンロード</Link> できます。
       </Typography>
 
       <Divider sx={{ mt: 2 }} />

@@ -1,8 +1,11 @@
+import { Capacitor, registerPlugin } from '@capacitor/core'
+import { Filesystem, Directory } from '@capacitor/filesystem'
+
 const REPO = 'ma-garin/my_forward'
 
 const LATEST_API = `https://api.github.com/repos/${REPO}/releases/latest`
 
-/** 常に最新版を指す。外部リンクなのでシステムブラウザが開いてダウンロードする */
+/** 常に最新版を指す */
 export const APK_URL = `https://github.com/${REPO}/releases/latest/download/app-debug.apk`
 
 export const RELEASES_URL = `https://github.com/${REPO}/releases/latest`
@@ -48,4 +51,76 @@ export async function checkForUpdate() {
     hasUpdate: latest != null && current != null && latest > current,
     unknown: latest == null || current == null,
   }
+}
+
+// ─── 更新の取得とインストール（アプリ版のみ） ───
+
+const AppUpdate = registerPlugin('AppUpdate')
+
+const APK_FILE = 'my_forward-update.apk'
+
+/** インストールまでアプリ内で完結できる環境か（Web 版では常に false） */
+export const canSelfUpdate = () =>
+  Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('AppUpdate')
+
+/** 「提供元不明のアプリ」の許可があるか */
+export async function canInstall() {
+  if (!canSelfUpdate()) return false
+  try {
+    const { granted } = await AppUpdate.canInstall()
+    return !!granted
+  } catch {
+    return false
+  }
+}
+
+/** 「提供元不明のアプリ」の許可画面を開く */
+export async function openInstallSettings() {
+  if (!canSelfUpdate()) return
+  try {
+    await AppUpdate.openInstallSettings()
+  } catch {
+    // 開けなくても画面の案内は残るので握りつぶす
+  }
+}
+
+/**
+ * APK を取得する。進捗は onProgress(0〜1) で返す。
+ *
+ * ダウンロードはネイティブ側で直接ファイルに書く（downloadFile）。
+ * fetch でブリッジに載せると 13MB が base64 でメモリを通るため使わない。
+ */
+export async function downloadApk(onProgress) {
+  if (!canSelfUpdate()) throw new Error('アプリ版でのみ更新できます')
+
+  let handle
+  if (onProgress) {
+    handle = await Filesystem.addListener('progress', ({ bytes, contentLength }) => {
+      if (contentLength > 0) onProgress(Math.min(1, bytes / contentLength))
+    })
+  }
+
+  try {
+    const { path } = await Filesystem.downloadFile({
+      url: APK_URL,
+      path: APK_FILE,
+      directory: Directory.Cache,
+      progress: true,
+    })
+    if (!path) throw new Error('ダウンロードに失敗しました')
+    return path
+  } catch (e) {
+    throw new Error(`ダウンロードできませんでした: ${e?.message ?? ''}`)
+  } finally {
+    await handle?.remove()
+  }
+}
+
+/**
+ * 取得済みの APK をインストーラに渡す。
+ * 実際に上書きするかはインストーラの画面でユーザーが決める（データは残る）。
+ */
+export async function installApk(path) {
+  if (!canSelfUpdate()) throw new Error('アプリ版でのみ更新できます')
+  await AppUpdate.install({ path })
 }
