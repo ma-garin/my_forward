@@ -47,9 +47,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test
+        run: npm test
+
       - name: Build web assets for Android
         env:
           BUILD_TARGET: capacitor
+          # アプリ内の更新確認が、リリースのタグ（android-<run_number>）と比べるための番号
+          VITE_BUILD_NUMBER: ${{ github.run_number }}
         run: npx vite build --outDir dist-android
 
       - name: Sync Capacitor
