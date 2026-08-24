@@ -22,7 +22,7 @@ import DataSettings from './settings/DataSettings'
 import AppInfo from './settings/AppInfo'
 import AppearanceSettings from './settings/AppearanceSettings'
 import NotificationCaptureSettings from './settings/NotificationCaptureSettings'
-import { useAndroidBack } from './utils/useAndroidBack'
+import { useAndroidBack, pushScreen } from './utils/useAndroidBack'
 
 const TABS = [
   { label: 'クレカ', icon: <CreditCardIcon /> },
@@ -100,11 +100,11 @@ function AppInner() {
   const openSettings = () => {
     setSettingsPage(null)
     setSettingsOpen(true)
-    window.history.pushState({ settings: true, page: null }, '')
+    pushScreen({ settings: true, page: null })
   }
   const navigateTo = (page) => {
     setSettingsPage(page)
-    window.history.pushState({ settings: true, page }, '')
+    pushScreen({ settings: true, page })
   }
   const closeSettings = () => {
     if (window.history.state?.settings) window.history.back()
