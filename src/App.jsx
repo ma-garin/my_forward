@@ -22,6 +22,7 @@ import DataSettings from './settings/DataSettings'
 import AppInfo from './settings/AppInfo'
 import AppearanceSettings from './settings/AppearanceSettings'
 import NotificationCaptureSettings from './settings/NotificationCaptureSettings'
+import { useAndroidBack } from './utils/useAndroidBack'
 
 const TABS = [
   { label: 'クレカ', icon: <CreditCardIcon /> },
@@ -58,6 +59,7 @@ const SHOW = { display: 'block' }
 const HIDE = { display: 'none' }
 
 function AppInner() {
+  useAndroidBack()
   const { mode } = useThemeMode()
   const apple = mode === 'apple'
   const activeTheme = apple ? appleTheme : classicTheme
