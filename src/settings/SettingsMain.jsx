@@ -5,6 +5,7 @@ import HistoryIcon from '@mui/icons-material/History'
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined'
+import AlarmOutlinedIcon from '@mui/icons-material/AlarmOutlined'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { isNativeApp } from '../utils/notificationCapture'
 
@@ -16,15 +17,17 @@ const ITEMS = [
   { key: 'appInfo',       label: 'アプリ情報',  sub: 'バージョン・変更履歴・ライセンス', icon: <InfoOutlinedIcon /> },
 ]
 
-// 通知の取り込みは Android アプリ版だけの機能。Web 版では項目自体を出さない
+// 通知まわりは Android アプリ版だけの機能。Web 版では項目自体を出さない
 // （開いても「使えません」と出るだけの行を並べない）。
-const NOTIFICATION_ITEM = {
-  key: 'notifications', label: '通知の取り込み', sub: 'クレカ利用通知の記録（Androidアプリのみ）',
-  icon: <NotificationsActiveOutlinedIcon />,
-}
+const NATIVE_ITEMS = [
+  { key: 'reminders',     label: '通知',          sub: '締め日・支払日の知らせ',
+    icon: <AlarmOutlinedIcon /> },
+  { key: 'notifications', label: '通知の取り込み', sub: 'クレカ利用通知の記録（Androidアプリのみ）',
+    icon: <NotificationsActiveOutlinedIcon /> },
+]
 
 export default function SettingsMain({ onNavigate }) {
-  const items = isNativeApp() ? [...ITEMS, NOTIFICATION_ITEM] : ITEMS
+  const items = isNativeApp() ? [...ITEMS, ...NATIVE_ITEMS] : ITEMS
   return (
     <Box>
       <Box sx={{ px: 2, py: 2, borderBottom: '1px solid #eee' }}>

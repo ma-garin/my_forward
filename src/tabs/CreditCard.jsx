@@ -23,7 +23,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm } from '../utils/finance'
 import {
   CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
-  prevBusinessDay, nextBusinessDay, sumLiving,
+  sumLiving,
   loadFixed, saveFixed, loadVar, saveVar,
   CARD_LIST, billingYmForCard, upsertFixedItem, upsertVarItem,
   loadLimit, saveLimit, loadBilled, saveBilled,
@@ -39,54 +39,7 @@ import MonthNav from '../components/MonthNav'
 import { useAfterPaint } from '../utils/useAfterPaint'
 import { pushScreen } from '../utils/useAndroidBack'
 import { onQuickAdd, takePendingQuickAdd } from '../utils/quickAdd'
-
-function cutoffLabel(card) {
-  return card.cutoffDay === 0 ? '月末締め' : `${card.cutoffDay}日締め`
-}
-
-function paymentLabel(card) {
-  return `翌月${card.paymentDay}日払い`
-}
-
-function startOfDay(date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
-}
-
-function payDateForCutoff(card, cutoffDate) {
-  return nextBusinessDay(new Date(cutoffDate.getFullYear(), cutoffDate.getMonth() + 1, card.paymentDay))
-}
-
-// ym（請求月）自体から締め日を求める。ym の締め日は「ym の月+1」に落ちる
-// （例: cutoffDay=15 なら ym=2026-08 の締めは 9/15）。ym の月をそのまま使うと
-// 1 ヶ月早い日付になる（実際に混入したバグ）
-function cutoffDateForYm(card, ym) {
-  const [y, m] = ym.split('-').map(Number)
-  return card.cutoffDay === 0 ? new Date(y, m, 0) : new Date(y, m, card.cutoffDay)
-}
-
-function cycleDatesForYm(card, ym) {
-  const cutoffDate = cutoffDateForYm(card, ym)
-  return { cutoffDate, payDate: payDateForCutoff(card, cutoffDate) }
-}
-
-function daysUntil(date, from = new Date()) {
-  const MS_PER_DAY = 24 * 60 * 60 * 1000
-  return Math.round((startOfDay(date) - startOfDay(from)) / MS_PER_DAY)
-}
-
-function fmtCycleDate(date) {
-  return `${date.getMonth() + 1}/${date.getDate()}`
-}
-
-// 締め日・支払日は「まだ来ていなければ残り日数、過ぎていれば日付だけ」を出す。
-// 表示中の月が今の請求サイクルかどうかで分けると、前月ぶんの支払いがまだ
-// 残っていても残り日数が消えてしまう（実際にそうなっていた）。
-function cycleLabel(prefix, date, from = new Date()) {
-  const days = daysUntil(date, from)
-  if (days > 0)   return `${prefix}まで あと${days}日（${fmtCycleDate(date)}）`
-  if (days === 0) return `${prefix} 今日（${fmtCycleDate(date)}）`
-  return `${prefix} ${fmtCycleDate(date)}`
-}
+import { cycleDatesForYm, cycleLabel, cutoffLabel, paymentLabel } from '../utils/billingCycle'
 
 function loadHistory(key) {
   try {

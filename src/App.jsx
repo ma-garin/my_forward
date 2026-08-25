@@ -20,9 +20,11 @@ import CardSettings from './settings/CardSettings'
 import DataSettings from './settings/DataSettings'
 import AppInfo from './settings/AppInfo'
 import NotificationCaptureSettings from './settings/NotificationCaptureSettings'
+import ReminderSettings from './settings/ReminderSettings'
 import { useAndroidBack, pushScreen } from './utils/useAndroidBack'
 import { useKeyboardInset } from './utils/useKeyboardInset'
 import { useLaunchIntent } from './utils/useLaunchIntent'
+import { useReminderSync } from './utils/useReminders'
 
 const TABS = [
   { label: 'クレカ', icon: <CreditCardIcon /> },
@@ -47,6 +49,7 @@ const SETTINGS_TITLES = {
   data:          'データ管理',
   salaryHistory: '給与履歴',
   appInfo:       'アプリ情報',
+  reminders:     '通知',
   notifications: '通知の取り込み',
 }
 
@@ -61,6 +64,7 @@ const HIDE = { display: 'none' }
 function AppInner() {
   useAndroidBack()
   useKeyboardInset()
+  useReminderSync()
 
   const [activeTab,    setActiveTab]    = useState(0)
   const [refreshKeys,  setRefreshKeys]  = useState([0, 0, 0, 0])
@@ -190,6 +194,7 @@ function AppInner() {
             {settingsPage === 'data'          && <DataSettings />}
             {settingsPage === 'salaryHistory' && <SalaryHistory />}
             {settingsPage === 'appInfo'       && <AppInfo />}
+            {settingsPage === 'reminders'     && <ReminderSettings />}
             {settingsPage === 'notifications' && <NotificationCaptureSettings />}
           </Box>
         </Drawer>
