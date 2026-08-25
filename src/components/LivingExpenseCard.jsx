@@ -5,7 +5,7 @@ import {
 } from '@mui/material'
 import { fmt } from '../utils/finance'
 import {
-  CARDS, LIVING_CATEGORIES, loadVar, loadWeeklyBudget, saveWeeklyBudget,
+  CARDS, CARD_LIST, LIVING_CATEGORIES, loadVar, loadWeeklyBudget, saveWeeklyBudget,
   getRecentWeeks, sumLiving, sumLivingByCategory,
   countFridaysUntil, getBillingMonthsForRange,
 } from '../utils/ccStorage'
@@ -56,9 +56,7 @@ export default function LivingExpenseCard({ ym }) {
   const [editVal, setEditVal]           = useState('')
   const [expandedWeek, setExpandedWeek] = useState(null)
 
-  const jcbCutoff  = CARDS.jcb?.cutoffDay ?? 15
-  const smbcCutoff = CARDS.smbc?.cutoffDay ?? 0
-  const cutoff     = jcbCutoff
+  const cutoff = CARDS.jcb?.cutoffDay ?? 15
   const [vy, vm]   = ym.split('-').map(Number)
 
   // ── 今週 ──────────────────────────────────────────────────
@@ -79,10 +77,8 @@ export default function LivingExpenseCard({ ym }) {
   const [nextY, nextM] = nextYm.split('-').map(Number)
   const cycleFromStr = `${ym}-16`
   const cycleToStr   = `${nextYm}-15`
-  const cycleList    = [
-    ...getBillingMonthsForRange(cycleFromStr, cycleToStr, jcbCutoff).flatMap(m => loadVar('jcb', m)),
-    ...getBillingMonthsForRange(cycleFromStr, cycleToStr, smbcCutoff).flatMap(m => loadVar('smbc', m)),
-  ]
+  const cycleList = CARD_LIST.flatMap(c =>
+    getBillingMonthsForRange(cycleFromStr, cycleToStr, c.cutoffDay).flatMap(m => loadVar(c.id, m)))
   const cycleUsed    = sumLiving(cycleList, cycleFromStr, cycleToStr)
   const cycleCatMap  = sumLivingByCategory(cycleList, cycleFromStr, cycleToStr)
   const fridays      = countFridaysUntil(new Date(vy, vm - 1, cutoff), new Date(nextY, nextM - 1, cutoff))
@@ -177,8 +173,8 @@ export default function LivingExpenseCard({ ym }) {
           <Box>
             {recentWeeks.map((w, i) => {
               const wList = [
-                ...getBillingMonthsForRange(w.from, w.to, jcbCutoff).flatMap(m => loadVar('jcb', m)),
-                ...getBillingMonthsForRange(w.from, w.to, smbcCutoff).flatMap(m => loadVar('smbc', m)),
+                ...CARD_LIST.flatMap(c =>
+                  getBillingMonthsForRange(w.from, w.to, c.cutoffDay).flatMap(m => loadVar(c.id, m))),
               ]
               const used   = sumLiving(wList, w.from, w.to)
               const catMap = sumLivingByCategory(wList, w.from, w.to)

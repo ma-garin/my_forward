@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Box, Card, CardContent, Typography, Stack } from '@mui/material'
-import { loadFixed, loadVar } from '../utils/ccStorage'
+import { CARD_LIST, loadFixed, loadVar } from '../utils/ccStorage'
 import { isActiveForYm, fmt } from '../utils/finance'
 import { useAfterPaint } from '../utils/useAfterPaint'
 import CardHeaderBar from './CardHeaderBar'
@@ -16,19 +16,16 @@ export default function MonthlyTrendCard({ currentBillingYm }) {
     return Array.from({ length: 6 }, (_, i) => addMonth(currentBillingYm, -5 + i))
   }, [currentBillingYm])
 
-  // 6 ヶ月 × 2 カードぶんの localStorage 読み込みは重い。タブを開いた瞬間の
+  // 6 ヶ月 × 全カードぶんの localStorage 読み込みは重い。タブを開いた瞬間の
   // 描画を止めないよう、最初の描画のあとに計算する。
   // 固定費リストはループの外で 1 回だけロードする（月ごとに再 parse しない）。
   const data = useAfterPaint(() => {
-    const jFixedAll = loadFixed('jcb')
-    const sFixedAll = loadFixed('smbc')
+    const fixedAll = CARD_LIST.map((c) => ({ id: c.id, list: loadFixed(c.id) }))
     return months.map(ym => {
-      const total = [
-        ...jFixedAll.filter(x => isActiveForYm(x, ym)),
-        ...loadVar('jcb', ym),
-        ...sFixedAll.filter(x => isActiveForYm(x, ym)),
-        ...loadVar('smbc', ym),
-      ].filter(x => x.sign !== 1).reduce((s, x) => s + x.amount, 0)
+      const total = fixedAll.flatMap(({ id, list }) => [
+        ...list.filter(x => isActiveForYm(x, ym)),
+        ...loadVar(id, ym),
+      ]).filter(x => x.sign !== 1).reduce((s, x) => s + x.amount, 0)
       return { ym, month: Number(ym.split('-')[1]), total }
     })
   }, [months])

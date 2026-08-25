@@ -5,6 +5,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { getCCTotal, getSimulatedIncome, fmt, newId } from '../utils/finance'
 import {
+  CARD_LIST,
   loadSalaryOverride, saveSalaryOverride,
   loadSummaryFixed, saveSummaryFixed,
   loadLivingUnit, saveLivingUnit,
@@ -13,15 +14,13 @@ import {
 } from '../utils/ccStorage'
 import AmountField from './AmountField'
 
-function CombinedSummaryBase({ ym, salaryYm = ym, otherIncomeYm, jcbLimit = 0, smbcLimit = 0 }) {
+function CombinedSummaryBase({ ym, salaryYm = ym, otherIncomeYm, combinedLimit = 0 }) {
   // ダイアログ・給与入力などの state 変化による再レンダーで
-  // getCCTotal（各カード 2 回 parse）が毎回走るのを防ぐ。
-  const { jcb, smbc, combined } = useMemo(() => {
-    const jcb  = getCCTotal('jcb',  ym)
-    const smbc = getCCTotal('smbc', ym)
-    return { jcb, smbc, combined: jcb.total + smbc.total }
+  // getCCTotal（カードごとに parse）が毎回走るのを防ぐ。
+  const { perCard, combined } = useMemo(() => {
+    const perCard = CARD_LIST.map((c) => ({ card: c, total: getCCTotal(c.id, ym).total }))
+    return { perCard, combined: perCard.reduce((s, x) => s + x.total, 0) }
   }, [ym])
-  const combinedLimit = jcbLimit + smbcLimit
 
   const [salaryInput, setSalaryInput] = useState(() => loadSalaryOverride(salaryYm))
   const [fixedItems,  setFixedItems]  = useState(loadSummaryFixed)
@@ -130,18 +129,16 @@ function CombinedSummaryBase({ ym, salaryYm = ym, otherIncomeYm, jcbLimit = 0, s
     <>
     <Card sx={{ mb: 2, bgcolor: '#263238', color: '#fff' }}>
       <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
-        <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>2枚合計（{ym}）</Typography>
+        <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>支出合計（{ym}）</Typography>
 
-        {/* カード別 */}
+        {/* 支払い方法別。使っていないものまで並べると合計が探しにくい */}
         <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
-          <Stack>
-            <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>JCB</Typography>
-            <Typography variant="subtitle1" fontWeight={700}>¥{fmt(jcb.total)}</Typography>
-          </Stack>
-          <Stack>
-            <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>VISA</Typography>
-            <Typography variant="subtitle1" fontWeight={700}>¥{fmt(smbc.total)}</Typography>
-          </Stack>
+          {perCard.filter(({ total }) => total !== 0).map(({ card, total }) => (
+            <Stack key={card.id}>
+              <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>{card.shortName}</Typography>
+              <Typography variant="subtitle1" fontWeight={700}>¥{fmt(total)}</Typography>
+            </Stack>
+          ))}
           <Stack>
             <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>合計</Typography>
             <Typography variant="h5" fontWeight={700} sx={{ letterSpacing: -.5 }}>¥{fmt(combined)}</Typography>
@@ -184,7 +181,7 @@ function CombinedSummaryBase({ ym, salaryYm = ym, otherIncomeYm, jcbLimit = 0, s
             {[
               { label: otherIncome > 0 ? `給与+その他` : '給与', plan: totalIncome, actual: totalIncome },
               { label: '固定費',     plan: fixedTotal,     actual: fixedTotal,   sign: '−' },
-              { label: 'カード使用', plan: combinedLimit,  actual: combined,     sign: '−', planNote: '月間上限', actualNote: '実績' },
+              { label: 'カード・現金', plan: combinedLimit,  actual: combined,     sign: '−', planNote: '月間上限', actualNote: '実績' },
             ].map(({ label, plan, actual, sign, planNote, actualNote }) => (
               <Stack key={label} direction="row" alignItems="baseline"
                 sx={{ py: 0.55, borderBottom: '1px solid rgba(255,255,255,.08)' }}>

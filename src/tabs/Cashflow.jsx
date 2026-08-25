@@ -44,7 +44,7 @@ function addMonthYm(ym, delta) {
 }
 
 function paymentSource(cardId) {
-  return cardId === 'jcb' ? 'JCBカード' : 'VISAカード'
+  return CARDS[cardId]?.name ?? cardId
 }
 
 function dateLabel(date) {
