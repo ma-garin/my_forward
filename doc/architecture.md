@@ -116,9 +116,15 @@ props で渡すと 1 タップごとに props が変わって `memo` が必ず�
 CARDS = {
   jcb:  { id: 'jcb',  shortName: 'JCB',  cutoffDay: 15, paymentDay: 10, color: '#37474f' },
   smbc: { id: 'smbc', shortName: 'VISA', cutoffDay:  0, paymentDay: 26, color: '#1b5e20' },
+  cash: { id: 'cash', shortName: '現金', cutoffDay:  0, paymentDay:  0, color: '#616161', noBilling: true },
 }
 // CARD_LIST = Object.values(CARDS) も export している
 ```
+
+現金は暦月（月末締め扱い）でそのまま集計する。`noBilling` が立っているものは
+締め日・支払日の表示とリマインダーの対象から外す。家計タブの合算・トレンド・
+生活費は `CARD_LIST` を列挙するので、カードを増やすときは CARDS に足せばよい
+（jcb/smbc を直書きしない）。
 
 ## デフォルト表示月
 

@@ -11,7 +11,7 @@ import AmountField, { parseAmount } from './AmountField'
 // 固定費・変動費・カテゴリ別集計のいずれからも同じダイアログで編集する。
 // （画面ごとに別フォームを持つと入力方法が食い違うため、ここに一本化する）
 
-export default function ExpenseDialog({ open, onClose, onSave, initial, title, categories, cardId, isFixed }) {
+export default function ExpenseDialog({ open, onClose, onSave, onDuplicate, initial, title, categories, cardId, isFixed }) {
   const [card,           setCard]           = useState(cardId)
   const [name,           setName]           = useState(initial?.name           ?? '')
   const [payee,          setPayee]          = useState(initial?.payee          ?? '')
@@ -25,11 +25,14 @@ export default function ExpenseDialog({ open, onClose, onSave, initial, title, c
   const [intervalMonths, setIntervalMonths] = useState(initial?.intervalMonths ?? 2)
   const [baseYm,         setBaseYm]         = useState(initial?.baseYm         ?? '')
   const [targetYm,       setTargetYm]       = useState(initial?.targetYm       ?? '')
+  // 返金（sign=1）。マイナス扱いで集計される。変動費のみ
+  const [refund,         setRefund]         = useState(initial?.sign === 1)
 
 
-  const handleSave = () => {
+  // 保存と複製で同じ内容を渡す（複製＝今の入力内容を新規として保存）
+  const buildPayload = () => {
     const a = parseAmount(amount)
-    if (!name.trim() || a <= 0) return
+    if (!name.trim() || a <= 0) return null
     const d = parseInt(day, 10)
     const dayField = (!isNaN(d) && d >= 1 && d <= 31) ? d : undefined
     let recurrenceFields = {}
@@ -42,14 +45,27 @@ export default function ExpenseDialog({ open, onClose, onSave, initial, title, c
         recurrenceFields = { recurrence: 'monthly', startYm: startYm || undefined }
       }
     }
-    onSave({
+    return {
       cardId: card,
       name: name.trim(), payee: payee.trim(), amount: a, category,
       // 固定費は消費分類を持たない（既存データに残っていても保存時に落とす）
       ...(isFixed
         ? { spendType: undefined, day: dayField, ...recurrenceFields }
-        : { spendType, date }),
-    })
+        : { spendType, date, sign: refund ? 1 : undefined }),
+    }
+  }
+
+  const handleSave = () => {
+    const payload = buildPayload()
+    if (!payload) return
+    onSave(payload)
+    onClose()
+  }
+
+  const handleDuplicate = () => {
+    const payload = buildPayload()
+    if (!payload) return
+    onDuplicate(payload)
     onClose()
   }
 
@@ -159,9 +175,27 @@ export default function ExpenseDialog({ open, onClose, onSave, initial, title, c
               </Stack>
             </Stack>
           )}
+          {!isFixed && (
+            <Stack direction="row" alignItems="center" gap={1}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12, minWidth: 52 }}>返金</Typography>
+              <Box onClick={() => setRefund(v => !v)} sx={{
+                px: 1.5, py: 0.5, borderRadius: 2, cursor: 'pointer', fontSize: 12, userSelect: 'none',
+                bgcolor: refund ? '#c62828' : '#f5f5f5',
+                color: refund ? '#fff' : 'text.secondary',
+                fontWeight: refund ? 700 : 400,
+              }}>返金として記録（マイナス扱い）</Box>
+            </Stack>
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
+        {/* 複製＝今の入力内容を新しい 1 件として保存する。毎週同じ買い物の再入力を省く */}
+        {initial && onDuplicate && (
+          <Button onClick={handleDuplicate} size="small" sx={{ mr: 'auto' }}
+            disabled={!name.trim() || parseAmount(amount) <= 0}>
+            複製して追加
+          </Button>
+        )}
         <Button onClick={onClose} color="inherit" size="small">キャンセル</Button>
         <Button onClick={handleSave} variant="contained" size="small"
           disabled={!name.trim() || parseAmount(amount) <= 0}>

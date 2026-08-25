@@ -75,6 +75,15 @@ describe('予定の組み立て', () => {
   })
 })
 
+describe('現金', () => {
+  it('現金の締め日・支払日は予定に入れない（請求サイクルが無い）', () => {
+    const titles = buildSchedule(NOW).map((n) => n.title)
+    expect(titles.some((t) => t.includes('現金'))).toBe(false)
+    // カードぶんはちゃんと入っている
+    expect(titles.some((t) => t.includes('JCB'))).toBe(true)
+  })
+})
+
 describe('有効・無効の保存', () => {
   it('既定は無効（勝手に通知しない）', () => {
     expect(loadRemindersEnabled()).toBe(false)

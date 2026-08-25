@@ -25,6 +25,10 @@
 | `cc_var_sort` | `'date_asc' \| 'date_desc' \| 'amount_desc' \| 'amount_asc'` | 変動費リストの並び順。表示の好みのみで集計に影響しないため `bumpDataVersion()` は呼ばない | `loadVarSort` / `saveVarSort`（CreditCard.jsx 内） |
 | `cc_var_sort_desc` | `'0' \| '1'` | 旧形式: 日付の昇順/降順のみだった頃の並び順。`cc_var_sort` が無いときだけ読む | 自動移行 |
 | `cc_init_v4` | `string` | 初期データ投入済みフラグ | 自動管理 |
+| `cc_accounts` | `{ id, name, balance }[]` | 口座残高（純資産カード） | `loadAccounts()` / `saveAccounts(list)` |
+| `cc_subs_dismissed` | `string[]` | サブスク提案で「非表示」にした識別子 | `loadDismissed` / `dismissSubscription`（subscriptions.js） |
+| `cc_reminders_enabled` | `'0' \| '1'` | 締め日・支払日通知の有効/無効 | `loadRemindersEnabled` / `saveRemindersEnabled`（reminders.js） |
+| `cc_auto_backup_at` | `string` | 自動バックアップを最後に取った時刻（ISO） | 自動管理（autoBackup.js） |
 
 ## 給与
 

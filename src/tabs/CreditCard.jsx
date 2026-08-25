@@ -20,7 +20,7 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import SwapVertIcon from '@mui/icons-material/SwapVert'
 import SearchIcon from '@mui/icons-material/Search'
 import CloseIcon from '@mui/icons-material/Close'
-import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm } from '../utils/finance'
+import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm, addMonth } from '../utils/finance'
 import {
   CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
   sumLiving,
@@ -40,6 +40,8 @@ import { useAfterPaint } from '../utils/useAfterPaint'
 import { pushScreen } from '../utils/useAndroidBack'
 import { onQuickAdd, takePendingQuickAdd } from '../utils/quickAdd'
 import { cycleDatesForYm, cycleLabel, cutoffLabel, paymentLabel } from '../utils/billingCycle'
+import { findDuplicate, duplicateMessage } from '../utils/duplicates'
+import { detectSubscriptions, dismissSubscription } from '../utils/subscriptions'
 
 function loadHistory(key) {
   try {
@@ -358,6 +360,8 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
   }, [])
   // 連続入力: 保存しても閉じず、次の 1 件を続けて入れる
   const [keepOpen,   setKeepOpen]   = useState(false)
+  // 返金（sign=1）。集計でマイナス扱いになる
+  const [refund,     setRefund]     = useState(false)
   const [savedCount, setSavedCount] = useState(0)
   const dateRef = useRef(null)
 
@@ -385,6 +389,7 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
     if (open) {
       // ショートカット・共有シートから開いたときは分かっている範囲を埋めておく
       setAmount(prefill?.amount ?? ''); setPayee(prefill?.payee ?? ''); setName(prefill?.name ?? '')
+      setRefund(false)
       setCategory(defaultExpenseCategory(categories))
       setSpendType('消費')
       setDate(defaultDate); setCardId(currentCardId)
@@ -409,7 +414,7 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
   // ref の更新はコミット後（キー押下より必ず前）に行う。
   const formRef = useRef({})
   useEffect(() => {
-    formRef.current = { amount, payee, name, cardId, category, date, spendType, keepOpen }
+    formRef.current = { amount, payee, name, cardId, category, date, spendType, keepOpen, refund }
   })
 
   // CalcPad へは値を ref で渡す（prop で渡すと 1 タップごとに memo が外れる）。
@@ -425,10 +430,11 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
       savePayeeMeta(f.payee, { category: f.category, spendType: f.spendType })
     }
     if (f.name.trim())  addToHistory('cc_name_history',  f.name.trim())
-    onSave({ cardId: f.cardId, item: { name: f.name.trim() || f.category, payee: f.payee.trim(), amount: a, category: f.category, date: f.date, spendType: f.spendType } })
+    onSave({ cardId: f.cardId, item: { name: f.name.trim() || f.category, payee: f.payee.trim(), amount: a, category: f.category, date: f.date, spendType: f.spendType, sign: f.refund ? 1 : undefined } })
     if (f.keepOpen) {
       // 1 件ぶんだけ空にする。日付・カード・分類は次の 1 件でもたいてい同じなので残す。
-      setAmount(''); setPayee(''); setName('')
+      // 返金は稀なので引き継がない（返金のあとの普通の支出まで返金で入る事故を防ぐ）
+      setAmount(''); setPayee(''); setName(''); setRefund(false)
       catTouchedRef.current = false
       spendTouchedRef.current = false
       refreshHistories()
@@ -576,6 +582,18 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
             }}>
             連続入力
           </Box>
+          <Box component="button" type="button" aria-pressed={refund}
+            onClick={() => setRefund(v => !v)}
+            sx={{
+              px: 1.25, py: 0.75, borderRadius: 2, cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap',
+              fontFamily: 'inherit', border: '1px solid',
+              borderColor: refund ? '#ef9a9a' : 'rgba(255,255,255,.25)',
+              bgcolor: refund ? 'rgba(239,154,154,.18)' : 'transparent',
+              color: refund ? '#ef9a9a' : 'rgba(255,255,255,.6)',
+              fontWeight: refund ? 700 : 400,
+            }}>
+            返金
+          </Box>
           {savedCount > 0 && (
             <Typography sx={{ fontSize: 11, color: 'rgba(255,255,255,.5)', whiteSpace: 'nowrap' }}>
               {savedCount}件追加
@@ -583,7 +601,7 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
           )}
         </Stack>
         <Stack direction="row" alignItems="baseline" gap={0.5} sx={{ flexShrink: 0 }}>
-          <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 18, mr: 0.5 }}>¥</Typography>
+          <Typography sx={{ color: refund ? '#ef9a9a' : 'rgba(255,255,255,.5)', fontSize: 18, mr: 0.5 }}>{refund ? '−¥' : '¥'}</Typography>
           <Typography sx={{ color: '#fff', fontSize: 34, fontWeight: 700, fontVariantNumeric: 'tabular-nums', minHeight: 40 }}>
             {parseAmount(amount) > 0 ? fmt(parseAmount(amount)) : '0'}
           </Typography>
@@ -627,7 +645,7 @@ export default function CreditCard() {
   const [categories,   setCategories]   = useState(loadCategories)
   const [dlg,          setDlg]          = useState(null)
   const [catDlgOpen,   setCatDlgOpen]   = useState(false)
-  const [limitInputs,  setLimitInputs]  = useState(() => ({ jcb: loadLimit('jcb'), smbc: loadLimit('smbc') }))
+  const [limitInputs,  setLimitInputs]  = useState(() => Object.fromEntries(CARD_LIST.map((c) => [c.id, loadLimit(c.id)])))
   const [snack,        setSnack]        = useState({ open: false, severity: 'success', message: '' })
   const [fixedOpen,    setFixedOpen]    = useState(false)
   const [varOpen,      setVarOpen]      = useState(false)
@@ -750,8 +768,11 @@ export default function CreditCard() {
 
   const addVar = ({ cardId: target = cardId, ...data }) => {
     try {
+      const checkYm = billingYmForCard(data.date, target, ym)
+      const dup = findDuplicate(data, loadVar(target, checkYm))
       const toYm = saveVarItem({ id: newId(), ...data }, target)
-      notify('success', target === cardId
+      if (dup) notify('warning', duplicateMessage(dup))
+      else notify('success', target === cardId
         ? '変動費を保存しました'
         : `変動費を ${cardName(target)} の ${toYm.replace('-', '年')}月分に保存しました`)
     } catch { notify('error', '変動費の保存に失敗しました') }
@@ -772,13 +793,12 @@ export default function CreditCard() {
   const closeAddExpense   = useCallback(() => setAddOpen(false), [])
   const openCategoryDialog = useCallback(() => setCatDlgOpen(true), [])
 
-  // 支出入力画面からの保存（重複警告つき）
+  // 支出入力画面からの保存（重複警告つき）。判定は utils/duplicates.js に一本化
   const handleAddSave = useCallback(({ cardId: targetCard, item }) => {
     try {
       const targetYm = billingYmForCard(item.date, targetCard, ym)
-      const dup = loadVar(targetCard, targetYm)
-        .find(x => x.date === item.date && x.amount === item.amount && x.category === item.category)
-      if (dup) notify('warning', `同日・同金額・同カテゴリの支出が既に登録されています（${item.date} ¥${fmt(item.amount)} ${item.category}）`)
+      const dup = findDuplicate(item, loadVar(targetCard, targetYm))
+      if (dup) notify('warning', duplicateMessage(dup))
       const { list } = upsertVarItem({ item: { id: newId(), ...item }, fromCard: targetCard, fromYm: targetYm })
       if (targetCard === cardId && targetYm === ym) setVarList(list)
       if (!dup) notify('success', `支出を${targetYm.replace('-', '年')}月分として記録しました`)
@@ -815,6 +835,31 @@ export default function CreditCard() {
     '& .MuiChip-icon': { fontSize: 11, ml: '5px', mr: '-3px', color: '#fff' } }
 
   const varSortLabel = VAR_SORTS.find((s) => s.value === varSort)?.label ?? '古い順'
+
+  // サブスクらしい変動費（毎月・同じ相手・同額）。断った直後に消えるよう版数を持つ
+  const [subsTick, setSubsTick] = useState(0)
+  const subsCandidates = useMemo(
+    () => detectSubscriptions(cardId, ym),
+    // varList / fixedList / subsTick は localStorage 側の材料が変わった合図
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cardId, ym, varList, fixedList, subsTick],
+  )
+
+  // 提案を受けて固定費にする。今月ぶんは変動費に残っているので、翌月から有効にする
+  // （今月から有効にすると当月が二重計上になる）
+  const adoptSubscription = (c) => {
+    addFixed({
+      cardId, name: c.name, payee: c.payee || undefined, amount: c.amount,
+      category: c.category, day: c.day, recurrence: 'monthly', startYm: addMonth(ym, 1),
+    })
+    dismissSubscription(c.key)
+    setSubsTick((t) => t + 1)
+  }
+
+  const rejectSubscription = (c) => {
+    dismissSubscription(c.key)
+    setSubsTick((t) => t + 1)
+  }
 
   const { filteredFixed, fixedTotal, varTotal, grandTotal } = useMemo(() => {
     const filteredFixed = fixedList.filter((x) => isActiveForYm(x, ym))
@@ -932,7 +977,8 @@ export default function CreditCard() {
                 <Typography variant="caption" sx={{ opacity: .75 }}>生活費 ¥{fmt(livingTotal)}</Typography>
                 <Typography variant="caption" sx={{ opacity: .75 }}>その他 ¥{fmt(otherVarTotal)}</Typography>
               </Stack>
-              <Stack sx={{ mt: 0.5 }}>
+              {/* 現金など請求サイクルを持たないものに締め日・支払日は無い */}
+              {!card.noBilling && <Stack sx={{ mt: 0.5 }}>
                 <Typography variant="caption" sx={{ opacity: .55 }}>
                   {cutoffLabel(card)} {paymentLabel(card)}
                 </Typography>
@@ -949,7 +995,7 @@ export default function CreditCard() {
                     </Stack>
                   )
                 })()}
-              </Stack>
+              </Stack>}
               {/* 上限入力 */}
               <Box sx={{ mt: 1.5 }}>
                 <Typography variant="caption" sx={{ opacity: .55, fontSize: 10 }}>月間上限</Typography>
@@ -974,6 +1020,40 @@ export default function CreditCard() {
         fixedTotal={fixedTotal} varTotal={varTotal} varList={varList}
         onLimitChange={(v) => { setLimitInputs(prev => ({ ...prev, [cardId]: v })); saveLimit(cardId, v) }}
       />
+
+      {/* サブスクの提案（毎月・同じ相手・同額が続いたら固定費化を勧める） */}
+      {subsCandidates.length > 0 && (
+        <Card sx={{ mb: 1.5, bgcolor: '#fffde7', border: '1px solid #fff59d' }}>
+          <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
+            <Typography variant="caption" fontWeight={700} sx={{ color: '#795548' }}>
+              毎月の支払いが見つかりました
+            </Typography>
+            {subsCandidates.map((c) => (
+              <Stack key={c.key} direction="row" alignItems="center" gap={1} sx={{ mt: 0.75 }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography fontSize={13} fontWeight={600} noWrap>
+                    {c.payee || c.name} ¥{fmt(c.amount)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {c.months}ヶ月連続 · {c.category}
+                  </Typography>
+                </Box>
+                <Button size="small" variant="outlined" onClick={() => adoptSubscription(c)}
+                  sx={{ fontSize: 11, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  固定費にする
+                </Button>
+                <Button size="small" color="inherit" onClick={() => rejectSubscription(c)}
+                  sx={{ fontSize: 11, color: 'text.disabled', minWidth: 0, flexShrink: 0 }}>
+                  非表示
+                </Button>
+              </Stack>
+            ))}
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75, fontSize: 10 }}>
+              固定費にすると翌月分から反映されます（今月分は変動費のまま）
+            </Typography>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 固定費テーブル */}
       <Card sx={{ mb: 1.5 }}>
@@ -1112,13 +1192,13 @@ export default function CreditCard() {
       {/* ダイアログ */}
       {dlg?.type === 'fixed' && (
         <ExpenseDialog open onClose={() => setDlg(null)}
-          onSave={dlg.initial ? editFixed : addFixed}
+          onSave={dlg.initial ? editFixed : addFixed} onDuplicate={addFixed}
           initial={dlg.initial} categories={categories} cardId={cardId} isFixed
           title={dlg.initial ? '固定費を編集' : '固定費を追加'} />
       )}
       {dlg?.type === 'var' && (
         <ExpenseDialog open onClose={() => setDlg(null)}
-          onSave={dlg.initial ? editVar : addVar}
+          onSave={dlg.initial ? editVar : addVar} onDuplicate={addVar}
           initial={dlg.initial ?? { date: todayStr }} categories={categories} cardId={cardId} isFixed={false}
           title={dlg.initial ? '変動費を編集' : '変動費を追加'} />
       )}

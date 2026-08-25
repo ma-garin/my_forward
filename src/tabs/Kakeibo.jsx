@@ -2,11 +2,12 @@ import { useState, useMemo } from 'react'
 import { Box } from '@mui/material'
 import MonthNav from '../components/MonthNav'
 import CombinedSummary from '../components/CombinedSummary'
+import NetWorthCard from '../components/NetWorthCard'
 import LivingExpenseCard from '../components/LivingExpenseCard'
 import IncomeSummaryCard from '../components/IncomeSummaryCard'
 import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/CategoryViews'
 import MonthlyTrendCard from '../components/MonthlyTrendCard'
-import { loadFixed, loadVar, CARDS } from '../utils/ccStorage'
+import { CARD_LIST, loadFixed, loadLimit, loadVar } from '../utils/ccStorage'
 import { isActiveForYm } from '../utils/finance'
 
 function ymStr(y, m) {
@@ -40,26 +41,17 @@ export default function Kakeibo() {
   // 子コンポーネントの state 変化による親の再レンダーで 8 回の parse+filter が
   // 毎回走るのを防ぐ。参照が安定し下流チャートの内部 useMemo もヒットする。
   const {
-    allFixed, allVar, allFixedPrev, allVarPrev, jcbLimit, smbcLimit,
+    allFixed, allVar, allFixedPrev, allVarPrev, combinedLimit,
   } = useMemo(() => {
-    const jcbFixed  = loadFixed('jcb').filter(x => isActiveForYm(x, billingYm))
-    const jcbVar    = loadVar('jcb', billingYm)
-    const smbcFixed = loadFixed('smbc').filter(x => isActiveForYm(x, billingYm))
-    const smbcVar   = loadVar('smbc', billingYm)
-
     const prevBillingYm = addMonth(billingYm, -1)
-    const jcbFixedPrev  = loadFixed('jcb').filter(x => isActiveForYm(x, prevBillingYm))
-    const jcbVarPrev    = loadVar('jcb', prevBillingYm)
-    const smbcFixedPrev = loadFixed('smbc').filter(x => isActiveForYm(x, prevBillingYm))
-    const smbcVarPrev   = loadVar('smbc', prevBillingYm)
-
+    const collectFixed = (ym) => CARD_LIST.flatMap((c) => tag(loadFixed(c.id).filter(x => isActiveForYm(x, ym)), c.id))
+    const collectVar   = (ym) => CARD_LIST.flatMap((c) => tag(loadVar(c.id, ym), c.id))
     return {
-      allFixed:     [...tag(jcbFixed, 'jcb'), ...tag(smbcFixed, 'smbc')],
-      allVar:       [...tag(jcbVar, 'jcb'), ...tag(smbcVar, 'smbc')],
-      allFixedPrev: [...tag(jcbFixedPrev, 'jcb'), ...tag(smbcFixedPrev, 'smbc')],
-      allVarPrev:   [...tag(jcbVarPrev, 'jcb'), ...tag(smbcVarPrev, 'smbc')],
-      jcbLimit:     parseFloat(localStorage.getItem('cc_limit_jcb') || '') || 0,
-      smbcLimit:    parseFloat(localStorage.getItem('cc_limit_smbc') || '') || 0,
+      allFixed:     collectFixed(billingYm),
+      allVar:       collectVar(billingYm),
+      allFixedPrev: collectFixed(prevBillingYm),
+      allVarPrev:   collectVar(prevBillingYm),
+      combinedLimit: CARD_LIST.reduce((sum, c) => sum + (parseFloat(loadLimit(c.id)) || 0), 0),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [billingYm, refreshKey])
@@ -74,7 +66,10 @@ export default function Kakeibo() {
       <IncomeSummaryCard fixedList={allFixed} varList={allVar} ym={ym} salaryYm={billingYm} />
 
       {/* 2枚合計サマリー */}
-      <CombinedSummary ym={billingYm} salaryYm={billingYm} otherIncomeYm={ym} jcbLimit={jcbLimit} smbcLimit={smbcLimit} />
+      <CombinedSummary ym={billingYm} salaryYm={billingYm} otherIncomeYm={ym} combinedLimit={combinedLimit} />
+
+      {/* 資産（口座残高・純資産） */}
+      <NetWorthCard billingYm={billingYm} />
 
       {/* 生活費カード */}
       <LivingExpenseCard ym={billingYm} />

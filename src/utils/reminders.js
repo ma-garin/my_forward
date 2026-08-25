@@ -65,6 +65,8 @@ export function buildSchedule(now = new Date()) {
   const out = []
 
   CARD_LIST.forEach((card, cardIndex) => {
+    // 現金など請求サイクルを持たないものに締め日・支払日は無い
+    if (card.noBilling) return
     // 前月ぶんの支払いがまだ残っていることがあるので 1 ヶ月前から見る
     const startYm = addMonth(getBillingYmForDate(ymd(now), card.cutoffDay), -1)
 
