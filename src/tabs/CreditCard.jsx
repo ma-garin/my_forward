@@ -1013,13 +1013,16 @@ export default function CreditCard() {
         )
       })()}
 
-      {/* 予算内訳カード */}
-      <BudgetBreakdown
-        cardId={cardId} ym={ym}
-        limit={parseFloat(limitInputs[cardId]) || 0}
-        fixedTotal={fixedTotal} varTotal={varTotal} varList={varList}
-        onLimitChange={(v) => { setLimitInputs(prev => ({ ...prev, [cardId]: v })); saveLimit(cardId, v) }}
-      />
+      {/* 予算内訳カード。クレカの上限運用の画面なので、請求サイクルの無い
+          現金には出さない（生活費の週予算がその役目を持っている） */}
+      {!card.noBilling && (
+        <BudgetBreakdown
+          cardId={cardId} ym={ym}
+          limit={parseFloat(limitInputs[cardId]) || 0}
+          fixedTotal={fixedTotal} varTotal={varTotal} varList={varList}
+          onLimitChange={(v) => { setLimitInputs(prev => ({ ...prev, [cardId]: v })); saveLimit(cardId, v) }}
+        />
+      )}
 
       {/* サブスクの提案（毎月・同じ相手・同額が続いたら固定費化を勧める） */}
       {subsCandidates.length > 0 && (

@@ -10,9 +10,9 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import AmountField, { parseAmount } from '../components/AmountField'
-import { fmt, isActiveForYm, loadCategories, ymStr } from '../utils/finance'
+import { signedAmount, fmt, isActiveForYm, loadCategories, ymStr } from '../utils/finance'
 import {
-  CARDS, CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
+  CARDS, CARD_LIST, CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
   billingYmForCard, loadFixed, saveFixed, loadVar, saveVar,
 } from '../utils/ccStorage'
 
@@ -67,7 +67,7 @@ function sortRows(list) {
 function withCumulative(list) {
   let running = 0
   return list.map(row => {
-    running += row.amount
+    running += signedAmount(row)
     return { ...row, cumulative: running }
   })
 }
@@ -75,8 +75,8 @@ function withCumulative(list) {
 function loadExpenseRows(ym) {
   const rows = Object.values(CARDS).flatMap(card => {
     const candidateYms = [...new Set([addMonthYm(ym, -1), ym, addMonthYm(ym, 1)])]
+    // 返金（sign=1）も行として出す。除外すると月合計がクレカ・家計タブと食い違う
     const variableRows = candidateYms.flatMap(sourceYm => loadVar(card.id, sourceYm)
-      .filter(item => item.sign !== 1)
       .filter(item => item.date?.startsWith(ym))
       .map(item => ({
         ...item,
@@ -108,7 +108,7 @@ function loadExpenseRows(ym) {
 function summarizeRows(rows, keyFn) {
   return Object.entries(rows.reduce((acc, row) => {
     const key = keyFn(row) || '未分類'
-    acc[key] = (acc[key] ?? 0) + row.amount
+    acc[key] = (acc[key] ?? 0) + signedAmount(row)
     return acc
   }, {}))
     .map(([label, amount]) => ({ label, amount }))
@@ -118,6 +118,10 @@ function summarizeRows(rows, keyFn) {
 function pct(value, total) {
   return total > 0 ? Math.round(value / total * 100) : 0
 }
+
+// 支出はマイナス表記で統一。返金（＝お金が戻る向き）はプラスで出す
+const fmtOutflow = (n) => (n < 0 ? `+¥${fmt(-n)}` : `-¥${fmt(n)}`)
+const outflowColor = (n) => (n < 0 ? '#2e7d32' : '#b23b3b')
 
 function SummaryBars({ title, rows, total }) {
   if (rows.length === 0) return null
@@ -143,13 +147,13 @@ function SummaryBars({ title, rows, total }) {
               </Stack>
               <Stack direction="row" alignItems="baseline" gap={0.5} sx={{ flexShrink: 0 }}>
                 <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary' }}>{percentage}%</Typography>
-                <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: '#b23b3b', fontVariantNumeric: 'tabular-nums' }}>
-                  -¥{fmt(row.amount)}
+                <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: outflowColor(row.amount), fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtOutflow(row.amount)}
                 </Typography>
               </Stack>
             </Stack>
             <Box sx={{ height: 7, bgcolor: '#eeeeee', borderRadius: 4, overflow: 'hidden', mt: 0.25 }}>
-              <Box sx={{ height: '100%', width: `${Math.max(3, row.amount / max * 100)}%`, bgcolor: color, borderRadius: 4 }} />
+              <Box sx={{ height: '100%', width: `${Math.max(3, Math.max(row.amount, 0) / max * 100)}%`, bgcolor: color, borderRadius: 4 }} />
             </Box>
           </Box>
         )})}
@@ -169,7 +173,7 @@ function SummaryCard({ rows, total }) {
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 1.25 }}>
           <Typography variant="subtitle2" fontWeight={700}>集計</Typography>
-          <Typography variant="caption" sx={{ color: '#b23b3b', fontWeight: 700 }}>-¥{fmt(total)}</Typography>
+          <Typography variant="caption" sx={{ color: outflowColor(total), fontWeight: 700 }}>{fmtOutflow(total)}</Typography>
         </Stack>
         <Stack spacing={2}>
           <SummaryBars title="項目別" rows={categoryRows} total={total} />
@@ -259,8 +263,7 @@ function ExpenseEditDialog({ open, item, categories, onClose, onSave }) {
           <FormControl size="small" fullWidth>
             <InputLabel>支払元</InputLabel>
             <Select value={cardId} label="支払元" onChange={(e) => setCardId(e.target.value)}>
-              <MenuItem value="jcb">JCBカード</MenuItem>
-              <MenuItem value="smbc">VISAカード</MenuItem>
+              {CARD_LIST.map(c => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
             </Select>
           </FormControl>
           <FormControl size="small" fullWidth>
@@ -321,9 +324,9 @@ export default function Cashflow() {
 
   const ym = ymStr(year, month)
   const rows = useMemo(() => loadExpenseRows(ym), [ym, version])
-  const total = rows.reduce((sum, item) => sum + item.amount, 0)
-  const fixedTotal = rows.filter(item => item.type === 'fixed').reduce((sum, item) => sum + item.amount, 0)
-  const variableTotal = rows.filter(item => item.type === 'var').reduce((sum, item) => sum + item.amount, 0)
+  const total = rows.reduce((sum, item) => sum + signedAmount(item), 0)
+  const fixedTotal = rows.filter(item => item.type === 'fixed').reduce((sum, item) => sum + signedAmount(item), 0)
+  const variableTotal = rows.filter(item => item.type === 'var').reduce((sum, item) => sum + signedAmount(item), 0)
 
   const notify = (severity, message) => setSnack({ open: true, severity, message })
   const refresh = () => setVersion(v => v + 1)
@@ -347,6 +350,8 @@ export default function Cashflow() {
       category: data.category,
       date: data.date,
       spendType: data.spendType,
+      // 返金フラグは編集画面に出さないが、落とすと編集のたび普通の支出に化ける
+      ...(source.sign === 1 ? { sign: 1 } : {}),
     }
 
     if (source.cardId === data.cardId && source.sourceYm === targetYm) {
@@ -431,9 +436,9 @@ export default function Cashflow() {
 
       <Box sx={{ bgcolor: '#263238', color: '#fff', borderRadius: 2, px: 2, py: 1.25, mb: 1.5 }}>
         <Typography variant="caption" sx={{ opacity: 0.75 }}>月合計</Typography>
-        <Typography variant="h6" fontWeight={700}>-¥{fmt(total)}</Typography>
+        <Typography variant="h6" fontWeight={700}>{fmtOutflow(total)}</Typography>
         <Typography variant="caption" sx={{ display: 'block', mt: 0.35, opacity: 0.78 }}>
-          固定費: -¥{fmt(fixedTotal)} ({pct(fixedTotal, total)}%) / 変動費: -¥{fmt(variableTotal)} ({pct(variableTotal, total)}%)
+          固定費: {fmtOutflow(fixedTotal)} ({pct(fixedTotal, total)}%) / 変動費: {fmtOutflow(variableTotal)} ({pct(variableTotal, total)}%)
         </Typography>
       </Box>
 
@@ -473,11 +478,11 @@ export default function Cashflow() {
                   </Box>
 
                   <Stack alignItems="flex-end" sx={{ width: 112, flexShrink: 0 }}>
-                    <Typography variant="body2" sx={{ fontSize: 14, fontWeight: 700, color: '#b23b3b', fontVariantNumeric: 'tabular-nums' }}>
-                      -¥{fmt(row.amount)}
+                    <Typography variant="body2" sx={{ fontSize: 14, fontWeight: 700, color: outflowColor(signedAmount(row)), fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtOutflow(signedAmount(row))}
                     </Typography>
                     <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' }}>
-                      累計 -¥{fmt(row.cumulative)}
+                      累計 {fmtOutflow(row.cumulative)}
                     </Typography>
                     <Stack direction="row" sx={{ mt: 0.35 }}>
                       <IconButton size="small" aria-label="編集" onClick={() => setEditItem(row)} sx={{ p: 0.45 }}>

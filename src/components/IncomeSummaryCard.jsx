@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Box, Card, CardContent, Typography, Stack, Divider, Button,
          Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material'
-import { fmt, getSimulatedIncome } from '../utils/finance'
+import { fmt, getSimulatedIncome, signedAmount } from '../utils/finance'
 import { loadSummaryFixed, loadLivingUnit, countFridaysUntil, nextPayDay,
          loadOtherIncome, saveOtherIncome } from '../utils/ccStorage'
 import AmountField from './AmountField'
@@ -19,10 +19,9 @@ export default function IncomeSummaryCard({ fixedList, varList, ym, salaryYm: sa
   const otherAmt  = parseFloat(otherIncome) || 0
   const takeHome  = salary + otherAmt
 
-  // クレカ固定費・変動費
-  const ccExpense = [...fixedList, ...varList]
-    .filter(x => x.sign !== 1)
-    .reduce((s, x) => s + x.amount, 0)
+  // クレカ固定費・変動費。返金は除外ではなく減算する
+  // （クレカタブ・2枚合計と同じ扱いにしないと、タブ間で支出が食い違う）
+  const ccExpense = [...fixedList, ...varList].reduce((s, x) => s + signedAmount(x), 0)
 
   // CombinedSummaryと同じ固定費内訳（家賃・光熱費など手動入力分）
   const summaryFixed = loadSummaryFixed().reduce((s, x) => s + x.amount, 0)

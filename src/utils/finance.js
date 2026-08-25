@@ -308,12 +308,18 @@ export function isActiveForYm(item, ym) {
 }
 
 // カレンダー月の変動費合計（CCタブ表示用）
+// 返金（sign=1）はマイナスとして数える。支出の集計はどの画面でもこれを通す。
+// 画面ごとに「返金を除外する/引く」が割れると、合計がタブ間で食い違う
+export function signedAmount(item) {
+  return item.sign === 1 ? -item.amount : item.amount
+}
+
 export function getCCTotal(cardId, ym) {
   try {
     const fixed    = JSON.parse(localStorage.getItem(`cc_fixed_${cardId}`)   || '[]')
     const variable = JSON.parse(localStorage.getItem(`cc_var_${cardId}_${ym}`) || '[]')
     const fixedSum = fixed.filter((x) => isActiveForYm(x, ym)).reduce((s, x) => s + x.amount, 0)
-    const varSum   = variable.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
+    const varSum   = variable.reduce((s, x) => s + signedAmount(x), 0)
     return { fixed: fixedSum, variable: varSum, total: fixedSum + varSum }
   } catch {
     return { fixed: 0, variable: 0, total: 0 }
