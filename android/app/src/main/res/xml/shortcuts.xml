@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ホーム画面のアイコン長押しで出るショートカット。
+    支出の入力は毎日あるので、アプリを開いてタブを選んで FAB を押す手順を飛ばす。
+    myforward://add で入ってきたことを WebView 側が見て入力画面を開く。
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="add_expense"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_add"
+        android:shortcutShortLabel="@string/shortcut_add_short"
+        android:shortcutLongLabel="@string/shortcut_add_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.magarin.myforward"
+            android:targetClass="com.magarin.myforward.MainActivity"
+            android:data="myforward://add" />
+    </shortcut>
+</shortcuts>

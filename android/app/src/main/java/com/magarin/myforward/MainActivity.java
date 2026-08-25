@@ -11,6 +11,8 @@ public class MainActivity extends BridgeActivity {
         // Bridge の生成前に登録する必要がある
         registerPlugin(NotificationCapturePlugin.class);
         registerPlugin(AppUpdatePlugin.class);
+        registerPlugin(SharedTextPlugin.class);
+        registerPlugin(WidgetBridgePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

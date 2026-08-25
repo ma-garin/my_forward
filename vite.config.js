@@ -76,6 +76,16 @@ export default defineConfig({
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
+        // ホーム画面のアイコン長押しから支出入力へ直行する（アプリ版の
+        // App Shortcuts と同じ入り口。受けるのは App.jsx の ?add=1）
+        shortcuts: [
+          {
+            name: '支出を追加',
+            short_name: '支出を追加',
+            url: '/my_forward/?add=1',
+            icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
       },
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,ico}'],

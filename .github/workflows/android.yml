@@ -24,9 +24,19 @@ on:
       - 'package.json'
       - '.github/workflows/android.yml'
 
+# 同じブランチで走っている古い実行は打ち切る。PR は最新のコミットだけ見れば
+# 十分で、前の実行を残してもランナーを占有するだけ。
+# main は打ち切らない（リリースの公開を途中で止めたくない）。
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 詰まったときに 6 時間（既定）居座らせない。通常は 3 分で終わる。
+    # 実際に npm ci が 15 分以上進まなくなったことがある
+    timeout-minutes: 20
     permissions:
       contents: write # APK を Release に置くため
     steps:

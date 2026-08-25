@@ -20,8 +20,14 @@ import CardSettings from './settings/CardSettings'
 import DataSettings from './settings/DataSettings'
 import AppInfo from './settings/AppInfo'
 import NotificationCaptureSettings from './settings/NotificationCaptureSettings'
+import ReminderSettings from './settings/ReminderSettings'
 import { useAndroidBack, pushScreen } from './utils/useAndroidBack'
 import { useKeyboardInset } from './utils/useKeyboardInset'
+import { useLaunchIntent } from './utils/useLaunchIntent'
+import { useReminderSync } from './utils/useReminders'
+import { useAutoBackup } from './utils/useAutoBackup'
+import { useWidgetSync } from './utils/useWidget'
+import RestoreOffer from './components/RestoreOffer'
 
 const TABS = [
   { label: 'クレカ', icon: <CreditCardIcon /> },
@@ -46,6 +52,7 @@ const SETTINGS_TITLES = {
   data:          'データ管理',
   salaryHistory: '給与履歴',
   appInfo:       'アプリ情報',
+  reminders:     '通知',
   notifications: '通知の取り込み',
 }
 
@@ -60,6 +67,9 @@ const HIDE = { display: 'none' }
 function AppInner() {
   useAndroidBack()
   useKeyboardInset()
+  useReminderSync()
+  useWidgetSync()
+  const { offer: restoreOffer, dismiss: dismissRestore } = useAutoBackup()
 
   const [activeTab,    setActiveTab]    = useState(0)
   const [refreshKeys,  setRefreshKeys]  = useState([0, 0, 0, 0])
@@ -75,6 +85,13 @@ function AppInner() {
     () => TAB_COMPONENTS.map((Tab, i) => mounted[i] ? <Tab key={refreshKeys[i]} /> : null),
     [mounted, refreshKeys],
   )
+
+  // ショートカット・共有シートから来たときは、支出入力があるクレカタブへ寄せる
+  const showCreditCardTab = useCallback(() => {
+    setActiveTab(0)
+    setMounted((prev) => (prev[0] ? prev : prev.map((m, i) => (i === 0 ? true : m))))
+  }, [])
+  useLaunchIntent(showCreditCardTab)
 
   const handleTabChange = useCallback((_, v) => {
     setActiveTab(v)
@@ -182,9 +199,13 @@ function AppInner() {
             {settingsPage === 'data'          && <DataSettings />}
             {settingsPage === 'salaryHistory' && <SalaryHistory />}
             {settingsPage === 'appInfo'       && <AppInfo />}
+            {settingsPage === 'reminders'     && <ReminderSettings />}
             {settingsPage === 'notifications' && <NotificationCaptureSettings />}
           </Box>
         </Drawer>
+
+        {/* データが空で控えが残っているときだけ出る */}
+        <RestoreOffer backup={restoreOffer} onDismiss={dismissRestore} />
       </Box>
     </ThemeProvider>
   )

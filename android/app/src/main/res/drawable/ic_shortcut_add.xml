@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ショートカットのアイコン。アプリのヘッダーと同じ blue-grey に白の + -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#37474F"
+        android:pathData="M24,0C10.745,0 0,10.745 0,24s10.745,24 24,24 24,-10.745 24,-24S37.255,0 24,0z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M22,13h4v22h-4z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M13,22h22v4h-22z" />
+</vector>

@@ -23,7 +23,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm } from '../utils/finance'
 import {
   CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
-  prevBusinessDay, nextBusinessDay, sumLiving,
+  sumLiving,
   loadFixed, saveFixed, loadVar, saveVar,
   CARD_LIST, billingYmForCard, upsertFixedItem, upsertVarItem,
   loadLimit, saveLimit, loadBilled, saveBilled,
@@ -38,60 +38,8 @@ import BudgetBreakdown from '../components/BudgetBreakdown'
 import MonthNav from '../components/MonthNav'
 import { useAfterPaint } from '../utils/useAfterPaint'
 import { pushScreen } from '../utils/useAndroidBack'
-
-function cutoffLabel(card) {
-  return card.cutoffDay === 0 ? '月末締め' : `${card.cutoffDay}日締め`
-}
-
-function paymentLabel(card) {
-  return `翌月${card.paymentDay}日払い`
-}
-
-function startOfDay(date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
-}
-
-function payDateForCutoff(card, cutoffDate) {
-  return nextBusinessDay(new Date(cutoffDate.getFullYear(), cutoffDate.getMonth() + 1, card.paymentDay))
-}
-
-// ym（請求月）自体から締め日を求める。ym の締め日は「ym の月+1」に落ちる
-// （例: cutoffDay=15 なら ym=2026-08 の締めは 9/15）。ym の月をそのまま使うと
-// 1 ヶ月早い日付になる（実際に混入したバグ）
-function cutoffDateForYm(card, ym) {
-  const [y, m] = ym.split('-').map(Number)
-  return card.cutoffDay === 0 ? new Date(y, m, 0) : new Date(y, m, card.cutoffDay)
-}
-
-function cycleDatesForYm(card, ym) {
-  const cutoffDate = cutoffDateForYm(card, ym)
-  return { cutoffDate, payDate: payDateForCutoff(card, cutoffDate) }
-}
-
-function daysUntil(date, from = new Date()) {
-  const MS_PER_DAY = 24 * 60 * 60 * 1000
-  return Math.round((startOfDay(date) - startOfDay(from)) / MS_PER_DAY)
-}
-
-function fmtCycleDate(date) {
-  return `${date.getMonth() + 1}/${date.getDate()}`
-}
-
-// 締め日・支払日は「まだ来ていなければ残り日数、過ぎていれば日付だけ」を出す。
-// 表示中の月が今の請求サイクルかどうかで分けると、前月ぶんの支払いがまだ
-// 残っていても残り日数が消えてしまう（実際にそうなっていた）。
-function cycleLabel(prefix, date, from = new Date()) {
-  const days = daysUntil(date, from)
-  if (days > 0)   return `${prefix}まで あと${days}日（${fmtCycleDate(date)}）`
-  if (days === 0) return `${prefix} 今日（${fmtCycleDate(date)}）`
-  return `${prefix} ${fmtCycleDate(date)}`
-}
-
-// 表示中の請求月（ym）の締め日・支払日をそのまま並べる
-function cycleText(card, ym, from = new Date()) {
-  const { cutoffDate, payDate } = cycleDatesForYm(card, ym)
-  return `${cycleLabel('締め日', cutoffDate, from)}　${cycleLabel('支払日', payDate, from)}`
-}
+import { onQuickAdd, takePendingQuickAdd } from '../utils/quickAdd'
+import { cycleDatesForYm, cycleLabel, cutoffLabel, paymentLabel } from '../utils/billingCycle'
 
 function loadHistory(key) {
   try {
@@ -392,7 +340,7 @@ const ISUGG_BOX  = { px: 2, pb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5, 
 
 const fmtD = (d) => { const [y, m, day] = d.split('-'); return `${y}/${m}/${day}` }
 
-function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, currentCardId, onEditCategories }) {
+function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultDate, currentCardId, onEditCategories }) {
   const [amount,   setAmount]   = useState('')
   const [category, setCategory] = useState(() => defaultExpenseCategory(categories))
   const [date,     setDate]     = useState(defaultDate)
@@ -435,7 +383,8 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
 
   useEffect(() => {
     if (open) {
-      setAmount(''); setPayee(''); setName('')
+      // ショートカット・共有シートから開いたときは分かっている範囲を埋めておく
+      setAmount(prefill?.amount ?? ''); setPayee(prefill?.payee ?? ''); setName(prefill?.name ?? '')
       setCategory(defaultExpenseCategory(categories))
       setSpendType('消費')
       setDate(defaultDate); setCardId(currentCardId)
@@ -448,7 +397,7 @@ function AddExpenseScreen({ open, onClose, onSave, categories, defaultDate, curr
       window.addEventListener('popstate', handlePop)
       return () => window.removeEventListener('popstate', handlePop)
     }
-  }, [open, defaultDate, currentCardId, categories, onClose, refreshHistories])
+  }, [open, prefill, defaultDate, currentCardId, categories, onClose, refreshHistories])
 
   const doClose = useCallback(() => {
     if (window.history.state?.addExpenseOpen) window.history.back()
@@ -705,6 +654,22 @@ export default function CreditCard() {
     })
   }, [])
   const [addOpen,      setAddOpen]      = useState(false)
+  // ショートカット・共有シートから開くときの下書き。FAB から開くときは null
+  const [addPrefill,   setAddPrefill]   = useState(null)
+
+  // アプリの外（ホーム画面のショートカット / 共有シート）からの要求で開く。
+  // 起動直後は購読より先に要求が届くことがあるので、購読した直後にも取りに行く。
+  useEffect(() => {
+    const openFromRequest = () => {
+      const p = takePendingQuickAdd()
+      if (!p) return
+      setAddPrefill(p)
+      setAddOpen(true)
+    }
+    const off = onQuickAdd(openFromRequest)
+    openFromRequest()
+    return off
+  }, [])
 
   const notify = (severity, message) => setSnack({ open: true, severity, message })
 
@@ -916,9 +881,6 @@ export default function CreditCard() {
         const barColor = pct >= 90 ? '#ef9a9a' : pct >= 70 ? '#ffe082' : 'rgba(255,255,255,.55)'
         const livingTotal = sumLiving(varList)
         const otherVarTotal = varTotal - livingTotal
-
-        // 締め日/支払日の表示（日付ごとに「未到来なら残り日数」を出す）
-        const cycleNode = () => cycleText(card, ym)
 
         return (
           <Card sx={{ mb: 2, bgcolor: card.color, color: '#fff' }}>
@@ -1167,7 +1129,7 @@ export default function CreditCard() {
       {/* FAB: 支出入力 */}
       <Fab
         color="primary"
-        onClick={() => setAddOpen(true)}
+        onClick={() => { setAddPrefill(null); setAddOpen(true) }}
         sx={{
           position: 'fixed', bottom: 'calc(88px + env(safe-area-inset-bottom))', right: 16, zIndex: 200,
           transition: 'transform .15s ease',
@@ -1179,6 +1141,7 @@ export default function CreditCard() {
 
       <AddExpenseScreen
         open={addOpen}
+        prefill={addPrefill}
         onClose={closeAddExpense}
         onSave={handleAddSave}
         categories={categories}
