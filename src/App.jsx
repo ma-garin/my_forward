@@ -22,6 +22,7 @@ import AppInfo from './settings/AppInfo'
 import NotificationCaptureSettings from './settings/NotificationCaptureSettings'
 import { useAndroidBack, pushScreen } from './utils/useAndroidBack'
 import { useKeyboardInset } from './utils/useKeyboardInset'
+import { useLaunchIntent } from './utils/useLaunchIntent'
 
 const TABS = [
   { label: 'クレカ', icon: <CreditCardIcon /> },
@@ -75,6 +76,13 @@ function AppInner() {
     () => TAB_COMPONENTS.map((Tab, i) => mounted[i] ? <Tab key={refreshKeys[i]} /> : null),
     [mounted, refreshKeys],
   )
+
+  // ショートカット・共有シートから来たときは、支出入力があるクレカタブへ寄せる
+  const showCreditCardTab = useCallback(() => {
+    setActiveTab(0)
+    setMounted((prev) => (prev[0] ? prev : prev.map((m, i) => (i === 0 ? true : m))))
+  }, [])
+  useLaunchIntent(showCreditCardTab)
 
   const handleTabChange = useCallback((_, v) => {
     setActiveTab(v)
