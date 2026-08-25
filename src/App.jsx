@@ -25,6 +25,9 @@ import { useAndroidBack, pushScreen } from './utils/useAndroidBack'
 import { useKeyboardInset } from './utils/useKeyboardInset'
 import { useLaunchIntent } from './utils/useLaunchIntent'
 import { useReminderSync } from './utils/useReminders'
+import { useAutoBackup } from './utils/useAutoBackup'
+import { useWidgetSync } from './utils/useWidget'
+import RestoreOffer from './components/RestoreOffer'
 
 const TABS = [
   { label: 'クレカ', icon: <CreditCardIcon /> },
@@ -65,6 +68,8 @@ function AppInner() {
   useAndroidBack()
   useKeyboardInset()
   useReminderSync()
+  useWidgetSync()
+  const { offer: restoreOffer, dismiss: dismissRestore } = useAutoBackup()
 
   const [activeTab,    setActiveTab]    = useState(0)
   const [refreshKeys,  setRefreshKeys]  = useState([0, 0, 0, 0])
@@ -198,6 +203,9 @@ function AppInner() {
             {settingsPage === 'notifications' && <NotificationCaptureSettings />}
           </Box>
         </Drawer>
+
+        {/* データが空で控えが残っているときだけ出る */}
+        <RestoreOffer backup={restoreOffer} onDismiss={dismissRestore} />
       </Box>
     </ThemeProvider>
   )

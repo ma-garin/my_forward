@@ -6,10 +6,11 @@ import {
 import { fmt } from '../utils/finance'
 import {
   CARDS, LIVING_CATEGORIES, loadVar, loadWeeklyBudget, saveWeeklyBudget,
-  getThisWeekRange, getRecentWeeks, sumLiving, sumLivingByCategory,
+  getRecentWeeks, sumLiving, sumLivingByCategory,
   countFridaysUntil, getBillingMonthsForRange,
 } from '../utils/ccStorage'
 import AmountField from './AmountField'
+import { weeklyLivingSummary } from '../utils/livingSummary'
 
 function addMonth(ym, n) {
   const [y, m] = ym.split('-').map(Number)
@@ -61,12 +62,10 @@ export default function LivingExpenseCard({ ym }) {
   const [vy, vm]   = ym.split('-').map(Number)
 
   // ── 今週 ──────────────────────────────────────────────────
-  const { weekStartStr, weekEndStr, label } = getThisWeekRange()
-  const weekList = [
-    ...getBillingMonthsForRange(weekStartStr, weekEndStr, jcbCutoff).flatMap(m => loadVar('jcb', m)),
-    ...getBillingMonthsForRange(weekStartStr, weekEndStr, smbcCutoff).flatMap(m => loadVar('smbc', m)),
-  ]
-  const weekUsed   = sumLiving(weekList, weekStartStr, weekEndStr)
+  // 集計はウィジェットと共有する（別々に書くと表示が食い違う）
+  const {
+    label, from: weekStartStr, to: weekEndStr, list: weekList, used: weekUsed,
+  } = weeklyLivingSummary()
   const weekCatMap = sumLivingByCategory(weekList, weekStartStr, weekEndStr)
   const weekRemain = weeklyBudget - weekUsed
   const weekPct    = weeklyBudget > 0 ? weekUsed / weeklyBudget * 100 : 0
