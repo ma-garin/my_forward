@@ -6,8 +6,8 @@ import { CARD_LIST } from './ccStorage'
  * 対応している文面（実機で届いたもの）:
  *
  *   Vpass（三井住友カード）… 日時・利用先・金額が全部そろっている
- *     ◇ご利用カード：三井住友ゴールドＶＩＳＡ（ＮＬ）　◇日時：2026/08/14 12:12
- *     ◇利用先：ユニクロ／ＮＦＣ　◇金額：2,990円
+ *     ◇ご利用カード：三井住友ゴールドＶＩＳＡ（ＮＬ） ◇日時：2026/08/14 12:12
+ *     ◇利用先：ユニクロ／ＮＦＣ ◇金額：2,990円
  *
  *   Google ウォレット … 金額とカードだけ（利用先は入らない）
  *     JCB GOLD(ORIGINAL SERIES) ••1004 で ¥740
@@ -20,7 +20,7 @@ import { CARD_LIST } from './ccStorage'
 export function normalizeText(s) {
   return (s ?? '')
     .normalize('NFKC')
-    .replace(/[　\s]+/g, ' ')
+    .replace(/[\u3000\s]+/g, ' ')
     .trim()
 }
 

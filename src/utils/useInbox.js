@@ -12,20 +12,24 @@ export function useInbox() {
   const [drafts, setDrafts] = useState(loadInbox)
 
   const scan = useCallback(async () => {
-    if (!isCaptureAvailable()) {
-      setDrafts(loadInbox())
-      return
-    }
+    // Web 版には取り込み元が無い。受信箱が変わるのは承認・無視のときだけで、
+    // そこでは下の accept / dismiss が state を更新している
+    if (!isCaptureAvailable()) return
     const records = await getRecords()
     setDrafts(ingestNotifications(records).inbox)
   }, [])
 
   useEffect(() => {
-    scan()
+    // 読み込みは非同期に逃がす。effect の中で同期に state を更新すると
+    // 追加の描画が 1 回増える
+    const timer = setTimeout(scan, 0)
     // 他のアプリから戻ったとき（＝買い物して通知が届いた直後）に拾う
     const onVisible = () => { if (document.visibilityState === 'visible') scan() }
     document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [scan])
 
   const accept = useCallback((id, overrides) => {

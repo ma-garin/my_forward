@@ -34,6 +34,12 @@ Kiro Spec Driven Development を使う場合は `/kiro` skill を呼び出す。
 
 ### 仕様メモ
 - 消費分類（消費/投資/浪費）は変動費のみ。固定費は持たない
+- **画面に色を直書きしない。** 面と淡色は theme が配る CSS 変数を使う
+  （`--bg-paper` / `--surface-subtle` / `--surface-muted` / `--surface-line` /
+  `--surface-header` / `--divider` / `--tint-*`）。ライト/ダークの両方に効く。
+  白文字が乗る帯に `primary.main` は使わない（暗い側で明るくなる）
+- 高さを % で指定する棒グラフは、親に高さを持たせる
+  （中身なりの親だと 0 になって棒が消える）
 
 ### Reading Rules
 - 大ファイルは全読みしない — `Grep` で行番号特定 → `Read` で周辺のみ

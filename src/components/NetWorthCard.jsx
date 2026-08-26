@@ -40,9 +40,14 @@ export default function NetWorthCard({ billingYm, isCurrentMonth = false }) {
   const [history, setHistory] = useState(loadNetWorthHistory)
   useEffect(() => {
     if (!isCurrentMonth || accounts.length === 0) return
-    const now = new Date()
-    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-    setHistory(recordNetWorth(netWorth, ym))
+    // 記録は描画のあとに回す。effect の中で同期に state を更新すると
+    // 開くたびに描画が 1 回増える
+    const timer = setTimeout(() => {
+      const now = new Date()
+      const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      setHistory(recordNetWorth(netWorth, ym))
+    }, 0)
+    return () => clearTimeout(timer)
   }, [isCurrentMonth, netWorth, accounts.length])
 
   const commit = (next) => {

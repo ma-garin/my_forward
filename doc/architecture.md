@@ -35,6 +35,7 @@
 App.jsx
 ├── CreditCard.jsx        # クレカタブ本体
 │   ├── FixedExpenseTable # 固定費リスト（内部。ExpenseRow を使う）
+│   ├── InboxCard         # 未確定の支出（カード利用通知から）
 │   ├── VarExpenseTable   # 変動費リスト（CCExpenseViews.jsx）
 │   ├── DailyBarChart     # 日別棒グラフ（CCExpenseViews.jsx）
 │   ├── AddExpenseScreen  # 支出追加のフルスクリーン入力（内部）
@@ -48,7 +49,9 @@ App.jsx
 │   ├── IncomeSummaryCard # 収支サマリー
 │   ├── CombinedSummary   # 2枚合計・固定費内訳
 │   ├── LivingExpenseCard
-│   ├── MonthlyTrendCard  # 支出トレンド（6ヶ月）
+│   ├── MonthlyTrendCard  # 支出トレンド（6ヶ月・前年同月の点線つき）
+│   ├── FixedInventoryCard # 固定費の棚卸し（年額換算・値上げ検知）
+│   ├── NetWorthCard      # 純資産（NetWorthTrend で推移の折れ線）
 │   ├── SpendTypeChart / CategoryChart / CategoryBreakdown
 ├── Cashflow.jsx          # 支出一覧タブ本体
 └── SalarySimulation.jsx  # 給与タブ本体
@@ -72,6 +75,7 @@ SettingsMain.jsx → SalarySettings.jsx / CardSettings.jsx / DataSettings.jsx
 | `AmountField` / `CalcPad` | `components/AmountField.jsx` | 金額入力（電卓シート） |
 | `SwipeRow` | `components/SwipeRow.jsx` | 行タップ + 左スワイプ削除 |
 | `MonthNav` | `components/MonthNav.jsx` | 月ナビ（前後移動 + 年月タップで直接ジャンプ） |
+| `SearchScreen` | `components/SearchScreen.jsx` | 全カード・全期間の横断検索（支出一覧タブの虫めがね） |
 
 ### 行の操作
 

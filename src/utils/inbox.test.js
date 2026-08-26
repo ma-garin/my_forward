@@ -10,7 +10,7 @@ const vpass = (amount, payee, hh, mm) => ({
   packageName: 'jp.co.smbc.vpass',
   postTime: at(hh, mm),
   title: 'ご利用のお知らせ',
-  text: `◇ご利用カード：三井住友ゴールドＶＩＳＡ（ＮＬ）　◇日時：2026/08/14 ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}　◇利用先：${payee}　◇金額：${amount.toLocaleString()}円`,
+  text: `◇ご利用カード：三井住友ゴールドＶＩＳＡ（ＮＬ）\u3000◇日時：2026/08/14 ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}\u3000◇利用先：${payee}\u3000◇金額：${amount.toLocaleString()}円`,
 })
 
 const gpay = (amount, hh, mm, card = 'JCB GOLD(ORIGINAL SERIES)') => ({
