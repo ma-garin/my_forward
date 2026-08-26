@@ -13,6 +13,9 @@ git push -u origin <作業ブランチ>
 # → GitHub MCP で PR 作成 → merge_pull_request でマージ
 ```
 
+CI は自動で走らないので、**マージ前の確認は手元で済ませる**
+（`npx vite build` / `npm test` / `npm run lint`）。
+
 作業ブランチ名は都度指示されたものを使う。
 
 ### squash マージ後の注意
@@ -25,6 +28,17 @@ push が fast-forward できずコンフリクト扱いになる。続きの作�
 git fetch origin main
 git checkout -B <作業ブランチ> origin/main
 ```
+
+## CI（GitHub Actions）
+
+**自動では走らない。** APK ビルド（`android.yml`）も Pages デプロイ（`deploy.yml`）も
+`workflow_dispatch` だけにしてある。push や PR では何も動かない。
+
+必要なときは GitHub の Actions タブから対象のワークフローを選んで
+「Run workflow」で回す。APK を回すとリリース（`android-<run_number>`）が公開され、
+アプリ内の「更新を確認」に出る。**回さないかぎり配布物は更新されない。**
+
+自動実行に戻すときは、それぞれの `on:` に `pull_request` / `push` を書き足す。
 
 ## ビルド・確認
 
