@@ -72,14 +72,12 @@ jobs:
 
       # 署名鍵を固定する。
       #
-      # assembleDebug は ~/.android/debug.keystore で署名するが、これは無ければ
-      # Gradle がその場で作る。ランナーは毎回まっさらなので、何もしないと
-      # ビルドごとに違う鍵になり、上書きインストールが署名不一致で失敗する
-      # （インストーラは理由を出さず「アプリがインストールされていません」とだけ言う）。
-      #
-      # 鍵は ANDROID_KEYSTORE_BASE64（リポジトリシークレット）に入れておく。
-      # 別名・パスワードは Android のデバッグ鍵の既定値に合わせてあるので、
-      # build.gradle 側の設定は要らない。
+      # 鍵は ANDROID_KEYSTORE_BASE64（リポジトリシークレット）に入れておき、
+      # ファイルに書いて ANDROID_KEYSTORE_PATH で build.gradle に明示的に渡す。
+      # 以前は ~/.android/debug.keystore に置いて AGP の既定に任せていたが、
+      # ランナーでは参照先がずれて使われず、毎回その場で別の鍵が生成されていた
+      # （ビルド 28〜39 が全部別署名で、上書きインストールが全滅した実害）。
+      # だから場所を推測に任せず、下の Verify APK signature で実物を照合する。
       - name: Restore signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -88,10 +86,10 @@ jobs:
             echo "::warning::ANDROID_KEYSTORE_BASE64 が未設定です。ビルドごとに署名鍵が変わるため、上書きインストールできません（入れ直しが必要になります）。"
             exit 0
           fi
-          mkdir -p ~/.android
-          echo "$KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
-          keytool -list -keystore ~/.android/debug.keystore -storepass android \
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/ci-debug.keystore"
+          keytool -list -keystore "$RUNNER_TEMP/ci-debug.keystore" -storepass android \
             -alias androiddebugkey > /dev/null
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/ci-debug.keystore" >> "$GITHUB_ENV"
           echo "固定の署名鍵を使います"
 
       - name: Build debug APK
@@ -101,6 +99,27 @@ jobs:
           # 何を入れても同じ版に見える）。手元ビルドは 1 のまま
           ANDROID_VERSION_CODE: ${{ github.run_number }}
         run: ./gradlew assembleDebug --no-daemon
+
+      # 出来上がった APK の署名を実測して、固定鍵と一致しなければ落とす。
+      # 「鍵を置いたつもり」が黙って無視されると、更新できない APK を
+      # 配ってしまう（実際に起きた）。意図ではなく成果物を検証する。
+      - name: Verify APK signature
+        if: env.ANDROID_KEYSTORE_PATH != ''
+        env:
+          # 固定鍵の証明書の SHA-256（公開情報。APK に入る値そのもの）
+          EXPECTED_CERT_SHA256: 41c0ed4eb4bce9fb7c404b4486523b2ec4724f1f6c2118684bef54905cc18dc6
+        run: |
+          APKSIGNER="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
+          ACTUAL=$("$APKSIGNER" verify --print-certs \
+            android/app/build/outputs/apk/debug/app-debug.apk \
+            | grep 'certificate SHA-256' | head -1 | awk '{print $NF}')
+          echo "expected: $EXPECTED_CERT_SHA256"
+          echo "actual:   $ACTUAL"
+          if [ "$ACTUAL" != "$EXPECTED_CERT_SHA256" ]; then
+            echo "::error::APK の署名が固定鍵と一致しません。この APK は配布してはいけない（上書きインストールできない）"
+            exit 1
+          fi
+          echo "署名OK: 固定鍵で署名されています"
 
       # PR では成果物として置くだけ（zip 展開が要るがビルド確認用なので十分）
       - name: Upload APK (artifact)
