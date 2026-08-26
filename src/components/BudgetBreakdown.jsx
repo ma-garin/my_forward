@@ -3,7 +3,7 @@ import { Box, Card, Typography, Stack, Divider, IconButton, Button, TextField, C
 import EditIcon from '@mui/icons-material/Edit'
 import { fmt } from '../utils/finance'
 import {
-  CARDS, LIVING_CATEGORIES, loadWeeklyBudget,
+  CARDS, LIVING_CATEGORIES, loadLivingUnit,
   sumLiving, countFridaysUntil,
   loadLivingOverride, saveLivingOverride,
   BORDER_LIGHT,
@@ -32,7 +32,7 @@ export default function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTota
       new Date(vy, vm - 1, CARDS.jcb.cutoffDay),
       new Date(vy, vm,     CARDS.jcb.cutoffDay),
     )
-    livingAuto = fridayCount * loadWeeklyBudget()
+    livingAuto = fridayCount * loadLivingUnit()
   }
   const livingBudget   = isJcb ? (livingOverride ?? livingAuto) : 0
   const isOverridden   = livingOverride != null

@@ -103,3 +103,45 @@ describe('文面の正規化', () => {
     expect(normalizeText('ＶＩＳＡ　（ＮＬ）')).toBe('VISA (NL)')
   })
 })
+
+describe('決め打ちのキーに入らない通知', () => {
+  it('allText からでも読める（InboxStyle などで title/text が空の通知）', () => {
+    // MyJCB の利用通知が、title も text も空で記録されていた。
+    // ネイティブ側が extras 全体から拾った文字（allText）を読む
+    const d = parseCardNotification({
+      packageName: 'jp.co.jcb.my',
+      postTime: new Date(2026, 7, 27, 8, 19).getTime(),
+      title: '',
+      text: '',
+      allText: 'JCBカード利用のお知らせ\nJCB GOLD ご利用金額 2,480円',
+    })
+    expect(d).toMatchObject({ cardId: 'jcb', amount: 2480 })
+  })
+
+  it('allText が空なら従来どおり落とす', () => {
+    expect(parseCardNotification({
+      packageName: 'jp.co.jcb.my', postTime: Date.now(), title: '', text: '', allText: '',
+    })).toBe(null)
+  })
+})
+
+describe('関係ない通知を拾わない', () => {
+  const at = Date.now()
+  const cases = [
+    ['Amazon のセール', 'com.amazon.mShop.android.shopping', 'サマーBBQフェア 50%OFF', '週替わりで対象商品が50%OFF。牛バラカルビ、焼き鳥ねぎ串など'],
+    ['Instagram', 'com.instagram.android', 'フォローリクエスト', 'Mai shiraishi からフォローリクエストがありました。'],
+    ['LINE の雑談', 'jp.naver.line.android', 'いつメン相陽テニス部', '予約してくれたところ申し訳ないけど人数1人減らせるかな？'],
+    ['メール到着の知らせ', 'jp.co.yahoo.android.ymail', 'JCB Webmaster', 'JCBカード／ショッピングご利用のお知らせ'],
+    ['スポーツニュース', 'jp.co.yahoo.android.sports.sportsnavi', 'スポーツナビ', 'ドジャース佐々木が先発登板予定'],
+  ]
+
+  it.each(cases)('%s は下書きにしない', (_name, packageName, title, text) => {
+    expect(parseCardNotification({ packageName, title, text, postTime: at })).toBe(null)
+  })
+
+  it('金額があってもカード名が無ければ拾わない', () => {
+    expect(parseCardNotification({
+      packageName: 'com.example.shop', title: 'セール', text: '本日限り ¥1,980', postTime: at,
+    })).toBe(null)
+  })
+})

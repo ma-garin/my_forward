@@ -16,9 +16,9 @@
 | `cc_salary_override_migrated_v1` | `string` | 旧給与手動入力値の移行済みフラグ | 自動管理 |
 | `cc_other_income_by_ym` | `{ [ym: string]: string }` | 月別のその他収入 | `loadOtherIncome(ym)` / `saveOtherIncome(v, ym)` |
 | `cc_summary_fixed` | `SummaryItem[]` | 家計タブ固定費内訳 | `loadSummaryFixed()` / `saveSummaryFixed(list)` |
-| `cc_living_unit` | `number` | 週予算（円） | `loadLivingUnit()` / `saveLivingUnit(v)` |
+| `cc_living_unit` | `number` | 週予算（円）。**唯一の出どころ**。旧 `life_weekly_budget` は初回読み込みで引き継ぎ、保存時に消す | `loadLivingUnit()` / `saveLivingUnit(v)` |
 | `cc_living_override_{cardId}_{ym}` | `number` | 生活費手動上書き | `loadLivingOverride(cardId, ym)` / `saveLivingOverride(cardId, ym, v)` |
-| `life_weekly_budget` | `number` | 週予算（LivingExpenseCard用） | `loadWeeklyBudget()` / `saveWeeklyBudget(v)` |
+| `life_weekly_budget` | `number` | 旧形式: 週予算。`cc_living_unit` に統合済み（読み込み時に自動で引き継ぐ） | 自動移行 |
 | `cc_payee_history` | `string[]` | 支払先の入力履歴（支出追加の候補） | `loadHistory` / `addToHistory`（CreditCard.jsx 内） |
 | `cc_name_history` | `string[]` | 項目名の入力履歴（同上） | 同上 |
 | `cc_payee_meta` | `{ [payee: string]: { category: string, spendType: string } }` | 支払先ごとに前回選んだ分類・消費分類。支出追加で支払先を選ぶと自動で埋める | `loadPayeeMeta` / `savePayeeMeta`（CreditCard.jsx 内） |
@@ -33,6 +33,7 @@
 | `cc_networth_history` | `{ ym: string, value: number }[]` | 純資産の月次スナップショット（月1点・最大60ヶ月） | `recordNetWorth` / `loadNetWorthHistory`（accounts.js） |
 | `cc_inbox` | `Draft[]` | カード利用通知から作った未確定の支出 | `loadInbox` / `ingestNotifications`（inbox.js） |
 | `cc_inbox_handled` | `{ cardId, amount, at }[]` | 承認・無視した通知の記録（再取り込みで復活させない。最大400件） | 自動管理（inbox.js） |
+| `cc_theme_bg` | `string` | 起動スプラッシュ用に、解決済みの地の色を控える。判定は持たない（useColorMode の結果を写すだけ） | 自動管理（App.jsx） |
 | `cc_theme_mode` | `'system' \| 'light' \| 'dark'` | 外観（既定は system＝端末追従） | `loadThemeMode` / `saveThemeMode`（useColorMode.js） |
 
 ## 給与

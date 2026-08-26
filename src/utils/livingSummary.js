@@ -1,5 +1,5 @@
 import {
-  CARD_LIST, getBillingMonthsForRange, getThisWeekRange, loadVar, loadWeeklyBudget, sumLiving,
+  CARD_LIST, getBillingMonthsForRange, getThisWeekRange, loadVar, loadLivingUnit, sumLiving,
 } from './ccStorage'
 
 /**
@@ -17,7 +17,7 @@ export function weeklyLivingSummary() {
       .flatMap((ym) => loadVar(card.id, ym)))
 
   const used = sumLiving(list, weekStartStr, weekEndStr)
-  const budget = loadWeeklyBudget()
+  const budget = loadLivingUnit()
 
   return {
     label,

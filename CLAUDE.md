@@ -27,6 +27,19 @@ Kiro Spec Driven Development を使う場合は `/kiro` skill を呼び出す。
 - `upsertFixedItem` / `upsertVarItem` — 保存とカード移動。画面ごとに移動手順を書かない
 - `bumpDataVersion()` — 保存関数を足したら必ず呼ぶ（タブ間の反映に使う）
 
+### 単一の事実は1箇所に置く
+過去の不具合はどれも「1つの事実が2箇所にあり、片方だけ更新された」形だった
+（署名鍵の在り処 / 配色の state / 週予算のキー）。書く前に
+**「この事実の持ち主は1人か」**を問う。持ち主が2人になる形は作らない。
+
+| 事実 | 唯一の出どころ |
+|------|--------------|
+| アプリのバージョン | `package.json` の `version`（Vite が `__APP_VERSION__` で注入、`build.gradle` も同じファイルを読む） |
+| 週予算 | `cc_living_unit`（`loadLivingUnit` / `saveLivingUnit`） |
+| 明暗の判定 | `utils/useColorMode.js`（スプラッシュは結果の色 `cc_theme_bg` を読むだけ） |
+| 今どの請求月か | `finance.currentBillingYm(cutoffDay)` |
+| 通知から拾う文字 | extras 全体を歩く（`NotificationText`）。キーを数え上げない |
+
 ### 一本化しているもの（分岐実装を作らない）
 - 支出の行: `components/CCExpenseViews.jsx` の `ExpenseRow`（行タップで編集・左スワイプで削除）
 - 編集フォーム: `components/ExpenseDialog.jsx`

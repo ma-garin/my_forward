@@ -11,8 +11,8 @@ import org.json.JSONObject;
 /**
  * 他アプリの通知を受け取って、そのまま記録するだけのサービス。
  *
- * 今の段階では解析しない。クレカ各社が実際にどんな文面で通知してくるかを
- * 集めるのが目的で、文面が分かってから解析を書く（推測でパーサを書かない）。
+ * 文面は決め打ちのキーだけでなく extras 全体から拾う（NotificationText）。
+ * キーを数え上げると、数え漏れたアプリの通知が「時刻だけの空行」になる。
  *
  * このサービスは「通知へのアクセス」を端末の設定で許可しないと動かない。
  * 許可は実行時ダイアログではなく設定画面での操作が必要（Plugin 側から開く）。
@@ -48,6 +48,10 @@ public class NotificationCaptureService extends NotificationListenerService {
             record.put("subText", text(extras, Notification.EXTRA_SUB_TEXT));
             record.put("infoText", text(extras, Notification.EXTRA_INFO_TEXT));
             record.put("ticker", notification.tickerText == null ? "" : notification.tickerText.toString());
+            // 上の 6 個は決め打ちのキー。別の入れ物を使うアプリはそこに何も入れない
+            // （MyJCB の利用通知が実際に空で記録された）。取りこぼさないよう、
+            // extras に入っている文字を全部拾ったものも一緒に持つ。
+            record.put("allText", NotificationText.collect(extras));
 
             NotificationStore.addRecord(this, record);
         } catch (Exception e) {

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { weeklyLivingSummary } from './livingSummary'
-import { CARDS, getBillingYmForDate, getThisWeekRange, saveWeeklyBudget } from './ccStorage'
+import { CARDS, getBillingYmForDate, getThisWeekRange, saveLivingUnit } from './ccStorage'
 
 beforeEach(() => localStorage.clear())
 
@@ -40,7 +40,7 @@ describe('今週の生活費', () => {
   })
 
   it('予算と残りを出す', () => {
-    saveWeeklyBudget(10000)
+    saveLivingUnit(10000)
     putJcb(weekStartStr, { amount: 2500, category: '生活費' })
 
     const s = weeklyLivingSummary()
@@ -54,7 +54,7 @@ describe('今週の生活費', () => {
   })
 
   it('予算 0 でも割合は 0（0 除算にしない）', () => {
-    saveWeeklyBudget(0)
+    saveLivingUnit(0)
     putJcb(weekStartStr, { amount: 2500, category: '生活費' })
 
     const s = weeklyLivingSummary()

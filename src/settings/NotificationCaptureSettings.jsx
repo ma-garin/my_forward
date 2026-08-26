@@ -18,8 +18,9 @@ const fmtTime = (ms) => {
 }
 
 // 1 件の通知から、実際に文字が入っているものだけを拾って並べる
-const bodyLines = (r) => [r.text, r.bigText, r.subText, r.infoText, r.ticker]
-  .map((v) => (v ?? '').trim())
+const bodyLines = (r) => [r.text, r.bigText, r.subText, r.infoText, r.ticker, r.allText]
+  .flatMap((v) => (v ?? '').split('\n'))
+  .map((v) => v.trim())
   .filter((v, i, a) => v && a.indexOf(v) === i)
 
 export default function NotificationCaptureSettings() {

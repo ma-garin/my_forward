@@ -8,7 +8,8 @@ import WifiOffIcon from '@mui/icons-material/WifiOff'
 import SystemUpdateIcon from '@mui/icons-material/SystemUpdate'
 import { checkForUpdate, buildNumber, APK_URL, downloadApk, installApk, canInstall, openInstallSettings } from '../utils/appUpdate'
 
-const APP_VERSION = '1.4.0'
+// バージョンの出どころは package.json（vite.config.js が注入する）
+const APP_VERSION = __APP_VERSION__
 
 const CHANGELOG = [
   {

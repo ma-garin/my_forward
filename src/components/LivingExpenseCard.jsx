@@ -5,7 +5,7 @@ import {
 } from '@mui/material'
 import { fmt } from '../utils/finance'
 import {
-  CARDS, CARD_LIST, LIVING_CATEGORIES, loadVar, loadWeeklyBudget, saveWeeklyBudget,
+  CARDS, CARD_LIST, LIVING_CATEGORIES, loadVar, loadLivingUnit, saveLivingUnit,
   getRecentWeeks, sumLiving, sumLivingByCategory,
   countFridaysUntil, getBillingMonthsForRange,
 } from '../utils/ccStorage'
@@ -51,7 +51,7 @@ function CatBreakdown({ catMap, total }) {
 
 export default function LivingExpenseCard({ ym }) {
   const [tab, setTab]                   = useState(0)
-  const [weeklyBudget, setWeeklyBudget] = useState(loadWeeklyBudget)
+  const [weeklyBudget, setWeeklyBudget] = useState(loadLivingUnit)
   const [editOpen, setEditOpen]         = useState(false)
   const [editVal, setEditVal]           = useState('')
   const [expandedWeek, setExpandedWeek] = useState(null)
@@ -89,7 +89,7 @@ export default function LivingExpenseCard({ ym }) {
 
   const handleSave = () => {
     const v = parseInt(editVal.replace(/,/g, ''), 10)
-    if (!isNaN(v) && v > 0) { setWeeklyBudget(v); saveWeeklyBudget(v) }
+    if (!isNaN(v) && v > 0) { setWeeklyBudget(v); saveLivingUnit(v) }
     setEditOpen(false)
   }
 
