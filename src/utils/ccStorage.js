@@ -5,9 +5,11 @@ import { DEFAULT_JCB_FIXED, currentBillingYm } from './finance'
 export const CARDS = {
   jcb:  { id: 'jcb',  name: 'JCBゴールド',                   shortName: 'JCB',  cutoffDay: 15, paymentDay: 10, color: '#37474f' },
   smbc: { id: 'smbc', name: '三井住友VISAナンバーレスゴールド', shortName: 'VISA', cutoffDay:  0, paymentDay: 26, color: '#1b5e20' },
-  // 現金。締め日は月末（＝暦月でそのまま集計）。請求サイクルを持たないので
-  // noBilling を立て、締め日・支払日の表示やリマインダーの対象から外す
+  // 現金・PayPay。締め日は月末（＝暦月でそのまま集計）。請求サイクルを
+  // 持たないので noBilling を立て、締め日・支払日の表示やリマインダーの
+  // 対象から外す。PayPay は残高払いの扱い（あと払いはクレカ側で管理する）
   cash: { id: 'cash', name: '現金',                          shortName: '現金', cutoffDay:  0, paymentDay:  0, color: '#616161', noBilling: true },
+  paypay: { id: 'paypay', name: 'PayPay',                    shortName: 'PayPay', cutoffDay: 0, paymentDay: 0, color: '#c62828', noBilling: true },
 }
 
 // 保存が起きるたびに増える版数。タブは「前回描画したときから版数が変わって

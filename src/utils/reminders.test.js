@@ -75,10 +75,11 @@ describe('予定の組み立て', () => {
   })
 })
 
-describe('現金', () => {
-  it('現金の締め日・支払日は予定に入れない（請求サイクルが無い）', () => {
+describe('請求サイクルを持たない支払い元', () => {
+  it('現金・PayPay の締め日・支払日は予定に入れない', () => {
     const titles = buildSchedule(NOW).map((n) => n.title)
     expect(titles.some((t) => t.includes('現金'))).toBe(false)
+    expect(titles.some((t) => t.includes('PayPay'))).toBe(false)
     // カードぶんはちゃんと入っている
     expect(titles.some((t) => t.includes('JCB'))).toBe(true)
   })
