@@ -25,7 +25,7 @@ export const CARD_LIST = Object.values(CARDS)
 
 // ─── 共有スタイル定数 ────────────────────────────────────────
 
-export const BORDER_LIGHT = '1px solid #f5f5f5'
+export const BORDER_LIGHT = '1px solid var(--surface-line)'
 
 // ─── 表示用定数 ──────────────────────────────────────────────
 

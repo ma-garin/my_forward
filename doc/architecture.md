@@ -152,9 +152,31 @@ CARDS = {
 **変動費のみが持つ**。固定費は分類の対象外で、保存時に `spendType` を書き込まない。
 消費分類グラフ（`SpendTypeChart`）の集計対象も変動費のみ。
 
-## テーマ
+## テーマ（ライト / ダーク）
 
-`src/theme.js` の 1 つだけ。切り替えは持たない。
+`src/theme.js` の `buildTheme(mode)` が明暗 2 つのパレットを作る。選択は
+`utils/useColorMode.js`（`cc_theme_mode`: `system` / `light` / `dark`、既定は
+`system`＝端末追従）。設定 → 外観 で変えられる。
+
+**画面側は色を直に書かない。** 面と淡色は theme が `:root` に配る CSS 変数を使う。
+
+| 変数 | 用途（旧ハードコード値） |
+|------|------------------------|
+| `--bg-paper` | カードの地（`#fff`） |
+| `--surface-subtle` | 一段沈んだ帯・表の縞（`#fafafa` / `#f9fafb`） |
+| `--surface-muted` | 選択肢の下地（`#f0f0f0` / `#eeeeee`） |
+| `--surface-line` | 行間の細い区切り（`#f5f5f5`。`BORDER_LIGHT` が使う） |
+| `--surface-header` | カード上部の見出し帯。白文字が乗るので暗い側でも暗いまま |
+| `--divider` | 枠線（`#e0e0e0`） |
+| `--tint-*` / `--on-tint-*` | 表の強調行・淡色チップとその文字色 |
+
+`primary.main` は暗い側では明るい色になる。**白文字を乗せる帯に
+`bgcolor: 'primary.main'` を使わない**（`--surface-header` を使う）。
+カード色・グラフ色・消費分類の色は識別のための強い色なので反転させない。
+
+スプラッシュ（`index.html`）も同じ判定で先に地の色を決める。ここを抜くと
+起動のたびに白く光る。
 
 以前は Apple 風テーマを併存させていたが、画面ごとに `mode === 'apple'` の
 分岐を抱えることになり、見せ方が二重管理になっていたため取りやめた。
+今回の明暗は分岐ではなく token の入れ替えで実現している。

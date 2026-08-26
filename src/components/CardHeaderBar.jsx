@@ -15,7 +15,7 @@ export default function CardHeaderBar({ title, right, startIcon, onClick, sx }) 
     <Box
       onClick={onClick}
       sx={{
-        bgcolor: 'primary.main',
+        bgcolor: 'var(--surface-header)',
         px: 2,
         py: 0.75,
         display: 'flex',

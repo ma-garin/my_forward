@@ -45,7 +45,7 @@ export default function IncomeSummaryCard({ fixedList, varList, ym, salaryYm: sa
   return (
     <>
       <Card sx={{ mb: 1.5 }}>
-        <Box sx={{ bgcolor: 'primary.main', px: 2, py: 0.75 }}>
+        <Box sx={{ bgcolor: 'var(--surface-header)', px: 2, py: 0.75 }}>
           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>
             収支サマリー
           </Typography>

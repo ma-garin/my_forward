@@ -91,7 +91,7 @@ export default function DataSettings() {
     <Box sx={{ p: 2 }}>
       <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>データ管理</Typography>
 
-      <Box sx={{ p: 2, bgcolor: '#e8f5e9', borderRadius: 2, mb: 2 }}>
+      <Box sx={{ p: 2, bgcolor: 'var(--tint-green)', borderRadius: 2, mb: 2 }}>
         <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>全データ一括</Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
           ダウンロードで JSON ファイルとして保存できます。
@@ -117,7 +117,7 @@ export default function DataSettings() {
       <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', mb: 0.5 }}>
         個別データ
       </Typography>
-      <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 2, px: 2 }}>
+      <Box sx={{ border: '1px solid var(--divider)', borderRadius: 2, px: 2 }}>
         <DataRow label="給与シミュレーション" exportFilename="myforward_salary"
           filterKeys={(keys) => keys.filter(k => k === 'salary_simulation' || k === 'salary_simulation_monthly')} />
         <Divider />

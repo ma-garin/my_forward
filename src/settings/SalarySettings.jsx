@@ -85,7 +85,7 @@ function CustomSection({ title, items, onAdd, onDelete }) {
           項目なし
         </Typography>
       ) : (
-        <List dense disablePadding sx={{ border: '1px solid #e0e0e0', borderRadius: 1 }}>
+        <List dense disablePadding sx={{ border: '1px solid var(--divider)', borderRadius: 1 }}>
           {items.map((item, i) => (
             <ListItem key={item.id} divider={i < items.length - 1}
               secondaryAction={

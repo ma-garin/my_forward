@@ -131,7 +131,7 @@ function MonthlyTable({ salaries, mode }) {
       <Box sx={{ overflowX: 'auto', mx: -2 }}>
         <Table size="small" sx={{ minWidth: 340 }}>
           <TableHead>
-            <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+            <TableRow sx={{ bgcolor: 'var(--surface-line)' }}>
               {['月', '総支給', '総控除', '手取り'].map(h => (
                 <TableCell key={h} align={h === '月' ? 'left' : 'right'}
                   sx={{ fontSize: 11, fontWeight: 700, py: 0.75, whiteSpace: 'nowrap' }}>{h}</TableCell>
@@ -141,7 +141,7 @@ function MonthlyTable({ salaries, mode }) {
           <TableBody>
             {salaries.map((r, i) => (
               <TableRow key={r.month}
-                sx={{ bgcolor: i % 2 === 0 ? '#fff' : '#fafafa', '&:hover': { bgcolor: '#f1f8e9' } }}>
+                sx={{ bgcolor: i % 2 === 0 ? 'var(--bg-paper)' : 'var(--surface-subtle)', '&:hover': { bgcolor: 'var(--tint-green-soft)' } }}>
                 <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: 600 }}>{r.month}月</TableCell>
                 <TableCell align="right" sx={{ fontSize: 12, py: 0.75 }}>¥{fmt(r.totalPay)}</TableCell>
                 <TableCell align="right" sx={{ fontSize: 12, py: 0.75, color: 'error.main' }}>¥{fmt(r.totalDed)}</TableCell>
@@ -154,7 +154,7 @@ function MonthlyTable({ salaries, mode }) {
               const td = salaries.reduce((s, r) => s + (r.totalDed ?? 0), 0)
               const th = salaries.reduce((s, r) => s + (r.takeHome ?? 0), 0)
               return (
-                <TableRow sx={{ bgcolor: '#e8eaf6' }}>
+                <TableRow sx={{ bgcolor: 'var(--tint-indigo)' }}>
                   <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: 700 }}>合計</TableCell>
                   <TableCell align="right" sx={{ fontSize: 12, py: 0.75, fontWeight: 600 }}>¥{fmt(tp)}</TableCell>
                   <TableCell align="right" sx={{ fontSize: 12, py: 0.75, fontWeight: 600, color: 'error.main' }}>¥{fmt(td)}</TableCell>
@@ -182,7 +182,7 @@ function MonthlyTable({ salaries, mode }) {
     <Box sx={{ overflowX: 'auto', mx: -2 }}>
       <Table size="small" sx={{ minWidth: 560 }}>
         <TableHead>
-          <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+          <TableRow sx={{ bgcolor: 'var(--surface-line)' }}>
             <TableCell sx={{ fontSize: 11, fontWeight: 700, py: 0.75 }}>月</TableCell>
             <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700, py: 0.75, whiteSpace: 'nowrap' }}>総支給</TableCell>
             <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700, py: 0.75, whiteSpace: 'nowrap' }}>時間外</TableCell>
@@ -197,7 +197,7 @@ function MonthlyTable({ salaries, mode }) {
         <TableBody>
           {salaries.map((r, i) => (
             <TableRow key={r.month}
-              sx={{ bgcolor: i % 2 === 0 ? '#fff' : '#fafafa', '&:hover': { bgcolor: '#f1f8e9' } }}>
+              sx={{ bgcolor: i % 2 === 0 ? 'var(--bg-paper)' : 'var(--surface-subtle)', '&:hover': { bgcolor: 'var(--tint-green-soft)' } }}>
               <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: 600 }}>{r.month}月</TableCell>
               <TableCell align="right" sx={{ fontSize: 11, py: 0.75 }}>¥{fmt(r.totalPay)}</TableCell>
               <TableCell align="right" sx={{ fontSize: 11, py: 0.75, color: 'text.secondary' }}>¥{fmt(r.overtime)}</TableCell>
@@ -250,14 +250,14 @@ function YoYTable({ curSalaries, prevSalaries, field, onFieldChange }) {
         {YOY_FIELDS.map(f => (
           <Chip key={f.key} label={f.label} size="small" onClick={() => onFieldChange(f.key)}
             sx={{ fontWeight: field === f.key ? 700 : 400, fontSize: 11,
-              bgcolor: field === f.key ? f.color : '#f0f0f0',
+              bgcolor: field === f.key ? f.color : 'var(--surface-muted)',
               color:   field === f.key ? '#fff'  : 'text.secondary' }} />
         ))}
       </Stack>
       <Box sx={{ overflowX: 'auto', mx: -2 }}>
         <Table size="small" sx={{ minWidth: 380 }}>
           <TableHead>
-            <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+            <TableRow sx={{ bgcolor: 'var(--surface-line)' }}>
               <TableCell sx={{ fontSize: 11, fontWeight: 700, py: 0.75 }}>月</TableCell>
               <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700, py: 0.75, color: 'text.secondary' }}>前年</TableCell>
               <TableCell align="right" sx={{ fontSize: 11, fontWeight: 700, py: 0.75, color: fieldDef.color }}>今年</TableCell>
@@ -269,7 +269,7 @@ function YoYTable({ curSalaries, prevSalaries, field, onFieldChange }) {
               const cur  = curByMonth[m]
               const prev = prevByMonth[m]
               return (
-                <TableRow key={m} sx={{ bgcolor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                <TableRow key={m} sx={{ bgcolor: i % 2 === 0 ? 'var(--bg-paper)' : 'var(--surface-subtle)' }}>
                   <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: 600 }}>{m}月</TableCell>
                   <TableCell align="right" sx={{ fontSize: 11, py: 0.75, color: 'text.secondary' }}>
                     {prev ? `¥${fmt(prev[field])}` : '—'}
@@ -285,7 +285,7 @@ function YoYTable({ curSalaries, prevSalaries, field, onFieldChange }) {
               const ct = curSalaries.reduce((s, r) => s + (r[field] ?? 0), 0)
               const pt = prevSalaries.reduce((s, r) => s + (r[field] ?? 0), 0)
               return (
-                <TableRow sx={{ bgcolor: '#e8eaf6' }}>
+                <TableRow sx={{ bgcolor: 'var(--tint-indigo)' }}>
                   <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: 700 }}>合計</TableCell>
                   <TableCell align="right" sx={{ fontSize: 11, py: 0.75, fontWeight: 600, color: 'text.secondary' }}>¥{fmt(pt)}</TableCell>
                   <TableCell align="right" sx={{ fontSize: 12, py: 0.75, fontWeight: 700, color: fieldDef.color }}>¥{fmt(ct)}</TableCell>
@@ -407,7 +407,7 @@ export default function SalaryHistory() {
             {YEARS.map(y => (
               <Chip key={y} label={`${y}年`} size="small" onClick={() => setYear(y)}
                 sx={{ fontWeight: year === y ? 700 : 400, flexShrink: 0,
-                  bgcolor: year === y ? 'primary.main' : '#f0f0f0',
+                  bgcolor: year === y ? 'primary.main' : 'var(--surface-muted)',
                   color:   year === y ? '#fff' : 'text.secondary' }} />
             ))}
           </Stack>
@@ -472,7 +472,7 @@ export default function SalaryHistory() {
       <SectionCard title={`${year}年 サマリー`}>
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
           {statItems.map(s => (
-            <Box key={s.label} sx={{ p: 1, bgcolor: '#f9fafb', borderRadius: 1, borderLeft: `3px solid ${s.color}` }}>
+            <Box key={s.label} sx={{ p: 1, bgcolor: 'var(--surface-subtle)', borderRadius: 1, borderLeft: `3px solid ${s.color}` }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>{s.label}</Typography>
               <Typography variant="body2" fontWeight={700} sx={{ color: s.color, fontSize: 13 }}>{s.value}</Typography>
             </Box>
@@ -485,7 +485,7 @@ export default function SalaryHistory() {
         <Box sx={{ overflowX: 'auto', mx: -2 }}>
           <Table size="small" sx={{ minWidth: 340 }}>
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+              <TableRow sx={{ bgcolor: 'var(--surface-line)' }}>
                 {['月', '総支給', '総控除', '手取り'].map(h => (
                   <TableCell key={h} align={h === '月' ? 'left' : 'right'}
                     sx={{ fontSize: 11, fontWeight: 700, py: 0.75 }}>{h}</TableCell>
@@ -494,7 +494,7 @@ export default function SalaryHistory() {
             </TableHead>
             <TableBody>
               {salaries.map((r, i) => (
-                <TableRow key={r.month} sx={{ bgcolor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                <TableRow key={r.month} sx={{ bgcolor: i % 2 === 0 ? 'var(--bg-paper)' : 'var(--surface-subtle)' }}>
                   <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: 600 }}>{r.month}月</TableCell>
                   <TableCell align="right" sx={{ fontSize: 12, py: 0.75 }}>¥{fmt(r.totalPay)}</TableCell>
                   <TableCell align="right" sx={{ fontSize: 12, py: 0.75, color: 'error.main' }}>¥{fmt(r.totalDed)}</TableCell>
@@ -506,7 +506,7 @@ export default function SalaryHistory() {
                 const td = salaries.reduce((s, r) => s + (r.totalDed ?? 0), 0)
                 const th = salaries.reduce((s, r) => s + (r.takeHome ?? 0), 0)
                 return (
-                  <TableRow sx={{ bgcolor: '#e8eaf6' }}>
+                  <TableRow sx={{ bgcolor: 'var(--tint-indigo)' }}>
                     <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: 700 }}>合計</TableCell>
                     <TableCell align="right" sx={{ fontSize: 12, py: 0.75, fontWeight: 600 }}>¥{fmt(tp)}</TableCell>
                     <TableCell align="right" sx={{ fontSize: 12, py: 0.75, fontWeight: 600, color: 'error.main' }}>¥{fmt(td)}</TableCell>
@@ -540,7 +540,7 @@ export default function SalaryHistory() {
           <Box sx={{ overflowX: 'auto', mx: -2 }}>
             <Table size="small" sx={{ minWidth: 320 }}>
               <TableHead>
-                <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                <TableRow sx={{ bgcolor: 'var(--surface-line)' }}>
                   {['月', '総支給', '総控除', '手取り'].map(h => (
                     <TableCell key={h} align={h === '月' ? 'left' : 'right'}
                       sx={{ fontSize: 11, fontWeight: 700, py: 0.75 }}>{h}</TableCell>
@@ -583,7 +583,7 @@ export default function SalaryHistory() {
               { label: '源泉徴収税額',     value: wh.incomeTax,       color: '#e53935' },
               { label: '社会保険料等',     value: wh.socialInsurance, color: '#fb8c00' },
             ].map(s => (
-              <Box key={s.label} sx={{ p: 1, bgcolor: '#f9fafb', borderRadius: 1, borderLeft: `3px solid ${s.color}` }}>
+              <Box key={s.label} sx={{ p: 1, bgcolor: 'var(--surface-subtle)', borderRadius: 1, borderLeft: `3px solid ${s.color}` }}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>{s.label}</Typography>
                 <Typography variant="body2" fontWeight={700} sx={{ color: s.color, fontSize: 13 }}>¥{fmt(s.value)}</Typography>
               </Box>
@@ -591,7 +591,7 @@ export default function SalaryHistory() {
             {wh.totalPay && wh.incomeTax != null && wh.socialInsurance != null && (() => {
               const rate = Math.round((wh.incomeTax + wh.socialInsurance) / wh.totalPay * 100)
               return (
-                <Box sx={{ p: 1, bgcolor: '#f9fafb', borderRadius: 1, borderLeft: '3px solid #607d8b' }}>
+                <Box sx={{ p: 1, bgcolor: 'var(--surface-subtle)', borderRadius: 1, borderLeft: '3px solid #607d8b' }}>
                   <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>税・社保 負担率</Typography>
                   <Typography variant="body2" fontWeight={700} sx={{ color: '#607d8b', fontSize: 13 }}>{rate}%</Typography>
                 </Box>
@@ -618,7 +618,7 @@ export default function SalaryHistory() {
             <Box sx={{ overflowX: 'auto', mx: -2, mt: 1 }}>
               <Table size="small">
                 <TableHead>
-                  <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                  <TableRow sx={{ bgcolor: 'var(--surface-line)' }}>
                     {['年', '基本給', '前年比'].map(h => (
                       <TableCell key={h} align={h === '年' ? 'left' : 'right'}
                         sx={{ fontSize: 11, fontWeight: 700, py: 0.75 }}>{h}</TableCell>
@@ -629,7 +629,7 @@ export default function SalaryHistory() {
                   {rows.map((r, i) => {
                     const d = r.prevBase != null ? r.base - r.prevBase : null
                     return (
-                      <TableRow key={r.year} sx={{ bgcolor: r.year === year ? '#e8f5e9' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <TableRow key={r.year} sx={{ bgcolor: r.year === year ? 'var(--tint-green)' : i % 2 === 0 ? 'var(--bg-paper)' : 'var(--surface-subtle)' }}>
                         <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: r.year === year ? 700 : 400 }}>{r.year}年</TableCell>
                         <TableCell align="right" sx={{ fontSize: 12, py: 0.75, fontWeight: 600, color: '#43a047' }}>¥{fmt(r.base)}</TableCell>
                         <TableCell align="right" sx={{ fontSize: 12, py: 0.75, fontWeight: 600,
@@ -664,7 +664,7 @@ export default function SalaryHistory() {
                 { label: '最多月', value: maxR ? `${maxR.month}月 ${maxR.overtimeHours}h` : '—', color: '#fb8c00' },
                 { label: '最少月', value: minR ? `${minR.month}月 ${minR.overtimeHours}h` : '—', color: '#43a047' },
               ].map(s => (
-                <Box key={s.label} sx={{ flex: 1, p: 0.75, bgcolor: '#f9fafb', borderRadius: 1, borderLeft: `3px solid ${s.color}` }}>
+                <Box key={s.label} sx={{ flex: 1, p: 0.75, bgcolor: 'var(--surface-subtle)', borderRadius: 1, borderLeft: `3px solid ${s.color}` }}>
                   <Typography variant="caption" color="text.secondary" sx={{ fontSize: 9 }}>{s.label}</Typography>
                   <Typography variant="body2" fontWeight={700} sx={{ color: s.color, fontSize: 11 }}>{s.value}</Typography>
                 </Box>
@@ -674,7 +674,7 @@ export default function SalaryHistory() {
             <Box sx={{ overflowX: 'auto', mx: -2, mt: 1 }}>
               <Table size="small">
                 <TableHead>
-                  <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                  <TableRow sx={{ bgcolor: 'var(--surface-line)' }}>
                     {['月', '残業時間', '残業代'].map(h => (
                       <TableCell key={h} align={h === '月' ? 'left' : 'right'}
                         sx={{ fontSize: 11, fontWeight: 700, py: 0.75 }}>{h}</TableCell>
@@ -683,7 +683,7 @@ export default function SalaryHistory() {
                 </TableHead>
                 <TableBody>
                   {salaries.map((r, i) => (
-                    <TableRow key={r.month} sx={{ bgcolor: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                    <TableRow key={r.month} sx={{ bgcolor: i % 2 === 0 ? 'var(--bg-paper)' : 'var(--surface-subtle)' }}>
                       <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: 600 }}>{r.month}月</TableCell>
                       <TableCell align="right" sx={{ fontSize: 12, py: 0.75 }}>{r.overtimeHours ?? '—'}h</TableCell>
                       <TableCell align="right" sx={{ fontSize: 12, py: 0.75, color: '#e53935' }}>¥{fmt(r.overtime)}</TableCell>
@@ -733,7 +733,7 @@ export default function SalaryHistory() {
             <Box sx={{ overflowX: 'auto', mx: -2, mt: 1 }}>
               <Table size="small">
                 <TableHead>
-                  <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                  <TableRow sx={{ bgcolor: 'var(--surface-line)' }}>
                     {['年', '年収', '所得税', '社会保険料', '負担率'].map(h => (
                       <TableCell key={h} align={h === '年' ? 'left' : 'right'}
                         sx={{ fontSize: 11, fontWeight: 700, py: 0.75, whiteSpace: 'nowrap' }}>{h}</TableCell>
@@ -748,7 +748,7 @@ export default function SalaryHistory() {
                     const prevRate = prevW?.totalPay ? Math.round(((prevW.incomeTax ?? 0) + (prevW.socialInsurance ?? 0)) / prevW.totalPay * 100) : null
                     const rateDiff = rate != null && prevRate != null ? rate - prevRate : null
                     return (
-                      <TableRow key={w.year} sx={{ bgcolor: w.year === year ? '#f3e5f5' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <TableRow key={w.year} sx={{ bgcolor: w.year === year ? 'var(--tint-purple)' : i % 2 === 0 ? 'var(--bg-paper)' : 'var(--surface-subtle)' }}>
                         <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: w.year === year ? 700 : 400 }}>{w.year}年</TableCell>
                         <TableCell align="right" sx={{ fontSize: 12, py: 0.75 }}>¥{fmt(w.totalPay)}</TableCell>
                         <TableCell align="right" sx={{ fontSize: 12, py: 0.75, color: 'error.main' }}>¥{fmt(w.incomeTax)}</TableCell>
@@ -791,7 +791,7 @@ export default function SalaryHistory() {
             <Box sx={{ overflowX: 'auto', mx: -2, mt: 1 }}>
               <Table size="small">
                 <TableHead>
-                  <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                  <TableRow sx={{ bgcolor: 'var(--surface-line)' }}>
                     {['年', '回数', '手取り合計', '前年比'].map(h => (
                       <TableCell key={h} align={h === '年' ? 'left' : 'right'}
                         sx={{ fontSize: 11, fontWeight: 700, py: 0.75 }}>{h}</TableCell>
@@ -803,7 +803,7 @@ export default function SalaryHistory() {
                     const prev = bonusByYear[i + 1]
                     const d = prev ? (r.total ?? 0) - (prev.total ?? 0) : null
                     return (
-                      <TableRow key={r.year} sx={{ bgcolor: r.year === year ? '#fff3e0' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <TableRow key={r.year} sx={{ bgcolor: r.year === year ? 'var(--tint-orange)' : i % 2 === 0 ? 'var(--bg-paper)' : 'var(--surface-subtle)' }}>
                         <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: r.year === year ? 700 : 400 }}>{r.year}年</TableCell>
                         <TableCell align="right" sx={{ fontSize: 12, py: 0.75, color: 'text.secondary' }}>{r.count}回</TableCell>
                         <TableCell align="right" sx={{ fontSize: 12, py: 0.75, fontWeight: 700, color: '#fb8c00' }}>¥{fmt(r.total)}</TableCell>
@@ -827,7 +827,7 @@ export default function SalaryHistory() {
           <Box sx={{ overflowX: 'auto', mx: -2 }}>
             <Table size="small" sx={{ minWidth: 400 }}>
               <TableHead>
-                <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                <TableRow sx={{ bgcolor: 'var(--surface-line)' }}>
                   {['年', '年収', '控除後所得', '源泉徴収税額', '社会保険料', '負担率'].map(h => (
                     <TableCell key={h} align={h === '年' ? 'left' : 'right'}
                       sx={{ fontSize: 11, fontWeight: 700, py: 0.75, whiteSpace: 'nowrap' }}>{h}</TableCell>
@@ -840,8 +840,8 @@ export default function SalaryHistory() {
                   const rate   = w.totalPay ? Math.round(burden / w.totalPay * 100) : null
                   return (
                     <TableRow key={w.year}
-                      sx={{ bgcolor: w.year === year ? '#e3f2fd' : i % 2 === 0 ? '#fff' : '#fafafa',
-                            cursor: 'pointer', '&:hover': { bgcolor: '#f1f8e9' } }}
+                      sx={{ bgcolor: w.year === year ? 'var(--tint-blue)' : i % 2 === 0 ? 'var(--bg-paper)' : 'var(--surface-subtle)',
+                            cursor: 'pointer', '&:hover': { bgcolor: 'var(--tint-green-soft)' } }}
                       onClick={() => setYear(w.year)}>
                       <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: w.year === year ? 700 : 400 }}>{w.year}年</TableCell>
                       <TableCell align="right" sx={{ fontSize: 12, py: 0.75 }}>¥{fmt(w.totalPay)}</TableCell>

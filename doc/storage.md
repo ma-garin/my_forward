@@ -29,6 +29,7 @@
 | `cc_subs_dismissed` | `string[]` | サブスク提案で「非表示」にした識別子 | `loadDismissed` / `dismissSubscription`（subscriptions.js） |
 | `cc_reminders_enabled` | `'0' \| '1'` | 締め日・支払日通知の有効/無効 | `loadRemindersEnabled` / `saveRemindersEnabled`（reminders.js） |
 | `cc_auto_backup_at` | `string` | 自動バックアップを最後に取った時刻（ISO） | 自動管理（autoBackup.js） |
+| `cc_theme_mode` | `'system' \| 'light' \| 'dark'` | 外観（既定は system＝端末追従） | `loadThemeMode` / `saveThemeMode`（useColorMode.js） |
 
 ## 給与
 

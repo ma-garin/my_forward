@@ -54,7 +54,7 @@ export default function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTota
   }
 
   const amtText = (v) => v >= 0 ? `¥${fmt(v)}` : `−¥${fmt(-v)}`
-  const balBg   = (v) => v >= 0 ? '#e8f5e9' : '#ffebee'
+  const balBg   = (v) => v >= 0 ? 'var(--tint-green)' : 'var(--tint-red)'
   const balCol  = (v) => v >= 0 ? '#1b5e20' : '#b71c1c'
 
   const HDR = { fontSize: 10, fontWeight: 700, color: 'text.disabled', letterSpacing: .5, textAlign: 'right' }
@@ -64,7 +64,7 @@ export default function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTota
     <Stack direction="row" alignItems="center"
       sx={{
         py: 0.65, px: subtotal ? 1 : 0,
-        bgcolor: subtotal ? '#f5f5f5' : 'transparent',
+        bgcolor: subtotal ? 'var(--surface-line)' : 'transparent',
         borderRadius: subtotal ? 1 : 0,
         borderBottom: subtotal ? 'none' : BORDER_LIGHT,
         my: subtotal ? 0.25 : 0,
@@ -125,7 +125,7 @@ export default function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTota
             <Box sx={{ flex: 1.6, display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Typography sx={{ fontSize: 13, color: 'text.disabled', minWidth: 14 }}>−</Typography>
               <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>生活費</Typography>
-              {isOverridden && <Chip label="手動" size="small" sx={{ height: 14, fontSize: 8, bgcolor: '#e3f2fd', color: '#1565c0' }} />}
+              {isOverridden && <Chip label="手動" size="small" sx={{ height: 14, fontSize: 8, bgcolor: 'var(--tint-blue)', color: 'var(--on-tint-blue)' }} />}
             </Box>
             <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5 }}>
               <TextField size="small" type="number" value={livingEditVal}

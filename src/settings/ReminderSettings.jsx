@@ -21,7 +21,7 @@ export default function ReminderSettings() {
         </Alert>
       )}
 
-      <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 2, px: 2 }}>
+      <Box sx={{ border: '1px solid var(--divider)', borderRadius: 2, px: 2 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 1.5 }}>
           <Stack direction="row" alignItems="center" gap={1.5} sx={{ minWidth: 0 }}>
             <NotificationsActiveIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
@@ -56,7 +56,7 @@ export default function ReminderSettings() {
           {enabled ? '予定はありません' : '通知をオンにすると表示されます'}
         </Typography>
       ) : (
-        <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 2, px: 2 }}>
+        <Box sx={{ border: '1px solid var(--divider)', borderRadius: 2, px: 2 }}>
           {schedule.slice(0, 8).map((n, i) => (
             <Box key={n.id}>
               {i > 0 && <Divider />}

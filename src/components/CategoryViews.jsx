@@ -82,7 +82,7 @@ function CategoryChartBase({ fixedList, varList }) {
                       <Typography variant="caption" fontWeight={700} sx={{ fontSize: 10 }}>¥{fmt(val)}</Typography>
                     </Stack>
                   </Stack>
-                  <Box sx={{ height: 6, bgcolor: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
+                  <Box sx={{ height: 6, bgcolor: 'var(--surface-muted)', borderRadius: 2, overflow: 'hidden' }}>
                     <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: CHART_COLORS[i % CHART_COLORS.length], borderRadius: 2 }} />
                   </Box>
                 </Stack>
@@ -223,7 +223,7 @@ function CategoryBreakdownBase({ fixedList, varList, cardId, ym, onUpdate, prevF
                 </Stack>
                 {budget && (
                   <Stack direction="row" alignItems="center" gap={1} sx={{ pb: 0.75 }}>
-                    <Box sx={{ flex: 1, height: 5, bgcolor: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
+                    <Box sx={{ flex: 1, height: 5, bgcolor: 'var(--surface-muted)', borderRadius: 2, overflow: 'hidden' }}>
                       <Box sx={{ height: '100%', width: `${budgetPct}%`, bgcolor: barColor, borderRadius: 2 }} />
                     </Box>
                     <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary', flexShrink: 0 }}>
@@ -377,7 +377,7 @@ function SpendTypeChartBase({ varList }) {
                     <Typography variant="caption" fontWeight={700} sx={{ fontSize: 12 }}>¥{fmt(val)}</Typography>
                   </Stack>
                 </Stack>
-                <Box sx={{ height: 5, bgcolor: '#f0f0f0', borderRadius: 2, overflow: 'hidden' }}>
+                <Box sx={{ height: 5, bgcolor: 'var(--surface-muted)', borderRadius: 2, overflow: 'hidden' }}>
                   <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: SPEND_TYPE_COLORS[t], borderRadius: 2 }} />
                 </Box>
               </Stack>

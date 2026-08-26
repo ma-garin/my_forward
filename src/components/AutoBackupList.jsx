@@ -66,7 +66,7 @@ export default function AutoBackupList() {
           まだ控えはありません（週に 1 回、自動で取ります）
         </Typography>
       ) : (
-        <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 2, px: 2 }}>
+        <Box sx={{ border: '1px solid var(--divider)', borderRadius: 2, px: 2 }}>
           {items.map((item, i) => (
             <Box key={item.name}>
               {i > 0 && <Divider />}

@@ -153,7 +153,7 @@ export default function NotificationCaptureSettings() {
       </Typography>
 
       {shown.map((r, i) => (
-        <Box key={`${r.postTime}-${i}`} sx={{ py: 1, borderBottom: '1px solid #f0f0f0' }}>
+        <Box key={`${r.postTime}-${i}`} sx={{ py: 1, borderBottom: '1px solid var(--surface-muted)' }}>
           <Stack direction="row" justifyContent="space-between" gap={1}>
             <Typography sx={{ fontSize: 10, color: 'text.disabled', wordBreak: 'break-all' }}>
               {r.packageName}

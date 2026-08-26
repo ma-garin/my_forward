@@ -159,7 +159,7 @@ function CategoryDialog({ open, onClose, categories, onChange }) {
         <Stack spacing={0}>
           {categories.map((cat, i) => (
             <Stack key={cat} direction="row" alignItems="center" gap={0.5}
-              sx={{ py: 0.5, borderBottom: '1px solid #f0f0f0' }}>
+              sx={{ py: 0.5, borderBottom: '1px solid var(--surface-muted)' }}>
               <Typography sx={{ flex: 1, fontSize: 14 }}>{cat}</Typography>
               <IconButton size="small" aria-label="上に移動" onClick={() => handleMove(i, -1)} disabled={i === 0}
                 sx={{ p: 0.75, color: i === 0 ? 'transparent' : 'text.disabled' }}>
@@ -288,7 +288,7 @@ function YearlySummary({ year, cardId }) {
   return (
     <Card sx={{ mb: 1.5 }}>
       <Box onClick={() => setOpen(v => !v)}
-        sx={{ bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}>
+        sx={{ bgcolor: 'var(--surface-header)', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}>
         <Stack direction="row" alignItems="center" gap={1}>
           <ExpandMoreIcon sx={{ fontSize: 16, color: '#fff', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }}>年間サマリー {year}年</Typography>
@@ -303,7 +303,7 @@ function YearlySummary({ year, cardId }) {
             <Stack key={m} direction="row" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
               <Typography variant="caption" sx={{ width: 24, flexShrink: 0, fontSize: 10, color: 'text.secondary' }}>{m}月</Typography>
               <Box sx={{ flex: 1 }}>
-                <Box sx={{ height: 8, bgcolor: '#f0f0f0', borderRadius: 2, overflow: 'hidden', display: 'flex' }}>
+                <Box sx={{ height: 8, bgcolor: 'var(--surface-muted)', borderRadius: 2, overflow: 'hidden', display: 'flex' }}>
                   <Box sx={{ height: '100%', width: `${total > 0 ? fixedTotal / maxTotal * 100 : 0}%`, bgcolor: '#78909c', borderRadius: '2px 0 0 2px' }} />
                   <Box sx={{ height: '100%', width: `${total > 0 ? varTotal / maxTotal * 100 : 0}%`, bgcolor: '#42a5f5' }} />
                 </Box>
@@ -332,13 +332,13 @@ function defaultExpenseCategory(categories) {
 }
 
 // レンダーごとに作り直さない静的スタイル・定数
-const IROW       = { display: 'flex', alignItems: 'center', px: 2, minHeight: 52, borderBottom: '1px solid #f0f0f0' }
+const IROW       = { display: 'flex', alignItems: 'center', px: 2, minHeight: 52, borderBottom: '1px solid var(--surface-muted)' }
 const IROW_TAP   = { ...IROW, cursor: 'pointer' }
 const IROW_GAP   = { ...IROW, gap: 1 }
 const ILABEL     = { fontSize: 13, color: '#757575', width: 56, flexShrink: 0 }
 const IVALUE     = { flex: 1, fontSize: 15 }
 const ISUGG_CHIP = { fontSize: 11, height: 22, bgcolor: '#f0f4f8', cursor: 'pointer' }
-const ISUGG_BOX  = { px: 2, pb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5, bgcolor: '#fff', borderBottom: '1px solid #f0f0f0' }
+const ISUGG_BOX  = { px: 2, pb: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5, bgcolor: 'var(--bg-paper)', borderBottom: '1px solid var(--surface-muted)' }
 
 const fmtD = (d) => { const [y, m, day] = d.split('-'); return `${y}/${m}/${day}` }
 
@@ -451,7 +451,7 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
   const formArea = useMemo(() => !open ? null : (
     // 余りの高さはフォームに持たせる。どこも伸びないと余白が最下部に落ちて
     // 電卓が宙に浮き、キーが親指の届く位置から外れる（実測で 128px 余っていた）
-    <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', bgcolor: '#fff', borderBottom: '1px solid #e0e0e0' }}>
+    <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', bgcolor: 'var(--bg-paper)', borderBottom: '1px solid var(--divider)' }}>
 
       {/* 日付 */}
       <Box sx={IROW_TAP} onClick={() => dateRef.current?.click()}>
@@ -497,7 +497,7 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
           {SPEND_TYPES.map(t => (
             <Box key={t} onClick={() => { spendTouchedRef.current = true; setSpendType(t) }} sx={{
               px: 1.25, py: 0.4, borderRadius: 2, cursor: 'pointer', fontSize: 13, userSelect: 'none',
-              bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
+              bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : 'var(--surface-line)',
               color: spendType === t ? '#fff' : '#757575',
               fontWeight: spendType === t ? 700 : 400,
             }}>{t}</Box>
@@ -548,11 +548,11 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
     // キーボードが出てもこの画面は元の高さのまま＝上に重なるだけになる。
     // 足さないと電卓もフォームも潰れる（useKeyboardInset.js）
     <Box sx={{ position: 'fixed', top: 0, left: 0, right: 0, height: 'calc(100% + var(--kb-inset, 0px))',
-      zIndex: 1300, bgcolor: '#fafafa', display: 'flex', flexDirection: 'column',
+      zIndex: 1300, bgcolor: 'var(--surface-subtle)', display: 'flex', flexDirection: 'column',
       maxWidth: 600, mx: 'auto', pb: 'env(safe-area-inset-bottom)' }}>
 
       {/* ヘッダー（上はステータスバーに潜らないよう余白を取る） */}
-      <Box sx={{ bgcolor: 'primary.main', color: '#fff', px: 1, display: 'flex', alignItems: 'center',
+      <Box sx={{ bgcolor: 'var(--surface-header)', color: '#fff', px: 1, display: 'flex', alignItems: 'center',
         minHeight: 56, flexShrink: 0, pt: 'env(safe-area-inset-top)' }}>
         <IconButton onClick={doClose} sx={{ color: '#fff' }}>
           <ArrowBackIcon />
@@ -822,7 +822,7 @@ export default function CreditCard() {
 
 
   // 折りたたみヘッダーのスタイル（固定費/変動費で共有）
-  const hdrSx = { bgcolor: 'primary.main', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }
+  const hdrSx = { bgcolor: 'var(--surface-header)', px: 2, py: 0.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }
   const hdrIconColor = '#fff'
   const hdrTitleSx   = { color: 'rgba(255,255,255,.9)', fontWeight: 600, letterSpacing: 0.5 }
   const hdrAmtSx     = { color: 'rgba(255,255,255,.8)', fontWeight: 600 }
@@ -1140,7 +1140,7 @@ export default function CreditCard() {
         <Collapse in={varOpen}>
           <CardContent sx={{ px: 0, py: 0, '&:last-child': { pb: 0 } }}>
             {searchOpen && (
-              <Box sx={{ px: 2, py: 1, borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ px: 2, py: 1, borderBottom: '1px solid var(--surface-muted)', display: 'flex', alignItems: 'center', gap: 1 }}>
                 <SearchIcon sx={{ fontSize: 18, color: 'text.disabled', flexShrink: 0 }} />
                 <InputBase
                   fullWidth autoFocus value={query}
