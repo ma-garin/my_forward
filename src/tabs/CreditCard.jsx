@@ -37,6 +37,7 @@ import CombinedSummary from '../components/CombinedSummary'
 import BudgetBreakdown from '../components/BudgetBreakdown'
 import MonthNav from '../components/MonthNav'
 import InboxCard from '../components/InboxCard'
+import { forecastCycle } from '../utils/forecast'
 import { useInbox } from '../utils/useInbox'
 import { useAfterPaint } from '../utils/useAfterPaint'
 import { pushScreen } from '../utils/useAndroidBack'
@@ -936,6 +937,8 @@ export default function CreditCard() {
         const barColor = pct >= 90 ? '#ef9a9a' : pct >= 70 ? '#ffe082' : 'rgba(255,255,255,.55)'
         const livingTotal = sumLiving(varList)
         const otherVarTotal = varTotal - livingTotal
+        // このペースで使うと締め日にいくらになるか（今のサイクルのときだけ出る）
+        const fc = forecastCycle({ card, ym, varTotal, fixedTotal, limit })
 
         return (
           <Card sx={{ mb: 2, bgcolor: card.color, color: '#fff' }}>
@@ -978,6 +981,28 @@ export default function CreditCard() {
                       transition: 'width .4s ease' }} />
                   </Box>
                   <Typography variant="caption" sx={{ opacity: .6, fontSize: 11, mt: 0.5, display: 'block' }}>{pct.toFixed(0)}% 使用</Typography>
+                </Box>
+              )}
+
+              {/* 着地の見込み。残り予算だけだと、月初に使いすぎているのか
+                  ならして使えているのかが分からない */}
+              {fc && (
+                <Box sx={{ mt: limit > 0 ? 0 : 1, mb: 0.5, py: 0.75, px: 1,
+                  borderRadius: 1, bgcolor: 'rgba(255,255,255,.08)' }}>
+                  <Stack direction="row" alignItems="baseline" justifyContent="space-between" gap={1}>
+                    <Typography variant="caption" sx={{ opacity: .75 }}>
+                      このペースだと締め日に
+                    </Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700,
+                      color: fc.overBy > 0 ? '#ef9a9a' : 'inherit' }}>
+                      ¥{fmt(fc.forecast)}
+                    </Typography>
+                  </Stack>
+                  <Typography variant="caption" sx={{ opacity: .6, fontSize: 10, display: 'block' }}>
+                    {fc.overBy > 0
+                      ? `上限を ¥${fmt(fc.overBy)} 超えます・残り${fc.remainingDays}日は 1日 ¥${fmt(fc.safePerDay)} まで`
+                      : `1日あたり ¥${fmt(Math.round(fc.pacePerDay))}・残り${fc.remainingDays}日`}
+                  </Typography>
                 </Box>
               )}
 
