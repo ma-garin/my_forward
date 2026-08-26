@@ -7,7 +7,7 @@ import HomeIcon from '@mui/icons-material/Home'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
 import SettingsIcon from '@mui/icons-material/Settings'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import theme from './theme'
+import { buildTheme } from './theme'
 import { getDataVersion } from './utils/ccStorage'
 import SalarySimulation from './tabs/SalarySimulation'
 import CreditCard from './tabs/CreditCard'
@@ -21,12 +21,14 @@ import DataSettings from './settings/DataSettings'
 import AppInfo from './settings/AppInfo'
 import NotificationCaptureSettings from './settings/NotificationCaptureSettings'
 import ReminderSettings from './settings/ReminderSettings'
+import AppearanceSettings from './settings/AppearanceSettings'
 import { useAndroidBack, pushScreen } from './utils/useAndroidBack'
 import { useKeyboardInset } from './utils/useKeyboardInset'
 import { useLaunchIntent } from './utils/useLaunchIntent'
 import { useReminderSync } from './utils/useReminders'
 import { useAutoBackup } from './utils/useAutoBackup'
 import { useWidgetSync } from './utils/useWidget'
+import { useColorMode } from './utils/useColorMode'
 import RestoreOffer from './components/RestoreOffer'
 
 const TABS = [
@@ -54,6 +56,7 @@ const SETTINGS_TITLES = {
   appInfo:       'アプリ情報',
   reminders:     '通知',
   notifications: '通知の取り込み',
+  appearance:    '外観',
 }
 
 export default function App() {
@@ -70,6 +73,19 @@ function AppInner() {
   useReminderSync()
   useWidgetSync()
   const { offer: restoreOffer, dismiss: dismissRestore } = useAutoBackup()
+
+  const { resolved: colorMode } = useColorMode()
+  const theme = useMemo(() => buildTheme(colorMode), [colorMode])
+
+  // ステータスバーと、行き過ぎスクロールで覗く地の色をテーマに合わせる。
+  // ここを変えないと、暗くしたときに画面の上下だけ明るいままになる。
+  useEffect(() => {
+    const bg = theme.palette.background.default
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content',
+      colorMode === 'dark' ? bg : theme.palette.primary.dark)
+    document.documentElement.style.backgroundColor = bg
+    document.body.style.backgroundColor = bg
+  }, [theme, colorMode])
 
   const [activeTab,    setActiveTab]    = useState(0)
   const [refreshKeys,  setRefreshKeys]  = useState([0, 0, 0, 0])
@@ -201,6 +217,7 @@ function AppInner() {
             {settingsPage === 'appInfo'       && <AppInfo />}
             {settingsPage === 'reminders'     && <ReminderSettings />}
             {settingsPage === 'notifications' && <NotificationCaptureSettings />}
+            {settingsPage === 'appearance'    && <AppearanceSettings />}
           </Box>
         </Drawer>
 

@@ -1,4 +1,5 @@
 import { DEFAULT_JCB_FIXED, currentBillingYm } from './finance'
+import { recordPriceChange } from './priceLog'
 
 // ─── カード定義 ────────────────────────────────────────────
 
@@ -25,7 +26,7 @@ export const CARD_LIST = Object.values(CARDS)
 
 // ─── 共有スタイル定数 ────────────────────────────────────────
 
-export const BORDER_LIGHT = '1px solid #f5f5f5'
+export const BORDER_LIGHT = '1px solid var(--surface-line)'
 
 // ─── 表示用定数 ──────────────────────────────────────────────
 
@@ -217,6 +218,10 @@ export function billingYmForCard(dateStr, cardId, fallbackYm) {
  */
 export function upsertFixedItem({ item, fromCard, toCard = fromCard }) {
   const list = loadFixed(fromCard)
+  // 金額を書き換えると前の金額は残らないので、変わった時点でここに控える。
+  // 棚卸しの「値上げ」はこの記録だけが頼り
+  const before = list.find(x => x.id === item.id)
+  if (before) recordPriceChange({ before, after: item })
   if (toCard === fromCard) {
     const next = list.some(x => x.id === item.id)
       ? list.map(x => x.id === item.id ? item : x)

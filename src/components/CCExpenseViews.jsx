@@ -10,7 +10,7 @@ import { CATEGORY_COLORS, BORDER_LIGHT, SPEND_TYPE_COLORS } from '../utils/ccSto
 // ─── 共通スタイル ─────────────────────────────────────────
 // レンダーごとに新しいオブジェクトを作らないよう、モジュール定数として持つ。
 
-const GROUP_HEAD_SX  = { px: 2, py: 0.5, bgcolor: '#f5f5f5', borderBottom: '1px solid #eeeeee' }
+const GROUP_HEAD_SX  = { px: 2, py: 0.5, bgcolor: 'var(--surface-line)', borderBottom: '1px solid var(--divider)' }
 const GROUP_LABEL_SX = { fontSize: 11, fontWeight: 700, color: 'text.secondary' }
 const GROUP_TOTAL_SX = { fontSize: 10, color: 'text.disabled', ml: 1, fontVariantNumeric: 'tabular-nums' }
 
@@ -257,7 +257,7 @@ export function DailyBarChart({ varList }) {
   const fmtAmt   = (v) => v >= 10000 ? `${Math.round(v / 1000)}k` : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`
 
   return (
-    <Box sx={{ px: 1.5, pt: 1.5, pb: 1, borderBottom: '1px solid #f0f0f0' }}>
+    <Box sx={{ px: 1.5, pt: 1.5, pb: 1, borderBottom: '1px solid var(--surface-muted)' }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
         <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary', fontWeight: 600 }}>日別支出</Typography>
         <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>最大 ¥{fmt(maxAmt)}</Typography>
@@ -277,7 +277,7 @@ export function DailyBarChart({ varList }) {
                 ¥{fmtAmt(amt)}
               </Typography>
               <Box sx={{ width: BAR_W - 4, height: barH, bgcolor: isToday ? '#1976d2' : isMax ? '#e53935' : '#90a4ae', borderRadius: '3px 3px 0 0', opacity: 0.85 }} />
-              <Box sx={{ width: '100%', borderTop: '1px solid #e0e0e0', pt: 0.25 }}>
+              <Box sx={{ width: '100%', borderTop: '1px solid var(--divider)', pt: 0.25 }}>
                 <Typography variant="caption" sx={{ fontSize: 9, color: isToday ? '#1976d2' : 'text.secondary', fontWeight: isToday ? 700 : 400, display: 'block', textAlign: 'center' }}>
                   {day}
                 </Typography>

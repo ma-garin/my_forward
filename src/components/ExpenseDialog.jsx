@@ -167,7 +167,7 @@ export default function ExpenseDialog({ open, onClose, onSave, onDuplicate, init
                 {SPEND_TYPES.map(t => (
                   <Box key={t} onClick={() => setSpendType(t)} sx={{
                     px: 1.5, py: 0.5, borderRadius: 2, cursor: 'pointer', fontSize: 12, userSelect: 'none',
-                    bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : '#f5f5f5',
+                    bgcolor: spendType === t ? SPEND_TYPE_COLORS[t] : 'var(--surface-line)',
                     color: spendType === t ? '#fff' : 'text.secondary',
                     fontWeight: spendType === t ? 700 : 400,
                   }}>{t}</Box>
@@ -180,7 +180,7 @@ export default function ExpenseDialog({ open, onClose, onSave, onDuplicate, init
               <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12, minWidth: 52 }}>返金</Typography>
               <Box onClick={() => setRefund(v => !v)} sx={{
                 px: 1.5, py: 0.5, borderRadius: 2, cursor: 'pointer', fontSize: 12, userSelect: 'none',
-                bgcolor: refund ? '#c62828' : '#f5f5f5',
+                bgcolor: refund ? '#c62828' : 'var(--surface-line)',
                 color: refund ? '#fff' : 'text.secondary',
                 fontWeight: refund ? 700 : 400,
               }}>返金として記録（マイナス扱い）</Box>

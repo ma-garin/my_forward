@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   Box, Card, CardContent, Typography, Stack, Divider, IconButton, Button, TextField,
   Dialog, DialogTitle, DialogContent, DialogActions,
@@ -9,7 +9,8 @@ import CardHeaderBar from './CardHeaderBar'
 import AmountField, { parseAmount } from './AmountField'
 import { fmt, getCCTotal, newId } from '../utils/finance'
 import { CARD_LIST } from '../utils/ccStorage'
-import { loadAccounts, saveAccounts, totalBalance } from '../utils/accounts'
+import { loadAccounts, saveAccounts, totalBalance, recordNetWorth, loadNetWorthHistory } from '../utils/accounts'
+import NetWorthTrend from './NetWorthTrend'
 
 /**
  * 口座残高と純資産。
@@ -19,7 +20,7 @@ import { loadAccounts, saveAccounts, totalBalance } from '../utils/accounts'
  * 現金は「口座」として残高を持たせる（現金支出はカード側の集計に入るので、
  * ここで二重には引かない）。
  */
-export default function NetWorthCard({ billingYm }) {
+export default function NetWorthCard({ billingYm, isCurrentMonth = false }) {
   const [accounts, setAccounts] = useState(loadAccounts)
   const [dlg, setDlg] = useState(null)   // null | { id?, name, balance }
 
@@ -32,6 +33,22 @@ export default function NetWorthCard({ billingYm }) {
 
   const balance = totalBalance(accounts)
   const netWorth = balance - unpaid
+
+  // 今月ぶんの純資産を記録して推移にする。
+  // 過去の月を開いているときは未払いがその月のものになるので記録しない
+  // （振り返っただけで履歴が書き換わってしまう）。
+  const [history, setHistory] = useState(loadNetWorthHistory)
+  useEffect(() => {
+    if (!isCurrentMonth || accounts.length === 0) return
+    // 記録は描画のあとに回す。effect の中で同期に state を更新すると
+    // 開くたびに描画が 1 回増える
+    const timer = setTimeout(() => {
+      const now = new Date()
+      const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      setHistory(recordNetWorth(netWorth, ym))
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [isCurrentMonth, netWorth, accounts.length])
 
   const commit = (next) => {
     setAccounts(next)
@@ -95,10 +112,12 @@ export default function NetWorthCard({ billingYm }) {
             <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ pt: 0.6 }}>
               <Typography fontSize={13} fontWeight={700}>純資産</Typography>
               <Typography fontSize={18} fontWeight={700}
-                sx={{ fontVariantNumeric: 'tabular-nums', color: netWorth < 0 ? '#c62828' : 'inherit' }}>
+                sx={{ fontVariantNumeric: 'tabular-nums', color: netWorth < 0 ? 'error.main' : 'inherit' }}>
                 ¥{fmt(netWorth)}
               </Typography>
             </Stack>
+
+            <NetWorthTrend history={history} />
           </>
         )}
       </CardContent>

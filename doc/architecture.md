@@ -35,6 +35,7 @@
 App.jsx
 ├── CreditCard.jsx        # クレカタブ本体
 │   ├── FixedExpenseTable # 固定費リスト（内部。ExpenseRow を使う）
+│   ├── InboxCard         # 未確定の支出（カード利用通知から）
 │   ├── VarExpenseTable   # 変動費リスト（CCExpenseViews.jsx）
 │   ├── DailyBarChart     # 日別棒グラフ（CCExpenseViews.jsx）
 │   ├── AddExpenseScreen  # 支出追加のフルスクリーン入力（内部）
@@ -48,7 +49,9 @@ App.jsx
 │   ├── IncomeSummaryCard # 収支サマリー
 │   ├── CombinedSummary   # 2枚合計・固定費内訳
 │   ├── LivingExpenseCard
-│   ├── MonthlyTrendCard  # 支出トレンド（6ヶ月）
+│   ├── MonthlyTrendCard  # 支出トレンド（6ヶ月・前年同月の点線つき）
+│   ├── FixedInventoryCard # 固定費の棚卸し（年額換算・値上げ検知）
+│   ├── NetWorthCard      # 純資産（NetWorthTrend で推移の折れ線）
 │   ├── SpendTypeChart / CategoryChart / CategoryBreakdown
 ├── Cashflow.jsx          # 支出一覧タブ本体
 └── SalarySimulation.jsx  # 給与タブ本体
@@ -72,6 +75,7 @@ SettingsMain.jsx → SalarySettings.jsx / CardSettings.jsx / DataSettings.jsx
 | `AmountField` / `CalcPad` | `components/AmountField.jsx` | 金額入力（電卓シート） |
 | `SwipeRow` | `components/SwipeRow.jsx` | 行タップ + 左スワイプ削除 |
 | `MonthNav` | `components/MonthNav.jsx` | 月ナビ（前後移動 + 年月タップで直接ジャンプ） |
+| `SearchScreen` | `components/SearchScreen.jsx` | 全カード・全期間の横断検索（支出一覧タブの虫めがね） |
 
 ### 行の操作
 
@@ -106,6 +110,25 @@ props で渡すと 1 タップごとに props が変わって `memo` が必ず�
 
 `getBillingYmForDate(dateStr, cutoffDay)` の第 2 引数は **締め日（数値）**。
 カード ID を渡すと締め日判定が効かないので、通常は `billingYmForCard` を使う。
+
+## カード利用通知の取り込み
+
+Android アプリ版のみ。通知を読む → 支出の下書きを作る → 押したものだけ登録する。
+
+```
+NotificationCaptureService(Java)  通知を SharedPreferences に貯める
+  → utils/notificationCapture.js  ネイティブから読む
+  → utils/parseCardNotification.js 文面 → 下書き（金額・日時・利用先・カード）
+  → utils/inbox.js                重複を潰して cc_inbox に貯める / 承認して変動費へ
+  → utils/useInbox.js             起動時と復帰時に読み直す
+  → components/InboxCard.jsx      クレカタブの「未確定の支出」
+```
+
+読める文面は Vpass（日時・利用先・金額）と Google ウォレット（金額・カード）。
+メールや LINE の通知は金額を持たないので落とす。同じ買い物で複数のアプリが
+鳴るため、**支払い元・金額が同じで 15 分以内なら 1 件**にまとめる。
+カードの判定は `CARDS` の `shortName` で引くので、カードを増やしてもパーサは
+触らなくてよい。
 
 ## カード定義
 
@@ -152,9 +175,31 @@ CARDS = {
 **変動費のみが持つ**。固定費は分類の対象外で、保存時に `spendType` を書き込まない。
 消費分類グラフ（`SpendTypeChart`）の集計対象も変動費のみ。
 
-## テーマ
+## テーマ（ライト / ダーク）
 
-`src/theme.js` の 1 つだけ。切り替えは持たない。
+`src/theme.js` の `buildTheme(mode)` が明暗 2 つのパレットを作る。選択は
+`utils/useColorMode.js`（`cc_theme_mode`: `system` / `light` / `dark`、既定は
+`system`＝端末追従）。設定 → 外観 で変えられる。
+
+**画面側は色を直に書かない。** 面と淡色は theme が `:root` に配る CSS 変数を使う。
+
+| 変数 | 用途（旧ハードコード値） |
+|------|------------------------|
+| `--bg-paper` | カードの地（`#fff`） |
+| `--surface-subtle` | 一段沈んだ帯・表の縞（`#fafafa` / `#f9fafb`） |
+| `--surface-muted` | 選択肢の下地（`#f0f0f0` / `#eeeeee`） |
+| `--surface-line` | 行間の細い区切り（`#f5f5f5`。`BORDER_LIGHT` が使う） |
+| `--surface-header` | カード上部の見出し帯。白文字が乗るので暗い側でも暗いまま |
+| `--divider` | 枠線（`#e0e0e0`） |
+| `--tint-*` / `--on-tint-*` | 表の強調行・淡色チップとその文字色 |
+
+`primary.main` は暗い側では明るい色になる。**白文字を乗せる帯に
+`bgcolor: 'primary.main'` を使わない**（`--surface-header` を使う）。
+カード色・グラフ色・消費分類の色は識別のための強い色なので反転させない。
+
+スプラッシュ（`index.html`）も同じ判定で先に地の色を決める。ここを抜くと
+起動のたびに白く光る。
 
 以前は Apple 風テーマを併存させていたが、画面ごとに `mode === 'apple'` の
 分岐を抱えることになり、見せ方が二重管理になっていたため取りやめた。
+今回の明暗は分岐ではなく token の入れ替えで実現している。

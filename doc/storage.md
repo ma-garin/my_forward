@@ -29,6 +29,11 @@
 | `cc_subs_dismissed` | `string[]` | サブスク提案で「非表示」にした識別子 | `loadDismissed` / `dismissSubscription`（subscriptions.js） |
 | `cc_reminders_enabled` | `'0' \| '1'` | 締め日・支払日通知の有効/無効 | `loadRemindersEnabled` / `saveRemindersEnabled`（reminders.js） |
 | `cc_auto_backup_at` | `string` | 自動バックアップを最後に取った時刻（ISO） | 自動管理（autoBackup.js） |
+| `cc_fixed_price_log` | `{ id, name, from, to, ym }[]` | 固定費の金額が変わった記録（値上げ検知に使う・最大200件） | `recordPriceChange` / `loadPriceLog`（priceLog.js） |
+| `cc_networth_history` | `{ ym: string, value: number }[]` | 純資産の月次スナップショット（月1点・最大60ヶ月） | `recordNetWorth` / `loadNetWorthHistory`（accounts.js） |
+| `cc_inbox` | `Draft[]` | カード利用通知から作った未確定の支出 | `loadInbox` / `ingestNotifications`（inbox.js） |
+| `cc_inbox_handled` | `{ cardId, amount, at }[]` | 承認・無視した通知の記録（再取り込みで復活させない。最大400件） | 自動管理（inbox.js） |
+| `cc_theme_mode` | `'system' \| 'light' \| 'dark'` | 外観（既定は system＝端末追従） | `loadThemeMode` / `saveThemeMode`（useColorMode.js） |
 
 ## 給与
 
@@ -84,6 +89,17 @@ VarItem = {
   spendType: '消費' | '投資' | '浪費'
   date: string              // YYYY-MM-DD
   sign?: 0 | 1              // 1=返金（マイナス扱い）
+}
+
+// 通知から作った支出の下書き（受信箱）
+Draft = {
+  id: string
+  source: 'vpass' | 'googlepay'
+  cardId: string
+  amount: number
+  at: number                // 取引時刻(ms)。二重通知の判定に使う
+  date: string              // YYYY-MM-DD
+  payee: string             // 利用先（Google ウォレットは空）
 }
 
 // 家計タブ固定費内訳

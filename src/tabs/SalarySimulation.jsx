@@ -99,13 +99,13 @@ function OverrideRow({ label, autoValue, overrideValue, editMode, fieldKey, onEd
   const displayValue = isOverridden ? overrideValue : autoValue
   return (
     <Stack direction="row" alignItems="center" justifyContent="space-between"
-      sx={{ py: 0.75, px: 1, mx: -1, borderRadius: 1, bgcolor: '#f1f8e9' }}>
+      sx={{ py: 0.75, px: 1, mx: -1, borderRadius: 1, bgcolor: 'var(--tint-green-soft)' }}>
       <Stack direction="row" alignItems="center" gap={0.75}>
         <Typography variant="body2" color="text.secondary">{label}</Typography>
         <Chip label={isOverridden ? '手動' : '自動'} size="small"
           sx={{ height: 16, fontSize: 10,
-            bgcolor: isOverridden ? '#e3f2fd' : '#c8e6c9',
-            color:   isOverridden ? '#1565c0' : '#2e7d32' }} />
+            bgcolor: isOverridden ? 'var(--tint-blue)' : 'var(--tint-mint)',
+            color:   isOverridden ? 'var(--on-tint-blue)' : '#2e7d32' }} />
       </Stack>
       {editMode ? (
         <Stack direction="row" alignItems="center" gap={0.5}>
@@ -135,12 +135,12 @@ function AutoRow({ label, valueC, valueF }) {
   const value = valueC ?? valueF
   return (
     <Stack direction="row" alignItems="center" justifyContent="space-between"
-      sx={{ py: 0.75, px: 1, mx: -1, borderRadius: 1, bgcolor: '#f1f8e9' }}>
+      sx={{ py: 0.75, px: 1, mx: -1, borderRadius: 1, bgcolor: 'var(--tint-green-soft)' }}>
       <Stack direction="row" alignItems="center" gap={0.75}>
         <Typography variant="body2" color="text.secondary">{label}</Typography>
-        <Chip label="自動" size="small" sx={{ height: 16, fontSize: 10, bgcolor: '#c8e6c9', color: '#2e7d32' }} />
+        <Chip label="自動" size="small" sx={{ height: 16, fontSize: 10, bgcolor: 'var(--tint-mint)', color: '#2e7d32' }} />
       </Stack>
-      <Typography variant="body2" fontWeight={600} color={valueC != null ? '#1565c0' : 'text.primary'}>
+      <Typography variant="body2" fontWeight={600} color={valueC != null ? 'var(--on-tint-blue)' : 'text.primary'}>
         ¥{fmt(value)}
       </Typography>
     </Stack>
@@ -250,7 +250,7 @@ function DrumRoll({ items, value, onChange }) {
         scrollSnapType: 'y mandatory',
         scrollbarWidth: 'none',
         '&::-webkit-scrollbar': { display: 'none' },
-        border: '1px solid #e0e0e0',
+        border: '1px solid var(--divider)',
         borderRadius: 1,
         WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 33%, black 67%, transparent)',
         maskImage: 'linear-gradient(to bottom, transparent, black 33%, black 67%, transparent)',
@@ -558,7 +558,7 @@ export default function SalarySimulation() {
         <Divider sx={{ my: 0.5 }} />
         <Stack direction="row" justifyContent="space-between" sx={{ pt: 0.5 }}>
           <Typography variant="body2" fontWeight={600}>支給額合計</Typography>
-          <Typography variant="body2" fontWeight={700} color={rowC != null ? '#1565c0' : 'primary.dark'}>
+          <Typography variant="body2" fontWeight={700} color={rowC != null ? 'var(--on-tint-blue)' : 'primary.dark'}>
             ¥{fmt(displayTotalPay)}
           </Typography>
         </Stack>

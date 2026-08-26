@@ -67,11 +67,11 @@ const CHANGELOG = [
 ]
 
 const TECH_STACK = [
-  { label: 'React 19', color: '#e3f2fd' },
-  { label: 'Vite 8',   color: '#e8f5e9' },
+  { label: 'React 19', color: 'var(--tint-blue)' },
+  { label: 'Vite 8',   color: 'var(--tint-green)' },
   { label: 'MUI v6',   color: '#fce4ec' },
-  { label: 'WebCrypto API', color: '#fff3e0' },
-  { label: 'PWA',      color: '#f3e5f5' },
+  { label: 'WebCrypto API', color: 'var(--tint-orange)' },
+  { label: 'PWA',      color: 'var(--tint-purple)' },
 ]
 
 /**
@@ -220,7 +220,7 @@ export default function AppInfo() {
       </Typography>
 
       {/* データの取り扱い */}
-      <Box sx={{ bgcolor: '#e8f5e9', borderRadius: 2, p: 2, mb: 2 }}>
+      <Box sx={{ bgcolor: 'var(--tint-green)', borderRadius: 2, p: 2, mb: 2 }}>
         <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>データの取り扱い</Typography>
         <Stack spacing={1.25}>
           <Stack direction="row" spacing={1.5} alignItems="flex-start">
@@ -264,7 +264,7 @@ export default function AppInfo() {
         <Box key={release.version} sx={{ mb: 2 }}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}>
             <Typography variant="caption" fontWeight={700}
-              sx={{ bgcolor: ri === 0 ? 'primary.main' : '#e0e0e0',
+              sx={{ bgcolor: ri === 0 ? 'primary.main' : 'var(--divider)',
                     color: ri === 0 ? '#fff' : 'text.primary',
                     px: 1, py: 0.25, borderRadius: 1, fontSize: 11 }}>
               v{release.version}

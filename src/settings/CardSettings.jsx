@@ -96,7 +96,7 @@ export default function CardSettings() {
 
       <Stack gap={1} sx={{ mb: 2 }}>
         {cards.map(card => (
-          <Box key={card.id} sx={{ p: 1.5, border: '1px solid #e0e0e0', borderRadius: 2,
+          <Box key={card.id} sx={{ p: 1.5, border: '1px solid var(--divider)', borderRadius: 2,
             borderLeft: `4px solid ${card.color}` }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between">
               <Box>
