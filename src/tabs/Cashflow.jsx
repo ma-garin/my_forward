@@ -7,6 +7,8 @@ import {
 } from '@mui/material'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import SearchIcon from '@mui/icons-material/Search'
+import SearchScreen from '../components/SearchScreen'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import AmountField, { parseAmount } from '../components/AmountField'
@@ -315,6 +317,7 @@ export default function Cashflow() {
   const [detailItem, setDetailItem] = useState(null)
   const [snack, setSnack] = useState({ open: false, severity: 'success', message: '' })
   const [categories, setCategories] = useState(loadCategories)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   useEffect(() => {
     const handler = (e) => { if (!e.key || e.key === 'cc_categories') setCategories(loadCategories()) }
@@ -429,10 +432,18 @@ export default function Cashflow() {
           <Typography variant="subtitle1" fontWeight={700}>{year}年{month}月</Typography>
           <Typography variant="caption" color="text.secondary">JCB/VISA 支出明細</Typography>
         </Box>
-        <IconButton size="small" aria-label="翌月" onClick={() => moveMonth(1)}>
-          <ChevronRightIcon />
-        </IconButton>
+        <Stack direction="row" alignItems="center">
+          <IconButton size="small" aria-label="翌月" onClick={() => moveMonth(1)}>
+            <ChevronRightIcon />
+          </IconButton>
+          {/* 検索は月に紐づかない（全期間を横断する）ので月ナビの外に置く */}
+          <IconButton size="small" aria-label="支出を検索" onClick={() => setSearchOpen(true)}>
+            <SearchIcon />
+          </IconButton>
+        </Stack>
       </Stack>
+
+      {searchOpen && <SearchScreen onClose={() => setSearchOpen(false)} />}
 
       <Box sx={{ bgcolor: '#263238', color: '#fff', borderRadius: 2, px: 2, py: 1.25, mb: 1.5 }}>
         <Typography variant="caption" sx={{ opacity: 0.75 }}>月合計</Typography>
