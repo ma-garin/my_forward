@@ -38,12 +38,12 @@ export default function MonthlyTrendCard({ currentBillingYm }) {
     <Card sx={{ mb: 1.5 }}>
       <CardHeaderBar title="支出トレンド（6ヶ月）" />
       <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 2 } }}>
-        <Stack direction="row" alignItems="flex-end" spacing={0.5} sx={{ height: 100 }}>
+        <Stack direction="row" alignItems="stretch" spacing={0.5} sx={{ height: 100 }}>
           {data.map(({ ym, month, total }) => {
             const isCurrent = ym === currentBillingYm
             const pct = maxTotal > 0 ? (total / maxTotal) * 100 : 0
             return (
-              <Stack key={ym} alignItems="center" sx={{ flex: 1 }}>
+              <Stack key={ym} alignItems="center" justifyContent="flex-end" sx={{ flex: 1, height: '100%' }}>
                 {total > 0 && (
                   <Typography sx={{ fontSize: 8, color: isCurrent ? 'primary.main' : 'text.secondary', mb: 0.3, fontWeight: isCurrent ? 700 : 400 }}>
                     ¥{total >= 10000 ? `${Math.round(total / 1000)}k` : fmt(total)}
