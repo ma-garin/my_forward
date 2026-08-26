@@ -1,9 +1,9 @@
 name: Deploy to GitHub Pages
 
+# 自動では走らせない。手動実行（Actions タブの Run workflow）だけ。
+# main への push で毎回デプロイしない方針にした。
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   deploy:

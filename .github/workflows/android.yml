@@ -1,35 +1,17 @@
 name: Build Android APK
 
-# 手動実行と、Android に関わるファイルを触った push で走らせる。
-# Android SDK は GitHub の ubuntu ランナーに同梱されているものを使う。
+# 自動では走らせない。手動実行（Actions タブの Run workflow）だけ。
+#
+# push や PR のたびに走らせない方針にした。APK が要るときだけ回す。
+# 元に戻すときは pull_request / push のトリガーをここに書き足す。
 on:
   workflow_dispatch:
-  # ネイティブ側はこの環境でコンパイルを確認できないので、PR でも走らせて
-  # マージ前に Java が通ることを見る
-  pull_request:
-    paths:
-      - 'android/**'
-      - 'src/**'
-      - 'capacitor.config.json'
-      - 'vite.config.js'
-      - 'package.json'
-      - '.github/workflows/android.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'android/**'
-      - 'src/**'
-      - 'capacitor.config.json'
-      - 'vite.config.js'
-      - 'package.json'
-      - '.github/workflows/android.yml'
 
-# 同じブランチで走っている古い実行は打ち切る。PR は最新のコミットだけ見れば
-# 十分で、前の実行を残してもランナーを占有するだけ。
-# main は打ち切らない（リリースの公開を途中で止めたくない）。
+# 同じブランチで二重に走らせない。手動で続けて押したときのため。
+# 走っているものは止めない（リリースの公開を途中で切らない）。
 concurrency:
   group: android-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -129,12 +111,11 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      # main では Release に APK そのものを置く。
+      # Release に APK そのものを置く。
       # 成果物の zip と違い、スマホのブラウザから直接タップしてインストールできる。
       # 常に下のURLが最新を指す:
       #   https://github.com/ma-garin/my_forward/releases/latest/download/app-debug.apk
       - name: Publish APK (release)
-        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
