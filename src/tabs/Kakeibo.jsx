@@ -69,7 +69,7 @@ export default function Kakeibo() {
       <CombinedSummary ym={billingYm} salaryYm={billingYm} otherIncomeYm={ym} combinedLimit={combinedLimit} />
 
       {/* 資産（口座残高・純資産） */}
-      <NetWorthCard billingYm={billingYm} />
+      <NetWorthCard billingYm={billingYm} isCurrentMonth={ym === currentYm()} />
 
       {/* 生活費カード */}
       <LivingExpenseCard ym={billingYm} />
