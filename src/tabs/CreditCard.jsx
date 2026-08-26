@@ -36,6 +36,8 @@ import LivingExpenseCard from '../components/LivingExpenseCard'
 import CombinedSummary from '../components/CombinedSummary'
 import BudgetBreakdown from '../components/BudgetBreakdown'
 import MonthNav from '../components/MonthNav'
+import InboxCard from '../components/InboxCard'
+import { useInbox } from '../utils/useInbox'
 import { useAfterPaint } from '../utils/useAfterPaint'
 import { pushScreen } from '../utils/useAndroidBack'
 import { onQuickAdd, takePendingQuickAdd } from '../utils/quickAdd'
@@ -643,6 +645,14 @@ export default function CreditCard() {
   const [billedIds,    setBilledIds]    = useState(() => loadBilled(cardId, ym))
   const [deleteDlg,    setDeleteDlg]    = useState(null) // { type:'fixed'|'var', id, name }
   const [categories,   setCategories]   = useState(loadCategories)
+
+  // カード利用通知から作った下書き。承認すると変動費に入るので、
+  // 画面の一覧も読み直す
+  const { drafts: inboxDrafts, accept: acceptInbox, dismiss: dismissDraft } = useInbox()
+  const acceptDraft = useCallback((id, overrides) => {
+    const res = acceptInbox(id, overrides)
+    if (res && res.cardId === cardId && res.ym === ym) setVarList(loadVar(cardId, ym))
+  }, [acceptInbox, cardId, ym])
   const [dlg,          setDlg]          = useState(null)
   const [catDlgOpen,   setCatDlgOpen]   = useState(false)
   const [limitInputs,  setLimitInputs]  = useState(() => Object.fromEntries(CARD_LIST.map((c) => [c.id, loadLimit(c.id)])))
@@ -1023,6 +1033,12 @@ export default function CreditCard() {
           onLimitChange={(v) => { setLimitInputs(prev => ({ ...prev, [cardId]: v })); saveLimit(cardId, v) }}
         />
       )}
+
+      {/* カード利用通知から作った未確定の支出。押したものだけ登録する */}
+      <InboxCard
+        drafts={inboxDrafts.filter((d) => d.cardId === cardId)}
+        onAccept={acceptDraft} onDismiss={dismissDraft} categories={categories}
+      />
 
       {/* サブスクの提案（毎月・同じ相手・同額が続いたら固定費化を勧める） */}
       {subsCandidates.length > 0 && (

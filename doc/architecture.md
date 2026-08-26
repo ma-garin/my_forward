@@ -107,6 +107,25 @@ props で渡すと 1 タップごとに props が変わって `memo` が必ず�
 `getBillingYmForDate(dateStr, cutoffDay)` の第 2 引数は **締め日（数値）**。
 カード ID を渡すと締め日判定が効かないので、通常は `billingYmForCard` を使う。
 
+## カード利用通知の取り込み
+
+Android アプリ版のみ。通知を読む → 支出の下書きを作る → 押したものだけ登録する。
+
+```
+NotificationCaptureService(Java)  通知を SharedPreferences に貯める
+  → utils/notificationCapture.js  ネイティブから読む
+  → utils/parseCardNotification.js 文面 → 下書き（金額・日時・利用先・カード）
+  → utils/inbox.js                重複を潰して cc_inbox に貯める / 承認して変動費へ
+  → utils/useInbox.js             起動時と復帰時に読み直す
+  → components/InboxCard.jsx      クレカタブの「未確定の支出」
+```
+
+読める文面は Vpass（日時・利用先・金額）と Google ウォレット（金額・カード）。
+メールや LINE の通知は金額を持たないので落とす。同じ買い物で複数のアプリが
+鳴るため、**支払い元・金額が同じで 15 分以内なら 1 件**にまとめる。
+カードの判定は `CARDS` の `shortName` で引くので、カードを増やしてもパーサは
+触らなくてよい。
+
 ## カード定義
 
 `cc_cards` に保存。デフォルトは JCB（id: `jcb`）と SMBC（id: `smbc`）。
