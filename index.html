@@ -22,7 +22,7 @@
         align-items: center;
         justify-content: center;
         gap: 18px;
-        background: #F2F2F7;
+        background: #eceff1;
         transition: opacity 0.4s ease;
       }
       #splash.splash-hide { opacity: 0; pointer-events: none; }
@@ -50,7 +50,7 @@
         #splash .mark { animation: none; }
       }
     </style>
-    <script type="module" crossorigin src="/my_forward/assets/index-XJGTu5Ey.js"></script>
+    <script type="module" crossorigin src="/my_forward/assets/index-c9-L3Pe_.js"></script>
     <link rel="stylesheet" crossorigin href="/my_forward/assets/index-BPxbHcUz.css">
   <link rel="manifest" href="/my_forward/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/my_forward/registerSW.js"></script></head>
   <body>
@@ -75,11 +75,17 @@
       <div class="title">資産管理</div>
     </div>
     <script>
-      // テーマに合わせてスプラッシュ背景を選ぶ。
-      // 既定は Apple 風(#F2F2F7)。明示的に現行を選んでいる場合のみグレー(#eceff1)。
+      // スプラッシュの地の色を先に決める。React が起動するまでの一瞬なので
+      // ここで暗くしておかないと、ダークで開くたびに白く光る。
       try {
-        if (localStorage.getItem('app_theme') === 'classic') {
-          document.getElementById('splash').style.background = '#eceff1';
+        var m = localStorage.getItem('cc_theme_mode') || 'system';
+        var dark = m === 'dark' || (m === 'system' &&
+          window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) {
+          document.getElementById('splash').style.background = '#12171a';
+          document.getElementById('splash').style.color = '#e2e7ea';
+          document.documentElement.style.backgroundColor = '#12171a';
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#12171a');
         }
       } catch (e) { /* localStorage 不可でも既定色で表示 */ }
     </script>
