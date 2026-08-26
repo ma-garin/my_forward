@@ -181,6 +181,11 @@ CARDS = {
 `utils/useColorMode.js`（`cc_theme_mode`: `system` / `light` / `dark`、既定は
 `system`＝端末追従）。設定 → 外観 で変えられる。
 
+**選択は画面をまたいで共有する。** `useColorMode` はフックの中に `useState` を
+持たず、`useSyncExternalStore` で購読者全員に知らせる。フックごとに state を
+持つと、設定画面と App がそれぞれ別の値を持ってしまい、切り替えても画面が
+変わらない（実際にそうなっていた）。
+
 **画面側は色を直に書かない。** 面と淡色は theme が `:root` に配る CSS 変数を使う。
 
 | 変数 | 用途（旧ハードコード値） |
