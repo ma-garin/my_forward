@@ -9,6 +9,12 @@ def buildNumber = (System.getenv('ANDROID_VERSION_CODE') ?: '1') as int
 // 生成されていた（ビルド 28〜39 が全部別署名だった実害）。
 def ciKeystorePath = System.getenv('ANDROID_KEYSTORE_PATH')
 
+// バージョンの出どころは package.json 1 つ。ここに直接書くと、
+// 画面の表示（アプリ情報）と食い違ってもビルドは通ってしまう。
+def appVersion = new groovy.json.JsonSlurper()
+        .parse(file('../../package.json'))
+        .version
+
 android {
     namespace = "com.magarin.myforward"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -17,8 +23,8 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode buildNumber
-        // アプリ情報の表示（APP_VERSION）と合わせる。インストーラにもこれが出る
-        versionName "1.4.0"
+        // package.json の version を使う（アプリ情報の表示と同じ出どころ）
+        versionName appVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

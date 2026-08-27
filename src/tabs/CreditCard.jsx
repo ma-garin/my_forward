@@ -20,7 +20,7 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import SwapVertIcon from '@mui/icons-material/SwapVert'
 import SearchIcon from '@mui/icons-material/Search'
 import CloseIcon from '@mui/icons-material/Close'
-import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm, addMonth } from '../utils/finance'
+import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm, addMonth, currentBillingYm } from '../utils/finance'
 import {
   CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
   sumLiving,
@@ -622,14 +622,11 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
 
 // ─── メインコンポーネント ─────────────────────────
 
+// 既定の表示月。判定は finance.currentBillingYm が持っているので、ここでは
+// 呼ぶだけにする（同じ「今どの請求月か」を 2 箇所で計算しない）
 function defaultBillingMonth() {
-  const today = new Date()
-  const cutoff = CARDS.jcb?.cutoffDay ?? 0
-  if (cutoff > 0 && today.getDate() <= cutoff) {
-    const d = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-    return { year: d.getFullYear(), month: d.getMonth() + 1 }
-  }
-  return { year: today.getFullYear(), month: today.getMonth() + 1 }
+  const [year, month] = currentBillingYm(CARDS.jcb?.cutoffDay ?? 0).split('-').map(Number)
+  return { year, month }
 }
 
 export default function CreditCard() {

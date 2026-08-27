@@ -26,7 +26,8 @@ export function normalizeText(s) {
 
 /** 1 件の通知から、文字が入っている欄をつなげる */
 function joinFields(record) {
-  return [record?.title, record?.text, record?.bigText, record?.subText, record?.infoText, record?.ticker]
+  return [record?.title, record?.text, record?.bigText, record?.subText,
+    record?.infoText, record?.ticker, record?.allText]
     .map(normalizeText)
     .filter((v, i, a) => v && a.indexOf(v) === i)
     .join(' ')
@@ -77,7 +78,6 @@ function parseVpass(text, postTime) {
   const cardText = VPASS_CARD.exec(text)?.[1] ?? text
 
   return {
-    source: 'vpass',
     cardId: cardIdFromText(cardText) ?? cardIdFromText(text),
     amount,
     at,
@@ -86,19 +86,24 @@ function parseVpass(text, postTime) {
   }
 }
 
-// ─── Google ウォレット ─────────────────────────────────────
+// ─── 決まった形を持たない通知 ───────────────────────────────
+//
+// Vpass のように項目名が付いていない通知（Google ウォレット、カード会社の
+// 公式アプリなど）はここで拾う。送信元を数え上げて分岐すると、数え漏れた
+// アプリの通知が丸ごと落ちる（MyJCB の利用通知が実際に落ちていた）。
+// 「金額」と「どのカードか」が読めれば下書きにする。
 
-const GPAY_AMOUNT = /[¥￥]\s*([\d,]+)/
+const ANY_AMOUNT = /[¥￥]\s*([\d,]+)|([\d,]+)\s*円/
 
-function parseGooglePay(text, postTime) {
-  const amount = toAmount(GPAY_AMOUNT.exec(text)?.[1] ?? '')
+function parseGeneric(text, postTime) {
+  const m = ANY_AMOUNT.exec(text)
+  const amount = toAmount(m?.[1] ?? m?.[2] ?? '')
   if (!amount) return null
   const cardId = cardIdFromText(text)
   // カードが特定できない支払い（交通系のチャージ等）は当てずっぽうで
   // 登録しても直す手間が増えるだけなので落とす
   if (!cardId) return null
   return {
-    source: 'googlepay',
     cardId,
     amount,
     at: postTime,
@@ -109,15 +114,23 @@ function parseGooglePay(text, postTime) {
 
 // ─── 入口 ─────────────────────────────────────────────────
 
+// 項目名の付いた文面（日時・利用先・金額が取れる）かどうか
 const isVpass = (text, pkg) =>
   /ご利用カード|利用先/.test(text) || /vpass|smbc/i.test(pkg ?? '')
 
-const isGooglePay = (text, pkg) =>
-  /google\s*pay|ウォレット/i.test(text) || /walletnfcrel|google.android.apps.wallet/i.test(pkg ?? '')
+// どこから来たかは記録用のラベル。解析の分岐には使わない
+function sourceOf(text, pkg) {
+  if (isVpass(text, pkg)) return 'vpass'
+  if (/google\s*pay|ウォレット/i.test(text) || /walletnfcrel|google.android.apps.wallet/i.test(pkg ?? '')) {
+    return 'googlepay'
+  }
+  return 'card'
+}
 
 /**
  * @param {{ packageName?: string, postTime?: number, title?: string, text?: string,
- *           bigText?: string, subText?: string, infoText?: string, ticker?: string }} record
+ *           bigText?: string, subText?: string, infoText?: string, ticker?: string,
+ *           allText?: string }} record
  * @returns {null | { source: string, cardId: string|null, amount: number,
  *                    at: number, date: string, payee: string }}
  */
@@ -127,12 +140,11 @@ export function parseCardNotification(record) {
   const postTime = Number(record?.postTime) || Date.now()
   const pkg = record?.packageName
 
-  const draft = isVpass(text, pkg)
-    ? parseVpass(text, postTime)
-    : isGooglePay(text, pkg)
-      ? parseGooglePay(text, postTime)
-      : null
+  // 項目名が付いていれば日時と利用先まで読む。読めなければ金額とカードだけ拾う
+  const draft = (isVpass(text, pkg) ? parseVpass(text, postTime) : null)
+    ?? parseGeneric(text, postTime)
 
   // 支払い元が分からない下書きは、どのカードに足すか決められないので出さない
-  return draft?.cardId ? draft : null
+  if (!draft?.cardId) return null
+  return { ...draft, source: sourceOf(text, pkg) }
 }

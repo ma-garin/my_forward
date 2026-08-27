@@ -4,6 +4,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { execSync } from 'child_process'
 import { existsSync, watch } from 'fs'
 import path from 'path'
+import { readFileSync } from 'fs'
+
+// バージョンの出どころは package.json 1 つ。画面と Android の両方がここを見る
+// （2 箇所に書くと、片方だけ上げたときにインストーラと画面で別の版が出る）
+const APP_VERSION = JSON.parse(readFileSync('./package.json', 'utf-8')).version
 
 const SALARY_DIR = path.resolve(__dirname, '../salary')
 const PARSE_SCRIPT = path.resolve(__dirname, 'scripts/parse_salary.py')
@@ -47,6 +52,9 @@ function salaryWatchPlugin() {
 }
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   test: {
     environment: 'jsdom',
     globals: true,

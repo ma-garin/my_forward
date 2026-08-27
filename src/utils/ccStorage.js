@@ -287,11 +287,6 @@ export function loadBilled(cardId, ym) {
 }
 export function saveBilled(cardId, ym, ids) { try { localStorage.setItem(`cc_billed_${cardId}_${ym}`, JSON.stringify(ids)); bumpDataVersion() } catch(e) { console.warn('saveBilled failed', e) } }
 
-export function loadWeeklyBudget() {
-  const v = parseInt(localStorage.getItem('life_weekly_budget') || '', 10)
-  return isNaN(v) ? 10000 : v
-}
-export function saveWeeklyBudget(v) { try { localStorage.setItem('life_weekly_budget', String(v)); bumpDataVersion() } catch(e) { console.warn('saveWeeklyBudget failed', e) } }
 
 const salaryOverrideMonthlyKey = 'cc_salary_override_by_ym'
 const salaryOverrideMigratedKey = 'cc_salary_override_migrated_v1'
@@ -344,11 +339,40 @@ export function loadSummaryFixed() {
 }
 export function saveSummaryFixed(list) { try { localStorage.setItem('cc_summary_fixed', JSON.stringify(list)); bumpDataVersion() } catch(e) { console.warn('saveSummaryFixed failed', e) } }
 
+/**
+ * 週予算（週にいくら使えるか）。
+ *
+ * 以前は cc_living_unit と life_weekly_budget の 2 キーに分かれていて、
+ * 生活費カードと 2 枚合計で別々に編集でき、互いに反映されなかった。
+ * 持ち主は 1 つにする。古いキーは初回だけ読んで引き継ぐ。
+ */
+const LIVING_UNIT_KEY = 'cc_living_unit'
+const LEGACY_LIVING_UNIT_KEY = 'life_weekly_budget'
+
+export const DEFAULT_LIVING_UNIT = 10000
+
 export function loadLivingUnit() {
-  const v = parseInt(localStorage.getItem('cc_living_unit') || '', 10)
-  return isNaN(v) ? 10000 : v
+  const read = (k) => parseInt(localStorage.getItem(k) || '', 10)
+  const v = read(LIVING_UNIT_KEY)
+  if (!isNaN(v)) return v
+
+  // 旧キーしか無い端末を引き継ぐ（一度だけ新しいキーへ写す）
+  const legacy = read(LEGACY_LIVING_UNIT_KEY)
+  if (!isNaN(legacy)) {
+    try { localStorage.setItem(LIVING_UNIT_KEY, String(legacy)) } catch { /* 読めれば十分 */ }
+    return legacy
+  }
+  return DEFAULT_LIVING_UNIT
 }
-export function saveLivingUnit(v) { try { localStorage.setItem('cc_living_unit', String(v)); bumpDataVersion() } catch(e) { console.warn('saveLivingUnit failed', e) } }
+
+export function saveLivingUnit(v) {
+  try {
+    localStorage.setItem(LIVING_UNIT_KEY, String(v))
+    // 旧キーを残すと、次の起動で古い値に戻ったように見える端末が出る
+    localStorage.removeItem(LEGACY_LIVING_UNIT_KEY)
+    bumpDataVersion()
+  } catch (e) { console.warn('saveLivingUnit failed', e) }
+}
 
 export function loadLivingOverride(cardId, ym) {
   const v = parseInt(localStorage.getItem(`cc_living_override_${cardId}_${ym}`) || '', 10)

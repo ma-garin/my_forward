@@ -73,17 +73,21 @@
       <div class="title">資産管理</div>
     </div>
     <script>
-      // スプラッシュの地の色を先に決める。React が起動するまでの一瞬なので
-      // ここで暗くしておかないと、ダークで開くたびに白く光る。
+      // スプラッシュの地の色。React が起動するまでの一瞬なので、ここで
+      // 暗くしておかないとダークで開くたびに白く光る。
+      //
+      // ただし「どちらの配色か」をここで判定しない。判定は useColorMode が
+      // 持っていて、その結果の色をアプリが cc_theme_bg に書いている。
+      // ここで同じ判定をもう一度書くと、配色の決め方を変えたときに
+      // 起動時だけ古い判定が残る。
       try {
-        var m = localStorage.getItem('cc_theme_mode') || 'system';
-        var dark = m === 'dark' || (m === 'system' &&
-          window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        if (dark) {
-          document.getElementById('splash').style.background = '#12171a';
-          document.getElementById('splash').style.color = '#e2e7ea';
-          document.documentElement.style.backgroundColor = '#12171a';
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#12171a');
+        var bg = localStorage.getItem('cc_theme_bg');
+        if (bg) {
+          var splash = document.getElementById('splash');
+          splash.style.background = bg;
+          splash.style.color = '#e2e7ea';
+          document.documentElement.style.backgroundColor = bg;
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', bg);
         }
       } catch (e) { /* localStorage 不可でも既定色で表示 */ }
     </script>

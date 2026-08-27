@@ -85,6 +85,9 @@ function AppInner() {
       colorMode === 'dark' ? bg : theme.palette.primary.dark)
     document.documentElement.style.backgroundColor = bg
     document.body.style.backgroundColor = bg
+    // 次回起動のスプラッシュがこの色をそのまま使う。
+    // 判定をあちらにも書くと、決め方を変えたとき起動時だけ食い違う
+    try { localStorage.setItem('cc_theme_bg', bg) } catch { /* 保存できなくても既定色で出る */ }
   }, [theme, colorMode])
 
   const [activeTab,    setActiveTab]    = useState(0)
