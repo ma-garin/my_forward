@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(AppUpdatePlugin.class);
         registerPlugin(SharedTextPlugin.class);
         registerPlugin(WidgetBridgePlugin.class);
+        registerPlugin(IconPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
