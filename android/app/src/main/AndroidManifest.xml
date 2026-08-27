@@ -138,6 +138,42 @@
                 android:resource="@xml/widget_living_info" />
         </receiver>
 
+        <!-- 今月の支出（請求月の変動費 + 着地見込み） -->
+        <receiver
+            android:name=".SpendWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_spend_info" />
+        </receiver>
+
+        <!-- 未確定の支出（通知から取り込んだ下書きの件数） -->
+        <receiver
+            android:name=".InboxWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_inbox_info" />
+        </receiver>
+
+        <!-- 支出を追加（押すだけ。数字を持たない） -->
+        <receiver
+            android:name=".AddWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_add_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
