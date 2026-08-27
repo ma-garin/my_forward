@@ -11,7 +11,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # 変更履歴をコミットから作るので、全履歴が要る（既定の浅いクローンだと
+      # 直近 1 コミットしか見えず、履歴が 1 件しか出ない）
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

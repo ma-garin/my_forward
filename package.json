@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/gen-changelog.mjs && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "import-salary": "python3 scripts/parse_salary.py",
     "test": "vitest run",
-    "build:android": "BUILD_TARGET=capacitor vite build --outDir dist-android && cap sync android"
+    "build:android": "node scripts/gen-changelog.mjs && BUILD_TARGET=capacitor vite build --outDir dist-android && cap sync android",
+    "changelog": "node scripts/gen-changelog.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
