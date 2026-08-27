@@ -7,65 +7,13 @@ import LockIcon from '@mui/icons-material/Lock'
 import WifiOffIcon from '@mui/icons-material/WifiOff'
 import SystemUpdateIcon from '@mui/icons-material/SystemUpdate'
 import { checkForUpdate, buildNumber, APK_URL, downloadApk, installApk, canInstall, openInstallSettings } from '../utils/appUpdate'
+// 変更履歴は git の履歴から作る（scripts/gen-changelog.mjs）。
+// 手書きすると書き忘れて止まる（実際に 1.4 で止まっていた）
+import CHANGELOG from '../changelog.json'
 
 // バージョンの出どころは package.json（vite.config.js が注入する）
 const APP_VERSION = __APP_VERSION__
 
-const CHANGELOG = [
-  {
-    version: '1.4',
-    date: '2026-05',
-    items: [
-      'デバイス間転送用の暗号化バックアップ（AES-256-GCM）',
-      'Androidエクスポートに共有シート（Google Drive等）対応',
-      '週予算のエクスポート漏れを修正',
-    ],
-  },
-  {
-    version: '1.3',
-    date: '2026-05',
-    items: [
-      '家計タブにSMBC（三井住友VISAゴールド）対応',
-      '家計タブに収支サマリー（手取り/支出/差額/貯蓄率）追加',
-      '生活費週集計をカード締め日基準の請求月で正確に集計',
-      'デフォルト表示月をJCB締め日（15日）基準に変更',
-      '支出追加ダイアログの日付デフォルトを当日に変更',
-      'カテゴリ別集計に前月比較の差分表示を追加',
-    ],
-  },
-  {
-    version: '1.2',
-    date: '2026-04',
-    items: [
-      '家計タブのカテゴリ別集計にタップで内訳・編集機能を追加',
-      '家計タブの固定費集計を当該月のみに修正',
-      '給与タブの支給・控除項目にCRUD追加',
-      '固定費に繰り返しパターン（毎月/N ヶ月ごと/特定月）を追加',
-    ],
-  },
-  {
-    version: '1.1',
-    date: '2026-03',
-    items: [
-      '消費・投資・浪費の支出分類を追加',
-      '日別支出バーグラフをリデザイン',
-      '家計タブを新設（カードタブから家計機能を分離）',
-      '生活費カード（今週・今月の週予算管理）を追加',
-    ],
-  },
-  {
-    version: '1.0',
-    date: '2026-01',
-    items: [
-      '初回リリース',
-      'クレカ固定費・変動費の管理（JCB）',
-      '給与シミュレーション（手取り自動計算）',
-      '2枚合計サマリーカード',
-      'データのエクスポート・インポート',
-      'PWA対応（ホーム画面追加・オフライン動作）',
-    ],
-  },
-]
 
 const TECH_STACK = [
   { label: 'React 19', color: 'var(--tint-blue)' },
@@ -262,21 +210,24 @@ export default function AppInfo() {
       {/* 変更履歴 */}
       <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>変更履歴</Typography>
       {CHANGELOG.map((release, ri) => (
-        <Box key={release.version} sx={{ mb: 2 }}>
+        <Box key={release.date} sx={{ mb: 2 }}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}>
             <Typography variant="caption" fontWeight={700}
-              sx={{ bgcolor: ri === 0 ? 'primary.main' : 'var(--divider)',
+              sx={{ bgcolor: ri === 0 ? 'var(--surface-header)' : 'var(--divider)',
                     color: ri === 0 ? '#fff' : 'text.primary',
                     px: 1, py: 0.25, borderRadius: 1, fontSize: 11 }}>
-              v{release.version}
+              {release.date.replace('-', '年')}月
             </Typography>
-            <Typography variant="caption" color="text.secondary" fontSize={10}>{release.date}</Typography>
+            <Typography variant="caption" color="text.secondary" fontSize={10}>
+              {release.items.length}件
+            </Typography>
           </Stack>
-          <Box sx={{ pl: 1.5, borderLeft: '2px solid #e0e0e0' }}>
+          <Box sx={{ pl: 1.5, borderLeft: 2, borderColor: 'divider' }}>
             {release.items.map((item, i) => (
               <Typography key={i} variant="caption" color="text.secondary"
                 sx={{ display: 'block', lineHeight: 1.8, fontSize: 12 }}>
-                · {item}
+                <Box component="span" sx={{ color: 'text.disabled', mr: 0.5 }}>{item.kind}</Box>
+                {item.text}
               </Typography>
             ))}
           </Box>
