@@ -8,6 +8,7 @@ import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsAc
 import AlarmOutlinedIcon from '@mui/icons-material/AlarmOutlined'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
+import AppsOutlinedIcon from '@mui/icons-material/AppsOutlined'
 import { isNativeApp } from '../utils/notificationCapture'
 
 const ITEMS = [
@@ -26,6 +27,8 @@ const NATIVE_ITEMS = [
     icon: <AlarmOutlinedIcon /> },
   { key: 'notifications', label: '通知の取り込み', sub: 'クレカ利用通知の記録（Androidアプリのみ）',
     icon: <NotificationsActiveOutlinedIcon /> },
+  { key: 'icon',          label: 'アイコン',      sub: 'ホーム画面のアイコンを選ぶ',
+    icon: <AppsOutlinedIcon /> },
 ]
 
 export default function SettingsMain({ onNavigate }) {

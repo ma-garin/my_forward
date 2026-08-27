@@ -14,10 +14,10 @@
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+            <!-- ホーム画面に出す入口は下の activity-alias 側に持たせる。
+                 アイコンを差し替えるには、有効な alias を切り替えるしかない。
+                 MainActivity 自体は常に有効にしておく（ディープリンク・共有
+                 シート・ウィジェットの遷移先がここを指しているため）。 -->
 
             <!-- ホーム画面のショートカット（アイコン長押し）から入ってくる -->
             <intent-filter>
@@ -34,10 +34,77 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
         </activity>
+
+        <!--
+            アイコンの色違い。ホーム画面に出るのはこのうち有効な 1 つだけで、
+            切り替えは IconPlugin が setComponentEnabledSetting で行う。
+
+            「今どのアイコンか」の出どころは、この有効・無効の状態そのもの
+            （端末が覚えている）。アプリ側で別に控えると二重管理になる。
+
+            ショートカットの meta-data は「ホーム画面に出る入口」に付ける
+            決まりなので、各 alias に持たせる。
+        -->
+        <activity-alias
+            android:name=".IconDefault"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:label="@string/app_name"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconMidnight"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_midnight"
+            android:roundIcon="@mipmap/ic_launcher_midnight_round"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconIndigo"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_indigo"
+            android:roundIcon="@mipmap/ic_launcher_indigo_round"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconWine"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_wine"
+            android:roundIcon="@mipmap/ic_launcher_wine_round"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
+        </activity-alias>
 
         <!--
             通知取得サービス。
