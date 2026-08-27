@@ -2,14 +2,16 @@ name: Build Android APK
 
 # 自動では走らせない。push や PR のたびには回さない。
 #
-# APK が要るときだけ、build-* のタグを打って回す。Actions の画面を開いて
-# ボタンを押す手間をなくすため（タグ push は git だけで完結する）。
-#   git tag build-$(date +%s) && git push origin build-...
+# APK が要るときだけ、claude/apk-* ブランチに main の内容を push して回す。
+# Actions の画面を開いてボタンを押す手間をなくすため（git だけで完結する）。
+#   git push origin origin/main:refs/heads/claude/apk-1
+#
+# このブランチは APK を作るためだけのもので、開発では使わない。
 on:
   workflow_dispatch:
   push:
-    tags:
-      - 'build-*'
+    branches:
+      - 'claude/apk-*'
 
 # 同じブランチで二重に走らせない。手動で続けて押したときのため。
 # 走っているものは止めない（リリースの公開を途中で切らない）。
