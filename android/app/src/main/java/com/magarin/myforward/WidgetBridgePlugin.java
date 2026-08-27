@@ -35,4 +35,32 @@ public class WidgetBridgePlugin extends Plugin {
         LivingWidgetProvider.refreshAll(context);
         call.resolve();
     }
+
+    @PluginMethod
+    public void updateSpend(PluginCall call) {
+        Context context = getContext();
+        context.getSharedPreferences(SpendWidgetProvider.PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(SpendWidgetProvider.KEY_USED, call.getInt("used", 0))
+            .putInt(SpendWidgetProvider.KEY_FORECAST, call.getInt("forecast", 0))
+            .putInt(SpendWidgetProvider.KEY_REMAIN_DAYS, call.getInt("remainDays", 0))
+            .putString(SpendWidgetProvider.KEY_VALID_TO, call.getString("validTo", ""))
+            .apply();
+
+        SpendWidgetProvider.refreshAll(context);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void updateInbox(PluginCall call) {
+        Context context = getContext();
+        context.getSharedPreferences(InboxWidgetProvider.PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(InboxWidgetProvider.KEY_COUNT, call.getInt("count", 0))
+            .putInt(InboxWidgetProvider.KEY_TOTAL, call.getInt("total", 0))
+            .apply();
+
+        InboxWidgetProvider.refreshAll(context);
+        call.resolve();
+    }
 }
