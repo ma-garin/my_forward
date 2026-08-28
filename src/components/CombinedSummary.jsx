@@ -3,7 +3,8 @@ import { Box, Card, CardContent, Typography, Stack, Divider, IconButton, Button,
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { getCCTotal, getSimulatedIncome, fmt, newId } from '../utils/finance'
+import { getCCTotal, fmt, newId } from '../utils/finance'
+import { takeHomeFor, incomeDiffLabel } from '../utils/income'
 import {
   CARD_LIST,
   loadSalaryOverride, saveSalaryOverride,
@@ -36,8 +37,13 @@ function CombinedSummaryBase({ ym, salaryYm = ym, otherIncomeYm, combinedLimit =
     setSalaryInput(loadSalaryOverride(salaryYm))
   }, [salaryYm])
 
-  const simSalary   = useMemo(() => getSimulatedIncome(salaryYm), [salaryYm])
-  const salary      = parseFloat(salaryInput) || 0
+  // 手取りの出どころは takeHomeFor 1 つ。ここで見込みと実績を別々に
+  // 読むと、収支サマリーと違う手取りが同じ画面に並ぶ（実際にそうなっていた）。
+  // 入力のたびに保存 → 読み直しになるので memo にしない（memo にすると
+  // 打った直後だけ古い手取りが残る）
+  const income      = takeHomeFor(salaryYm)
+  const simSalary   = income.estimate
+  const salary      = income.amount
   const otherIncome = useMemo(
     () => parseFloat(loadOtherIncome(otherIncomeYm ?? salaryYm)) || 0,
     [otherIncomeYm, salaryYm],
@@ -151,23 +157,33 @@ function CombinedSummaryBase({ ym, salaryYm = ym, otherIncomeYm, combinedLimit =
         <Stack direction="row" alignItems="center" gap={1.5}>
           <Typography variant="caption" sx={{ opacity: .7, minWidth: 36 }}>給与</Typography>
           <Box sx={{ flex: 1 }}>
+            {/* 空のままなら見込みを使う。だから空欄は「未記録」であって
+                「¥0」ではない。それが分かるように見込み額を薄く出す */}
             <AmountField
               dark
               value={salaryInput}
               onChange={(raw) => { setSalaryInput(raw); saveSalaryOverride(raw, salaryYm) }}
-              placeholder="手取り額"
+              placeholder={simSalary > 0 ? `見込み ${fmt(simSalary)}` : '手取り額'}
               inputSx={{ '& .MuiInputBase-root': { height: 32 } }}
             />
           </Box>
-          {simSalary > 0 && (
-            <Button size="small"
-              onClick={() => { const v = String(simSalary); setSalaryInput(v); saveSalaryOverride(v, salaryYm) }}
-              sx={{ fontSize: 10, minWidth: 0, px: 1, py: 0.25, color: 'rgba(255,255,255,.7)',
-                    border: '1px solid rgba(255,255,255,.3)', borderRadius: 1, whiteSpace: 'nowrap' }}>
-              反映
-            </Button>
-          )}
         </Stack>
+
+        {/* 実際に振り込まれた額と、給与タブの見込みとの差。
+            見込みが外れているなら、残業の入れ方か控除の設定が古い */}
+        {income.isActual && simSalary > 0 && (
+          <Stack direction="row" alignItems="baseline" gap={0.75} sx={{ mt: 0.5, ml: 6.5 }}>
+            <Typography sx={{ fontSize: 10, opacity: .55 }}>
+              見込み ¥{fmt(simSalary)}
+            </Typography>
+            <Typography sx={{ fontSize: 10, fontWeight: 700,
+              color: income.diff === 0 ? 'rgba(255,255,255,.55)'
+                : income.diff > 0 ? '#a5d6a7' : '#ef9a9a' }}>
+              {income.diff === 0 ? '見込みどおり'
+                : `${income.diff > 0 ? '+' : '−'}¥${fmt(Math.abs(income.diff))}・${incomeDiffLabel(income.diff)}`}
+            </Typography>
+          </Stack>
+        )}
 
         {/* 予実テーブル */}
         {hasSalary && (

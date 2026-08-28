@@ -10,9 +10,10 @@
 | `cc_limit_{cardId}` | `number` | 月間利用上限額 | `loadLimit(cardId)` / `saveLimit(cardId, v)` |
 | `cc_cards` | `Card[]` | カード定義リスト | `loadCards()` / `saveCards(list)` |
 | `cc_categories` | `string[]` | カテゴリ一覧 | `loadCategories()` / `saveCategories(list)` |
+| `cc_statement_{cardId}_{ym}` | `number` | カード明細の請求額（突合に使う）。キーが無い＝未入力で、`0` 円の請求と区別する | `loadStatement(cardId, ym)` / `saveStatement(cardId, ym, v)`（statement.js） |
 | `cc_category_budgets` | `{ [category: string]: number }` | カテゴリ別の月間予算 | `loadCategoryBudgets()` / `saveCategoryBudgets(map)` |
 | `cc_salary_override` | `number` | 旧形式: 家計タブ・給与手動入力値 | 初回のみ月別キーへ移行 |
-| `cc_salary_override_by_ym` | `{ [ym: string]: string }` | 家計タブ・月別給与手動入力値 | `loadSalaryOverride(ym)` / `saveSalaryOverride(v, ym)` |
+| `cc_salary_override_by_ym` | `{ [ym: string]: string }` | 月別の**手取り実績**（実際に振り込まれた額）。空文字は未記録で、`0` の実績と区別する | `loadSalaryOverride(ym)` / `saveSalaryOverride(v, ym)` |
 | `cc_salary_override_migrated_v1` | `string` | 旧給与手動入力値の移行済みフラグ | 自動管理 |
 | `cc_other_income_by_ym` | `{ [ym: string]: string }` | 月別のその他収入 | `loadOtherIncome(ym)` / `saveOtherIncome(v, ym)` |
 | `cc_summary_fixed` | `SummaryItem[]` | 家計タブ固定費内訳 | `loadSummaryFixed()` / `saveSummaryFixed(list)` |
