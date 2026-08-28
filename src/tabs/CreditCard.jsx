@@ -43,6 +43,7 @@ import { useAfterPaint } from '../utils/useAfterPaint'
 import { pushScreen } from '../utils/useAndroidBack'
 import { onQuickAdd, takePendingQuickAdd } from '../utils/quickAdd'
 import { cycleDatesForYm, cycleLabel, cutoffLabel, paymentLabel } from '../utils/billingCycle'
+import StatementReconcile from '../components/StatementReconcile'
 import { findDuplicate, duplicateMessage } from '../utils/duplicates'
 import { detectSubscriptions, dismissSubscription } from '../utils/subscriptions'
 
@@ -1044,6 +1045,13 @@ export default function CreditCard() {
           </Card>
         )
       })()}
+
+      {/* 締めが終わった月だけ、カード明細の請求額と突き合わせる。
+          記録額は上のカードに出ている使用額と同じものを渡す */}
+      <StatementReconcile
+        key={`${cardId}-${ym}`}
+        cardId={cardId} ym={ym} recorded={grandTotal}
+      />
 
       {/* 予算内訳カード。クレカの上限運用の画面なので、請求サイクルの無い
           現金には出さない（生活費の週予算がその役目を持っている） */}
