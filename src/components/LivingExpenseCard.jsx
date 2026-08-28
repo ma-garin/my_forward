@@ -7,10 +7,11 @@ import { fmt } from '../utils/finance'
 import {
   CARDS, CARD_LIST, LIVING_CATEGORIES, loadVar, loadLivingUnit, saveLivingUnit,
   getRecentWeeks, sumLiving, sumLivingByCategory,
-  countFridaysUntil, getBillingMonthsForRange,
+  getBillingMonthsForRange,
 } from '../utils/ccStorage'
 import AmountField from './AmountField'
 import { weeklyLivingSummary } from '../utils/livingSummary'
+import { livingWeeksFor } from '../utils/monthly'
 
 function addMonth(ym, n) {
   const [y, m] = ym.split('-').map(Number)
@@ -56,8 +57,7 @@ export default function LivingExpenseCard({ ym }) {
   const [editVal, setEditVal]           = useState('')
   const [expandedWeek, setExpandedWeek] = useState(null)
 
-  const cutoff = CARDS.jcb?.cutoffDay ?? 15
-  const [vy, vm]   = ym.split('-').map(Number)
+  const [, vm]     = ym.split('-').map(Number)
 
   // ── 今週 ──────────────────────────────────────────────────
   // 集計はウィジェットと共有する（別々に書くと表示が食い違う）
@@ -74,14 +74,14 @@ export default function LivingExpenseCard({ ym }) {
   // ── サイクル（JCB: ym の 16日〜翌月15日）────────────────
   // ym はすでに請求月（Kakeibo から billingYm が渡される）
   const nextYm       = addMonth(ym, 1)
-  const [nextY, nextM] = nextYm.split('-').map(Number)
+  const [, nextM]    = nextYm.split('-').map(Number)
   const cycleFromStr = `${ym}-16`
   const cycleToStr   = `${nextYm}-15`
   const cycleList = CARD_LIST.flatMap(c =>
     getBillingMonthsForRange(cycleFromStr, cycleToStr, c.cutoffDay).flatMap(m => loadVar(c.id, m)))
   const cycleUsed    = sumLiving(cycleList, cycleFromStr, cycleToStr)
   const cycleCatMap  = sumLivingByCategory(cycleList, cycleFromStr, cycleToStr)
-  const fridays      = countFridaysUntil(new Date(vy, vm - 1, cutoff), new Date(nextY, nextM - 1, cutoff))
+  const fridays      = livingWeeksFor(ym)
   const monthlyBudget = fridays * weeklyBudget
   const cycleRemain  = monthlyBudget - cycleUsed
   const cyclePct     = monthlyBudget > 0 ? cycleUsed / monthlyBudget * 100 : 0

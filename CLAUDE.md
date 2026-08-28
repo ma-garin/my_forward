@@ -39,6 +39,8 @@ Kiro Spec Driven Development を使う場合は `/kiro` skill を呼び出す。
 | 明暗の判定 | `utils/useColorMode.js`（スプラッシュは結果の色 `cc_theme_bg` を読むだけ） |
 | 今どの請求月か | `finance.currentBillingYm(cutoffDay)` |
 | その月の手取り | `utils/income.js` の `takeHomeFor(ym)`（実績があれば実績・無ければ見込み） |
+| その月の収支 | `utils/monthly.js` の `monthlyBalance(ym)`（年次はこれを 12 ヶ月ぶん積む） |
+| 生活費の週数 | `utils/monthly.js` の `livingWeeksFor(ym)`（今日ではなく請求サイクルで数える） |
 | 記録と請求額の差 | `utils/statement.js` の `compare(recorded, statement)`（記録額は画面から渡す） |
 | 通知から拾う文字 | extras 全体を歩く（`NotificationText`）。キーを数え上げない |
 

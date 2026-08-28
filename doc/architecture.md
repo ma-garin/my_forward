@@ -50,6 +50,7 @@ App.jsx
 │   ├── CombinedSummary   # 2枚合計・固定費内訳
 │   ├── LivingExpenseCard
 │   ├── MonthlyTrendCard  # 支出トレンド（6ヶ月・前年同月の点線つき）
+│   ├── YearlyReviewCard  # 年次の振り返り（年間の収入・支出・貯蓄率）
 │   ├── FixedInventoryCard # 固定費の棚卸し（年額換算・値上げ検知）
 │   ├── NetWorthCard      # 純資産（NetWorthTrend で推移の折れ線）
 │   ├── SpendTypeChart / CategoryChart / CategoryBreakdown
@@ -93,6 +94,9 @@ props で渡すと 1 タップごとに props が変わって `memo` が必ず�
 
 - 全データは localStorage に保存（サーバー通信なし）
 - `src/utils/finance.js` — 給与計算ロジック・共有関数
+- `src/utils/income.js` — その月の手取り（実績があれば実績・無ければ見込み）
+- `src/utils/monthly.js` — その月の収支・生活費予算。年次はこれを 12 ヶ月ぶん積む
+- `src/utils/statement.js` — カード明細との突合（記録と請求額の差）
 - `src/utils/ccStorage.js` — クレカ・生活費・サマリー用ストレージ関数
 - `src/utils/parseSalaryPdf.js` — 給与明細PDF解析（SalaryHistory から動的 import）
 - `src/utils/useAfterPaint.js` — 重い集計を初回描画の後に回すフック

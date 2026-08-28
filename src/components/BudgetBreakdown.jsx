@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { Box, Card, Typography, Stack, Divider, IconButton, Button, TextField, Chip } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import { fmt } from '../utils/finance'
+import { livingWeeksFor } from '../utils/monthly'
 import {
   CARDS, LIVING_CATEGORIES, loadLivingUnit,
-  sumLiving, countFridaysUntil,
+  sumLiving,
   loadLivingOverride, saveLivingOverride,
   BORDER_LIGHT,
 } from '../utils/ccStorage'
@@ -25,15 +26,8 @@ export default function BudgetBreakdown({ cardId, ym, limit, fixedTotal, varTota
 
   const isJcb = cardId === 'jcb'
 
-  let livingAuto = 0
-  if (isJcb) {
-    const [vy, vm] = ym.split('-').map(Number)
-    const fridayCount = countFridaysUntil(
-      new Date(vy, vm - 1, CARDS.jcb.cutoffDay),
-      new Date(vy, vm,     CARDS.jcb.cutoffDay),
-    )
-    livingAuto = fridayCount * loadLivingUnit()
-  }
+  // 週数の数え方は livingWeeksFor 1 つ（生活費カード・家計タブと共通）
+  const livingAuto = isJcb ? livingWeeksFor(ym) * loadLivingUnit() : 0
   const livingBudget   = isJcb ? (livingOverride ?? livingAuto) : 0
   const isOverridden   = livingOverride != null
   const livingActual   = isJcb ? sumLiving(varList ?? []) : 0

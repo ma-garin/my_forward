@@ -1,43 +1,29 @@
 import { useState } from 'react'
 import { Box, Card, CardContent, Typography, Stack, Divider, Button,
          Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material'
-import { fmt, signedAmount } from '../utils/finance'
-import { takeHomeFor } from '../utils/income'
-import { loadSummaryFixed, loadLivingUnit, countFridaysUntil, nextPayDay,
-         loadOtherIncome, saveOtherIncome } from '../utils/ccStorage'
+import { fmt } from '../utils/finance'
+import { monthlyBalance } from '../utils/monthly'
+import { loadOtherIncome, saveOtherIncome } from '../utils/ccStorage'
 import AmountField from './AmountField'
 
-export default function IncomeSummaryCard({ fixedList, varList, ym, salaryYm: salaryYmProp }) {
+export default function IncomeSummaryCard({ ym, salaryYm: salaryYmProp }) {
   const salaryYm = salaryYmProp ?? ym
-  // 見込みと実績のどちらを出すかは takeHomeFor が決める。ここで
-  // シミュレーションを直に読むと、実績を入れても手取りが変わらない
-  const income = takeHomeFor(salaryYm)
-  const salary = income.amount
 
   const [otherIncome, setOtherIncome] = useState(() => loadOtherIncome(salaryYm))
   const [dlgOpen, setDlgOpen]         = useState(false)
   const [dlgVal, setDlgVal]           = useState('')
 
-  if (salary === 0 && otherIncome === '') return null
+  // 収入・支出の足し方は monthlyBalance 1 つ。ここで足し直すと 2枚合計や
+  // 年次の振り返りと違う数字が出る（実際にそうなっていた）
+  const b = monthlyBalance(salaryYm)
 
-  const otherAmt  = parseFloat(otherIncome) || 0
-  const takeHome  = salary + otherAmt
+  if (b.salary === 0 && otherIncome === '') return null
 
-  // クレカ固定費・変動費。返金は除外ではなく減算する
-  // （クレカタブ・2枚合計と同じ扱いにしないと、タブ間で支出が食い違う）
-  const ccExpense = [...fixedList, ...varList].reduce((s, x) => s + signedAmount(x), 0)
-
-  // CombinedSummaryと同じ固定費内訳（家賃・光熱費など手動入力分）
-  const summaryFixed = loadSummaryFixed().reduce((s, x) => s + x.amount, 0)
-
-  // 生活費（今月の週数 × 週予算）
-  const livingUnit = loadLivingUnit()
-  const fridays    = livingUnit > 0 ? countFridaysUntil(new Date(), nextPayDay(new Date())) : 0
-  const livingCost = fridays * livingUnit
-
-  const expense    = ccExpense + summaryFixed + livingCost
-  const balance    = takeHome - expense
-  const savingRate = takeHome > 0 ? Math.round((balance / takeHome) * 100) : 0
+  const otherAmt   = b.other
+  const takeHome   = b.income
+  const expense    = b.expense
+  const balance    = b.balance
+  const savingRate = b.savingRate
 
   const handleSave = () => {
     const raw = dlgVal === '' ? '' : dlgVal
@@ -61,7 +47,7 @@ export default function IncomeSummaryCard({ fixedList, varList, ym, salaryYm: sa
               <Typography variant="body2" fontWeight={700} sx={{ fontSize: 14 }}>¥{fmt(takeHome)}</Typography>
               {/* どちらの数字を見ているかが分からないと、差額の意味が変わる */}
               <Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary' }}>
-                {income.isActual ? '実績' : '見込み'}
+                {b.isActual ? '実績' : '見込み'}
               </Typography>
             </Stack>
             <Stack alignItems="center" sx={{ flex: 1 }}>

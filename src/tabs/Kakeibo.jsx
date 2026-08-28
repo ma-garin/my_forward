@@ -8,6 +8,7 @@ import IncomeSummaryCard from '../components/IncomeSummaryCard'
 import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/CategoryViews'
 import MonthlyTrendCard from '../components/MonthlyTrendCard'
 import FixedInventoryCard from '../components/FixedInventoryCard'
+import YearlyReviewCard from '../components/YearlyReviewCard'
 import { CARD_LIST, loadFixed, loadLimit, loadVar } from '../utils/ccStorage'
 import { isActiveForYm } from '../utils/finance'
 
@@ -64,10 +65,10 @@ export default function Kakeibo() {
       <MonthNav year={year} month={month} onStep={changeMonth} onJump={goToMonth} />
 
       {/* 収支サマリー */}
-      <IncomeSummaryCard fixedList={allFixed} varList={allVar} ym={ym} salaryYm={billingYm} />
+      <IncomeSummaryCard ym={ym} salaryYm={billingYm} />
 
       {/* 2枚合計サマリー */}
-      <CombinedSummary ym={billingYm} salaryYm={billingYm} otherIncomeYm={ym} combinedLimit={combinedLimit} />
+      <CombinedSummary ym={billingYm} salaryYm={billingYm} combinedLimit={combinedLimit} />
 
       {/* 資産（口座残高・純資産） */}
       <NetWorthCard billingYm={billingYm} isCurrentMonth={ym === currentYm()} />
@@ -77,6 +78,9 @@ export default function Kakeibo() {
 
       {/* 支出トレンド */}
       <MonthlyTrendCard currentBillingYm={billingYm} />
+
+      {/* 1 年でいくら入っていくら残ったか。月の画面と同じ足し方で積む */}
+      <YearlyReviewCard key={billingYm.slice(0, 4)} year={Number(billingYm.slice(0, 4))} />
 
       {/* 固定費を年額で並べる。解約する / しないの判断はここでする */}
       <FixedInventoryCard fromYm={billingYm} />
