@@ -1,14 +1,18 @@
 import { useState } from 'react'
 import { Box, Card, CardContent, Typography, Stack, Divider, Button,
          Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material'
-import { fmt, getSimulatedIncome, signedAmount } from '../utils/finance'
+import { fmt, signedAmount } from '../utils/finance'
+import { takeHomeFor } from '../utils/income'
 import { loadSummaryFixed, loadLivingUnit, countFridaysUntil, nextPayDay,
          loadOtherIncome, saveOtherIncome } from '../utils/ccStorage'
 import AmountField from './AmountField'
 
 export default function IncomeSummaryCard({ fixedList, varList, ym, salaryYm: salaryYmProp }) {
   const salaryYm = salaryYmProp ?? ym
-  const salary   = getSimulatedIncome(salaryYm)
+  // 見込みと実績のどちらを出すかは takeHomeFor が決める。ここで
+  // シミュレーションを直に読むと、実績を入れても手取りが変わらない
+  const income = takeHomeFor(salaryYm)
+  const salary = income.amount
 
   const [otherIncome, setOtherIncome] = useState(() => loadOtherIncome(salaryYm))
   const [dlgOpen, setDlgOpen]         = useState(false)
@@ -55,6 +59,10 @@ export default function IncomeSummaryCard({ fixedList, varList, ym, salaryYm: sa
             <Stack alignItems="center" sx={{ flex: 1 }}>
               <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary' }}>手取り</Typography>
               <Typography variant="body2" fontWeight={700} sx={{ fontSize: 14 }}>¥{fmt(takeHome)}</Typography>
+              {/* どちらの数字を見ているかが分からないと、差額の意味が変わる */}
+              <Typography variant="caption" sx={{ fontSize: 9, color: 'text.secondary' }}>
+                {income.isActual ? '実績' : '見込み'}
+              </Typography>
             </Stack>
             <Stack alignItems="center" sx={{ flex: 1 }}>
               <Typography variant="caption" sx={{ fontSize: 10, color: 'text.secondary' }}>支出</Typography>

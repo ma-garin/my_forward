@@ -38,6 +38,8 @@ Kiro Spec Driven Development を使う場合は `/kiro` skill を呼び出す。
 | 週予算 | `cc_living_unit`（`loadLivingUnit` / `saveLivingUnit`） |
 | 明暗の判定 | `utils/useColorMode.js`（スプラッシュは結果の色 `cc_theme_bg` を読むだけ） |
 | 今どの請求月か | `finance.currentBillingYm(cutoffDay)` |
+| その月の手取り | `utils/income.js` の `takeHomeFor(ym)`（実績があれば実績・無ければ見込み） |
+| 記録と請求額の差 | `utils/statement.js` の `compare(recorded, statement)`（記録額は画面から渡す） |
 | 通知から拾う文字 | extras 全体を歩く（`NotificationText`）。キーを数え上げない |
 
 ### 一本化しているもの（分岐実装を作らない）
