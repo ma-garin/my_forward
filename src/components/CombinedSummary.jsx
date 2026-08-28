@@ -5,17 +5,16 @@ import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { getCCTotal, fmt, newId } from '../utils/finance'
 import { takeHomeFor, incomeDiffLabel } from '../utils/income'
+import { monthlyBalance } from '../utils/monthly'
 import {
   CARD_LIST,
   loadSalaryOverride, saveSalaryOverride,
   loadSummaryFixed, saveSummaryFixed,
   loadLivingUnit, saveLivingUnit,
-  countFridaysUntil, nextPayDay,
-  loadOtherIncome,
 } from '../utils/ccStorage'
 import AmountField from './AmountField'
 
-function CombinedSummaryBase({ ym, salaryYm = ym, otherIncomeYm, combinedLimit = 0 }) {
+function CombinedSummaryBase({ ym, salaryYm = ym, combinedLimit = 0 }) {
   // ダイアログ・給与入力などの state 変化による再レンダーで
   // getCCTotal（カードごとに parse）が毎回走るのを防ぐ。
   const { perCard, combined } = useMemo(() => {
@@ -37,24 +36,22 @@ function CombinedSummaryBase({ ym, salaryYm = ym, otherIncomeYm, combinedLimit =
     setSalaryInput(loadSalaryOverride(salaryYm))
   }, [salaryYm])
 
-  // 手取りの出どころは takeHomeFor 1 つ。ここで見込みと実績を別々に
-  // 読むと、収支サマリーと違う手取りが同じ画面に並ぶ（実際にそうなっていた）。
+  // 収入・支出の足し方は monthlyBalance 1 つ。ここで足し直すと収支サマリーや
+  // 年次の振り返りと違う数字が同じ画面に並ぶ（実際にそうなっていた）。
   // 入力のたびに保存 → 読み直しになるので memo にしない（memo にすると
-  // 打った直後だけ古い手取りが残る）
+  // 打った直後だけ古い数字が残る）
   const income      = takeHomeFor(salaryYm)
+  const balanceOf   = monthlyBalance(salaryYm)
   const simSalary   = income.estimate
-  const salary      = income.amount
-  const otherIncome = useMemo(
-    () => parseFloat(loadOtherIncome(otherIncomeYm ?? salaryYm)) || 0,
-    [otherIncomeYm, salaryYm],
-  )
-  const totalIncome = salary + otherIncome
+  const salary      = balanceOf.salary
+  const otherIncome = balanceOf.other
+  const totalIncome = balanceOf.income
   const hasSalary   = salary > 0
 
-  const today   = new Date()
-  const payDay  = nextPayDay(today)
-  const fridays = countFridaysUntil(today, payDay)
-  const livingCost      = fridays * livingUnit
+  // 生活費は「その請求月の週数 × 週予算」。以前は今日から次の支払日までで
+  // 数えていたので、どの月を開いても同じ週数になっていた
+  const livingCost      = balanceOf.living
+  const fridays         = livingUnit > 0 ? Math.round(livingCost / livingUnit) : 0
   const fixedItemsTotal = fixedItems.reduce((s, i) => s + i.amount, 0)
   const fixedTotal      = fixedItemsTotal + livingCost
   const planBalance     = totalIncome - fixedTotal - combinedLimit
