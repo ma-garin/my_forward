@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { ingestNotifications, ingestDrafts, loadInbox, acceptDraft, dismissDraft } from './inbox'
+import { ingestNotifications, loadInbox, acceptDraft, dismissDraft } from './inbox'
 import { loadVar } from './ccStorage'
 
 beforeEach(() => localStorage.clear())
@@ -109,56 +109,33 @@ describe('承認', () => {
   })
 })
 
-describe('CSV からの取り込み', () => {
-  const draft = (amount, date, payee = '') =>
-    ({ source: 'csv', cardId: 'paypay', amount, date, payee,
-      at: new Date(...date.split('-').map(Number).map((v, i) => (i === 1 ? v - 1 : v)), 12).getTime() })
+describe('振替（チャージ）の判定', () => {
+  const suicaCharge = () => ingestNotifications([{
+    packageName: 'jp.co.smbc.vpass',
+    postTime: at(12, 0),
+    text: '◇ご利用カード：三井住友ゴールドＶＩＳＡ ◇日時：2026/08/14 12:00 ◇利用先：モバイルSuica ◇金額：3,000円',
+  }])
 
-  it('受信箱に足す', () => {
-    const r = ingestDrafts([draft(540, '2026-08-20'), draft(1200, '2026-08-22')])
-    expect(r.added).toBe(2)
-    expect(loadInbox()).toHaveLength(2)
+  it('モバイルSuica へのチャージは振替として登録する', () => {
+    suicaCharge()
+    const { item } = acceptDraft(loadInbox()[0].id)
+    expect(item.transfer).toBe(true)
   })
 
-  it('同じ日の同じ金額でも、ファイルの中では潰さない', () => {
-    const r = ingestDrafts([draft(540, '2026-08-20'), draft(540, '2026-08-20')])
-    expect(r.added).toBe(2)
+  it('ふつうの買い物には付けない', () => {
+    ingestNotifications([{
+      packageName: 'jp.co.smbc.vpass',
+      postTime: at(12, 0),
+      text: '◇ご利用カード：三井住友ゴールドＶＩＳＡ ◇日時：2026/08/14 12:00 ◇利用先：ユニクロ ◇金額：2,990円',
+    }])
+    const { item } = acceptDraft(loadInbox()[0].id)
+    expect(item.transfer).toBeUndefined()
   })
 
-  it('二度取り込んでも増えない', () => {
-    const rows = [draft(540, '2026-08-20'), draft(1200, '2026-08-22')]
-    ingestDrafts(rows)
-    const again = ingestDrafts(rows)
-    expect(again.added).toBe(0)
-    expect(again.duplicate).toBe(2)
-    expect(loadInbox()).toHaveLength(2)
-  })
-
-  it('増えたぶんだけ足す', () => {
-    ingestDrafts([draft(540, '2026-08-20')])
-    const r = ingestDrafts([draft(540, '2026-08-20'), draft(540, '2026-08-20')])
-    expect(r.added).toBe(1)
-    expect(r.duplicate).toBe(1)
-  })
-
-  it('承認済みのものは戻ってこない', () => {
-    ingestDrafts([draft(540, '2026-08-20')])
-    acceptDraft(loadInbox()[0].id)
-    expect(loadInbox()).toHaveLength(0)
-    const r = ingestDrafts([draft(540, '2026-08-20')])
-    expect(r.added).toBe(0)
-    expect(loadInbox()).toHaveLength(0)
-  })
-
-  it('無視したものも戻ってこない', () => {
-    ingestDrafts([draft(540, '2026-08-20')])
-    dismissDraft(loadInbox()[0].id)
-    expect(ingestDrafts([draft(540, '2026-08-20')]).added).toBe(0)
-  })
-
-  it('日が違えば別の買い物として足す', () => {
-    ingestDrafts([draft(540, '2026-08-20')])
-    expect(ingestDrafts([draft(540, '2026-08-21')]).added).toBe(1)
+  it('画面で外せる', () => {
+    suicaCharge()
+    const { item } = acceptDraft(loadInbox()[0].id, { transfer: false })
+    expect(item.transfer).toBeUndefined()
   })
 })
 
