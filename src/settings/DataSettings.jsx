@@ -5,6 +5,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { isBackupKey, getAllKeys, createExportData, restoreExportData } from '../utils/backup'
 import { saveFile } from '../utils/saveFile'
 import AutoBackupList from '../components/AutoBackupList'
+import CsvImport from '../components/CsvImport'
 
 const isActiveKey = isBackupKey
 
@@ -111,6 +112,8 @@ export default function DataSettings() {
           </Button>
         </Stack>
       </Box>
+
+      <CsvImport />
 
       <AutoBackupList />
 

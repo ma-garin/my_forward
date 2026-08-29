@@ -93,10 +93,10 @@ VarItem = {
   sign?: 0 | 1              // 1=返金（マイナス扱い）
 }
 
-// 通知から作った支出の下書き（受信箱）
+// 支出の下書き（受信箱）。通知から作るものと、明細 CSV から作るものがある
 Draft = {
   id: string
-  source: 'vpass' | 'googlepay'
+  source: 'vpass' | 'googlepay' | 'card' | 'csv'
   cardId: string
   amount: number
   at: number                // 取引時刻(ms)。二重通知の判定に使う
