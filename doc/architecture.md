@@ -162,24 +162,50 @@ settings/DataSettings.jsx → components/CsvImport.jsx
 - 重複は「同じ支払い元・同じ日・同じ額」の**件数**で見る。同じ日に同じ額を
   2 回払うことはあるので、ファイルの中では潰さない
 
-## カード定義
+## 支払い元（カード）の定義
 
-`cc_cards` に保存。デフォルトは JCB（id: `jcb`）と SMBC（id: `smbc`）。
+**出どころは `cc_cards` の 1 つ。** 設定 → カード設定 で足す・直す・消す。
+
+以前は `ccStorage.js` に定数で持ちながら、設定画面だけが `cc_cards` を読んで
+いた。設定は「カードがありません」と言い、そこで足したカードはどの画面にも
+出てこなかった（実測して確認した不具合）。
 
 ```js
-// ccStorage.js の CARDS 定数
-CARDS = {
-  jcb:  { id: 'jcb',  shortName: 'JCB',  cutoffDay: 15, paymentDay: 10, color: '#37474f' },
-  smbc: { id: 'smbc', shortName: 'VISA', cutoffDay:  0, paymentDay: 26, color: '#1b5e20' },
-  cash: { id: 'cash', shortName: '現金', cutoffDay:  0, paymentDay:  0, color: '#616161', noBilling: true },
-}
-// CARD_LIST = Object.values(CARDS) も export している
+// ccStorage.js
+DEFAULT_CARD_LIST = [   // 初回に入れるだけ。以後の正は cc_cards
+  { id: 'jcb',    shortName: 'JCB',    cutoffDay: 15, paymentDay: 10, color: '#37474f' },
+  { id: 'smbc',   shortName: 'VISA',   cutoffDay:  0, paymentDay: 26, color: '#1b5e20' },
+  { id: 'cash',   shortName: '現金',   cutoffDay:  0, paymentDay:  0, color: '#616161', noBilling: true },
+  { id: 'paypay', shortName: 'PayPay', cutoffDay:  0, paymentDay:  0, color: '#7b3b41', noBilling: true,
+    androidPackage: 'jp.ne.paypay.android.app' },
+  { id: 'suica',  shortName: 'Suica',  cutoffDay:  0, paymentDay:  0, color: '#1b4d3e', noBilling: true },
+]
+
+CARDS      // { [id]: card }。中身を入れ替えて使う（参照は配り直さない）
+CARD_LIST  // 同じ配列の中身を入れ替える
+loadCards() / saveCards(list) / cardHasRecords(cardId)
 ```
 
-現金は暦月（月末締め扱い）でそのまま集計する。`noBilling` が立っているものは
-締め日・支払日の表示とリマインダーの対象から外す。家計タブの合算・トレンド・
-生活費は `CARD_LIST` を列挙するので、カードを増やすときは CARDS に足せばよい
-（jcb/smbc を直書きしない）。
+`CARDS` / `CARD_LIST` は **参照を変えずに中身だけ入れ替える**。読む側が 49 箇所
+あり、そのすべてを関数呼び出しに書き換えると、どこか 1 つ書き忘れたときに
+古いカード一覧が残る。
+
+現金・電子マネーは暦月（月末締め扱い）でそのまま集計する。`noBilling` が
+立っているものは締め日・支払日の表示とリマインダーの対象から外す。家計タブの
+合算・トレンド・生活費は `CARD_LIST` を列挙するので、支払い元を増やしても
+画面側は触らなくてよい（jcb/smbc を直書きしない）。
+
+記録のある支払い元を消すと、その固定費・変動費はどの画面にも出なくなる
+（データ自体は残る）。`cardHasRecords` で確かめて、消す前に確認を出す。
+
+### 交通系 IC（モバイルSuica）
+
+JR 東日本は個人向けの利用履歴 API を出していない。マネーフォワード ME でも
+手動更新＋画像認証のスクレイピングで、JRE ID へ移行すると連携できなくなる。
+モバイルSuica 自体に CSV 書き出しも無い。
+
+そのため **チャージを 1 件の支出として記録する**。交通系 IC はチャージした
+時点で家計からお金が出るので、乗車ごとに追わなくても合計は変わらない。
 
 ## デフォルト表示月
 

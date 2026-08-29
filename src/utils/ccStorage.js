@@ -3,20 +3,124 @@ import { recordPriceChange } from './priceLog'
 
 // ─── カード定義 ────────────────────────────────────────────
 
-export const CARDS = {
-  jcb:  { id: 'jcb',  name: 'JCBゴールド',                   shortName: 'JCB',  cutoffDay: 15, paymentDay: 10, color: '#37474f' },
-  smbc: { id: 'smbc', name: '三井住友VISAナンバーレスゴールド', shortName: 'VISA', cutoffDay:  0, paymentDay: 26, color: '#1b5e20' },
-  // 現金・PayPay。締め日は月末（＝暦月でそのまま集計）。請求サイクルを
+/**
+ * 支払い元（カード・電子マネー・現金）。
+ *
+ * 出どころは localStorage の `cc_cards` 1 つ。以前はここに定数で持ちながら
+ * 設定画面だけが `cc_cards` を読んでいて、設定は「カードがありません」と
+ * 言い、そこで足したカードはどの画面にも出てこなかった（実測）。
+ *
+ * `CARDS` / `CARD_LIST` は中身を入れ替えて使う。参照を配り直さないので、
+ * 読む側（49 箇所）は今までどおり import するだけでよい。
+ */
+
+// 初回に入れる支払い元。以後の正は `cc_cards`
+export const DEFAULT_CARD_LIST = [
+  { id: 'jcb',  name: 'JCBゴールド',                   shortName: 'JCB',  cutoffDay: 15, paymentDay: 10, color: '#37474f' },
+  { id: 'smbc', name: '三井住友VISAナンバーレスゴールド', shortName: 'VISA', cutoffDay:  0, paymentDay: 26, color: '#1b5e20' },
+  // 現金・電子マネー。締め日は月末（＝暦月でそのまま集計）。請求サイクルを
   // 持たないので noBilling を立て、締め日・支払日の表示やリマインダーの
   // 対象から外す。PayPay は残高払いの扱い（あと払いはクレカ側で管理する）
-  cash: { id: 'cash', name: '現金',                          shortName: '現金', cutoffDay:  0, paymentDay:  0, color: '#616161', noBilling: true },
+  { id: 'cash', name: '現金',                          shortName: '現金', cutoffDay:  0, paymentDay:  0, color: '#616161', noBilling: true },
   // 赤はブランド色そのままだと明るすぎて目に刺さる（合計カードの全面に敷かれる）
   // ので、他カードと同じ暗めトーンに落としたワインレッドにする。
   //
   // androidPackage は通知の送り主。PayPay の支払い通知は文面に「PayPay」を
-  // 書かないことがあり、文面だけ見ていると支払い元が決まらず捨てていた。
-  // 送り主から決められるようにする（カードを増やすときはここに足すだけ）
-  paypay: { id: 'paypay', name: 'PayPay',                    shortName: 'PayPay', cutoffDay: 0, paymentDay: 0, color: '#7b3b41', noBilling: true, androidPackage: 'jp.ne.paypay.android.app' },
+  // 書かないことがあり、文面だけ見ていると支払い元が決まらず捨てていた
+  { id: 'paypay', name: 'PayPay',   shortName: 'PayPay', cutoffDay: 0, paymentDay: 0, color: '#7b3b41', noBilling: true, androidPackage: 'jp.ne.paypay.android.app' },
+  // 交通系 IC。チャージした時点で家計から出ていくので、乗車ごとではなく
+  // チャージを 1 件の支出として記録する（自動で取り込む方法が無い）
+  { id: 'suica',  name: 'モバイルSuica', shortName: 'Suica', cutoffDay: 0, paymentDay: 0, color: '#1b4d3e', noBilling: true },
+]
+
+const CARDS_KEY = 'cc_cards'
+// 既定を入れ直した記録。付け替えのたびに全部戻すと、消したカードが復活する
+const CARDS_SEEDED_KEY = 'cc_cards_seeded_v2'
+
+export const CARDS = {}
+// カード一覧（Object.values(CARDS) を各所で作り直さない）
+export const CARD_LIST = []
+
+/** CARDS / CARD_LIST の中身を入れ替える（参照は変えない） */
+function applyCards(list) {
+  for (const k of Object.keys(CARDS)) delete CARDS[k]
+  CARD_LIST.length = 0
+  for (const c of list) {
+    CARDS[c.id] = c
+    CARD_LIST.push(c)
+  }
+}
+
+function readCards() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CARDS_KEY) ?? 'null')
+    return Array.isArray(raw) ? raw.filter((c) => c && c.id) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 保存された支払い元を読む。
+ *
+ * 一度だけ既定を入れる。設定画面が壊れていた頃に保存されたリスト
+ * （既定のカードが入っていない）を読むと JCB や VISA が消えるので、
+ * 足りない既定は補って書き戻す。二度目からは `cc_cards` をそのまま使う
+ * （消したカードを毎回復活させない）。
+ */
+export function loadCards() {
+  const stored = readCards()
+  const seeded = (() => {
+    try { return localStorage.getItem(CARDS_SEEDED_KEY) === '1' } catch { return false }
+  })()
+
+  if (seeded && stored) return stored
+
+  const known = new Set((stored ?? []).map((c) => c.id))
+  const merged = [
+    ...DEFAULT_CARD_LIST.filter((c) => !known.has(c.id)),
+    ...(stored ?? []),
+  ]
+  try {
+    localStorage.setItem(CARDS_KEY, JSON.stringify(merged))
+    localStorage.setItem(CARDS_SEEDED_KEY, '1')
+  } catch (e) {
+    console.warn('loadCards seed failed', e)
+  }
+  return merged
+}
+
+export function saveCards(list) {
+  try {
+    localStorage.setItem(CARDS_KEY, JSON.stringify(list))
+    localStorage.setItem(CARDS_SEEDED_KEY, '1')
+  } catch (e) {
+    console.warn('saveCards failed', e)
+  }
+  applyCards(list)
+  bumpDataVersion()
+}
+
+/**
+ * その支払い元に記録があるか。
+ * 消すと固定費・変動費・上限が読めなくなるので、消す前に確かめる
+ */
+export function cardHasRecords(cardId) {
+  try {
+    const fixed = JSON.parse(localStorage.getItem(`cc_fixed_${cardId}`) ?? '[]')
+    if (Array.isArray(fixed) && fixed.length > 0) return true
+    const prefix = `cc_var_${cardId}_`
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (!key?.startsWith(prefix)) continue
+      const list = JSON.parse(localStorage.getItem(key) ?? '[]')
+      if (Array.isArray(list) && list.length > 0) return true
+    }
+    return false
+  } catch {
+    // 読めないときは「ある」とみなす（消して失うより安全）
+    return true
+  }
 }
 
 // 保存が起きるたびに増える版数。タブは「前回描画したときから版数が変わって
@@ -25,8 +129,8 @@ let dataVersion = 0
 export const getDataVersion = () => dataVersion
 export const bumpDataVersion = () => { dataVersion += 1 }
 
-// カード一覧（Object.values(CARDS) を各所で作り直さない）
-export const CARD_LIST = Object.values(CARDS)
+// 起動時に保存から作る。以降は saveCards / refreshCards が入れ替える
+applyCards(loadCards())
 
 // ─── 共有スタイル定数 ────────────────────────────────────────
 

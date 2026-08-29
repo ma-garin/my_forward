@@ -8,7 +8,8 @@
 | `cc_var_{cardId}_{ym}` | `VarItem[]` | カード変動費（月別） | `loadVar(cardId, ym)` / `saveVar(cardId, ym, list)` |
 | `cc_billed_{cardId}_{ym}` | `string[]` | 引き落とし済みID | `loadBilled(cardId, ym)` / `saveBilled(cardId, ym, ids)` |
 | `cc_limit_{cardId}` | `number` | 月間利用上限額 | `loadLimit(cardId)` / `saveLimit(cardId, v)` |
-| `cc_cards` | `Card[]` | カード定義リスト | `loadCards()` / `saveCards(list)` |
+| `cc_cards` | `Card[]` | 支払い元（カード・電子マネー・現金）の**唯一の出どころ**。初回に `DEFAULT_CARD_LIST` を書く | `loadCards()` / `saveCards(list)`（ccStorage.js） |
+| `cc_cards_seeded_v2` | `'1'` | 既定の支払い元を入れた記録。これが立ったあとは既定を足し直さない（消したカードを復活させない） | 自動管理 |
 | `cc_categories` | `string[]` | カテゴリ一覧 | `loadCategories()` / `saveCategories(list)` |
 | `cc_statement_{cardId}_{ym}` | `number` | カード明細の請求額（突合に使う）。キーが無い＝未入力で、`0` 円の請求と区別する | `loadStatement(cardId, ym)` / `saveStatement(cardId, ym, v)`（statement.js） |
 | `cc_category_budgets` | `{ [category: string]: number }` | カテゴリ別の月間予算 | `loadCategoryBudgets()` / `saveCategoryBudgets(map)` |
