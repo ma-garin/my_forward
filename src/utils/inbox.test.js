@@ -138,3 +138,33 @@ describe('振替（チャージ）の判定', () => {
     expect(item.transfer).toBeUndefined()
   })
 })
+
+describe('振替（チャージ）の判定', () => {
+  const suicaCharge = () => ingestNotifications([{
+    packageName: 'jp.co.smbc.vpass',
+    postTime: at(12, 0),
+    text: '◇ご利用カード：三井住友ゴールドＶＩＳＡ ◇日時：2026/08/14 12:00 ◇利用先：モバイルSuica ◇金額：3,000円',
+  }])
+
+  it('モバイルSuica へのチャージは振替として登録する', () => {
+    suicaCharge()
+    const { item } = acceptDraft(loadInbox()[0].id)
+    expect(item.transfer).toBe(true)
+  })
+
+  it('ふつうの買い物には付けない', () => {
+    ingestNotifications([{
+      packageName: 'jp.co.smbc.vpass',
+      postTime: at(12, 0),
+      text: '◇ご利用カード：三井住友ゴールドＶＩＳＡ ◇日時：2026/08/14 12:00 ◇利用先：ユニクロ ◇金額：2,990円',
+    }])
+    const { item } = acceptDraft(loadInbox()[0].id)
+    expect(item.transfer).toBeUndefined()
+  })
+
+  it('画面で外せる', () => {
+    suicaCharge()
+    const { item } = acceptDraft(loadInbox()[0].id, { transfer: false })
+    expect(item.transfer).toBeUndefined()
+  })
+})

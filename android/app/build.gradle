@@ -68,6 +68,10 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // 日本語の文字認識（モバイルSuica の利用履歴を画面から読む）。
+    // モデルは Google Play 開発者サービスが持つので APK は太らず、
+    // 読み取りは端末内で完結する（画像を外へ出さない）
+    implementation 'com.google.android.gms:play-services-mlkit-text-recognition-japanese:16.0.1'
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
