@@ -6,7 +6,7 @@ import {
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import CardHeaderBar from './CardHeaderBar'
-import { fmt, loadCategories } from '../utils/finance'
+import { fmt, loadCategories, countsAsSpending } from '../utils/finance'
 import { CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS, CARDS, loadCategoryBudgets, saveCategoryBudgets, upsertFixedItem, upsertVarItem } from '../utils/ccStorage'
 import AmountField from './AmountField'
 import ExpenseDialog from './ExpenseDialog'
@@ -51,7 +51,7 @@ function CategoryChartBase({ fixedList, varList }) {
   const { all, entries, data } = useMemo(() => {
     const all = [...fixedList, ...varList]
     const map = {}
-    all.forEach((x) => { map[x.category] = (map[x.category] ?? 0) + x.amount })
+    all.filter(countsAsSpending).forEach((x) => { map[x.category] = (map[x.category] ?? 0) + x.amount })
     const entries = Object.entries(map).sort((a, b) => b[1] - a[1])
     const data = entries.map(([label, value]) => ({ label, value }))
     return { all, entries, data }
@@ -105,11 +105,11 @@ function CategoryBreakdownBase({ fixedList, varList, cardId, ym, onUpdate, prevF
   const { all, entries, grandTotal, prevMap } = useMemo(() => {
     const all = [...fixedList, ...varList]
     const map = {}
-    all.forEach((x) => { map[x.category] = (map[x.category] ?? 0) + x.amount })
+    all.filter(countsAsSpending).forEach((x) => { map[x.category] = (map[x.category] ?? 0) + x.amount })
     const grandTotal = Object.values(map).reduce((s, v) => s + v, 0)
     const entries = Object.entries(map).sort((a, b) => b[1] - a[1])
     const prevMap = {}
-    ;[...prevFixedList, ...prevVarList].forEach((x) => { prevMap[x.category] = (prevMap[x.category] ?? 0) + x.amount })
+    ;[...prevFixedList, ...prevVarList].filter(countsAsSpending).forEach((x) => { prevMap[x.category] = (prevMap[x.category] ?? 0) + x.amount })
     return { all, entries, grandTotal, prevMap }
   }, [fixedList, varList, prevFixedList, prevVarList])
 
@@ -333,7 +333,7 @@ function CategoryBreakdownBase({ fixedList, varList, cardId, ym, onUpdate, prevF
 // 消費分類は変動費のみが対象（固定費は分類を持たない）。
 function SpendTypeChartBase({ varList }) {
   const { all, totals, grandTotal } = useMemo(() => {
-    const all = varList.filter(x => x.sign !== 1)
+    const all = varList.filter((x) => x.sign !== 1 && countsAsSpending(x))
     const totals = {}
     SPEND_TYPES.forEach(t => { totals[t] = 0 })
     all.forEach(x => {

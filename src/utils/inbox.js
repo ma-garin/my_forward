@@ -1,6 +1,7 @@
 import { bumpDataVersion, loadVar, saveVar, billingYmForCard } from './ccStorage'
 import { newId } from './finance'
 import { parseCardNotification } from './parseCardNotification'
+import { looksLikeTransfer } from './transfer'
 
 /**
  * カード利用通知から作った「未確定の支出」の置き場。
@@ -156,14 +157,19 @@ export function acceptDraft(id, overrides = {}) {
   const draft = take(id)
   if (!draft) return null
 
+  const name  = overrides.name  ?? draft.payee ?? ''
+  const payee = overrides.payee ?? draft.payee ?? ''
   const item = {
     id: newId(),
-    name: overrides.name ?? draft.payee ?? '',
-    payee: overrides.payee ?? draft.payee ?? '',
+    name,
+    payee,
     amount: overrides.amount ?? draft.amount,
     category: overrides.category ?? 'その他',
     spendType: overrides.spendType ?? '消費',
     date: overrides.date ?? draft.date,
+    // Suica などへのチャージは家計の外に出ていない。支出として数えると、
+    // チャージ元と使った先で 2 回数えることになる（画面で直せる）
+    ...(overrides.transfer ?? looksLikeTransfer(payee, name) ? { transfer: true } : {}),
   }
   const cardId = overrides.cardId ?? draft.cardId
   const ym = billingYmForCard(item.date, cardId)

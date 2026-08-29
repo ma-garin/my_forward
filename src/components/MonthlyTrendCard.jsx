@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Box, Card, CardContent, Typography, Stack } from '@mui/material'
 import { CARD_LIST, loadFixed, loadVar } from '../utils/ccStorage'
-import { isActiveForYm, fmt } from '../utils/finance'
+import { isActiveForYm, fmt, countsAsSpending } from '../utils/finance'
 import { useAfterPaint } from '../utils/useAfterPaint'
 import CardHeaderBar from './CardHeaderBar'
 
@@ -24,7 +24,7 @@ export default function MonthlyTrendCard({ currentBillingYm }) {
     const totalOf = (ym) => fixedAll.flatMap(({ id, list }) => [
       ...list.filter(x => isActiveForYm(x, ym)),
       ...loadVar(id, ym),
-    ]).filter(x => x.sign !== 1).reduce((s, x) => s + x.amount, 0)
+    ]).filter((x) => x.sign !== 1 && countsAsSpending(x)).reduce((s, x) => s + x.amount, 0)
 
     return months.map(ym => ({
       ym,

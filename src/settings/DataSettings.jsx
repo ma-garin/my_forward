@@ -6,6 +6,7 @@ import { isBackupKey, getAllKeys, createExportData, restoreExportData } from '..
 import { saveFile } from '../utils/saveFile'
 import AutoBackupList from '../components/AutoBackupList'
 import CsvImport from '../components/CsvImport'
+import SuicaImport from '../components/SuicaImport'
 
 const isActiveKey = isBackupKey
 
@@ -114,6 +115,8 @@ export default function DataSettings() {
       </Box>
 
       <CsvImport />
+
+      <SuicaImport />
 
       <AutoBackupList />
 
