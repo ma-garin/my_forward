@@ -47,6 +47,7 @@ App.jsx
 │   └── BudgetBreakdown   # 予算内訳（BudgetBreakdown.jsx）
 ├── Kakeibo.jsx           # 家計タブ本体（全カードを合算）
 │   ├── IncomeSummaryCard # 収支サマリー
+│   ├── DiagnosisCard     # 家計診断（5観点の採点。utils/diagnosis.js）
 │   ├── CombinedSummary   # 2枚合計・固定費内訳
 │   ├── LivingExpenseCard
 │   ├── MonthlyTrendCard  # 支出トレンド（6ヶ月・前年同月の点線つき）
