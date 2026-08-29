@@ -49,6 +49,16 @@ export function cardIdFromText(text) {
   return null
 }
 
+/**
+ * 通知の送り主（アプリのパッケージ名）から支払い元を決める。
+ * 文面にカード名が入らないアプリ（PayPay）はこれで決まる。
+ */
+export function cardIdFromPackage(pkg) {
+  if (!pkg) return null
+  const found = CARD_LIST.find((c) => c.androidPackage && c.androidPackage === pkg)
+  return found?.id ?? null
+}
+
 const toDateStr = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -95,11 +105,12 @@ function parseVpass(text, postTime) {
 
 const ANY_AMOUNT = /[¥￥]\s*([\d,]+)|([\d,]+)\s*円/
 
-function parseGeneric(text, postTime) {
+function parseGeneric(text, postTime, pkg) {
   const m = ANY_AMOUNT.exec(text)
   const amount = toAmount(m?.[1] ?? m?.[2] ?? '')
   if (!amount) return null
-  const cardId = cardIdFromText(text)
+  // 文面で決まらなければ送り主で決める（PayPay は文面に名前を書かない）
+  const cardId = cardIdFromText(text) ?? cardIdFromPackage(pkg)
   // カードが特定できない支払い（交通系のチャージ等）は当てずっぽうで
   // 登録しても直す手間が増えるだけなので落とす
   if (!cardId) return null
@@ -142,7 +153,7 @@ export function parseCardNotification(record) {
 
   // 項目名が付いていれば日時と利用先まで読む。読めなければ金額とカードだけ拾う
   const draft = (isVpass(text, pkg) ? parseVpass(text, postTime) : null)
-    ?? parseGeneric(text, postTime)
+    ?? parseGeneric(text, postTime, pkg)
 
   // 支払い元が分からない下書きは、どのカードに足すか決められないので出さない
   if (!draft?.cardId) return null

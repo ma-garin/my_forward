@@ -145,3 +145,43 @@ describe('関係ない通知を拾わない', () => {
     })).toBe(null)
   })
 })
+
+describe('PayPay（文面にカード名が入らない）', () => {
+  const at = new Date(2026, 7, 20, 12, 34).getTime()
+  const pkg = 'jp.ne.paypay.android.app'
+
+  it('送り主から支払い元を決める', () => {
+    const d = parseCardNotification({
+      packageName: pkg, postTime: at,
+      title: '支払いが完了しました', text: '1,200円をお支払いしました',
+    })
+    expect(d).toMatchObject({ cardId: 'paypay', amount: 1200, date: '2026-08-20' })
+  })
+
+  it('¥ 表記でも拾う', () => {
+    expect(parseCardNotification({
+      packageName: pkg, postTime: at, title: 'お支払い', text: '¥3,480',
+    })).toMatchObject({ cardId: 'paypay', amount: 3480 })
+  })
+
+  it('金額が無ければ拾わない（キャンペーンの知らせ等）', () => {
+    expect(parseCardNotification({
+      packageName: pkg, postTime: at,
+      title: 'PayPayからのお知らせ', text: 'クーポンが届いています',
+    })).toBe(null)
+  })
+
+  it('文面にカード名があればそちらを優先する', () => {
+    // PayPay アプリから JCB の利用通知が来ることは無いが、
+    // 送り主より文面のほうが確かなので優先順を固定しておく
+    expect(parseCardNotification({
+      packageName: pkg, postTime: at, title: '', text: 'JCB ••1004 で ¥740',
+    })).toMatchObject({ cardId: 'jcb' })
+  })
+
+  it('登録の無いアプリは送り主だけでは拾わない', () => {
+    expect(parseCardNotification({
+      packageName: 'com.example.pay', postTime: at, title: '支払い', text: '1,200円',
+    })).toBe(null)
+  })
+})

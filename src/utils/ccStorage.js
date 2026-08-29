@@ -11,8 +11,12 @@ export const CARDS = {
   // 対象から外す。PayPay は残高払いの扱い（あと払いはクレカ側で管理する）
   cash: { id: 'cash', name: '現金',                          shortName: '現金', cutoffDay:  0, paymentDay:  0, color: '#616161', noBilling: true },
   // 赤はブランド色そのままだと明るすぎて目に刺さる（合計カードの全面に敷かれる）
-  // ので、他カードと同じ暗めトーンに落としたワインレッドにする
-  paypay: { id: 'paypay', name: 'PayPay',                    shortName: 'PayPay', cutoffDay: 0, paymentDay: 0, color: '#7b3b41', noBilling: true },
+  // ので、他カードと同じ暗めトーンに落としたワインレッドにする。
+  //
+  // androidPackage は通知の送り主。PayPay の支払い通知は文面に「PayPay」を
+  // 書かないことがあり、文面だけ見ていると支払い元が決まらず捨てていた。
+  // 送り主から決められるようにする（カードを増やすときはここに足すだけ）
+  paypay: { id: 'paypay', name: 'PayPay',                    shortName: 'PayPay', cutoffDay: 0, paymentDay: 0, color: '#7b3b41', noBilling: true, androidPackage: 'jp.ne.paypay.android.app' },
 }
 
 // 保存が起きるたびに増える版数。タブは「前回描画したときから版数が変わって

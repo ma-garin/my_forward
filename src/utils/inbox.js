@@ -90,6 +90,45 @@ export function ingestNotifications(records) {
   return { added: added.length, inbox: loadInbox() }
 }
 
+/**
+ * CSV から作った下書きを受信箱に足す。
+ *
+ * 通知と違って CSV は同じ買い物を二度書かないので、ファイルの中では
+ * 重複を潰さない（同じ日に同じ金額を 2 回払うことは普通にある）。
+ * 潰すのは「前に取り込んだぶん」だけ。同じ日・同じ額が n 件あるとき、
+ * すでに n 件さばいてあれば足さず、足りないぶんだけ足す。
+ *
+ * @param {object[]} drafts toDrafts が作った下書き
+ * @returns {{ added: number, duplicate: number, inbox: object[] }}
+ */
+export function ingestDrafts(drafts) {
+  const inbox = loadInbox()
+  const key = (d) => `${d.cardId}|${d.amount}|${d.date}`
+
+  // すでにある件数を数える。承認済み（handled）は date を持たないので
+  // 時刻から日付に戻す
+  const seen = new Map()
+  const bump = (k) => seen.set(k, (seen.get(k) ?? 0) + 1)
+  for (const x of inbox) bump(key(x))
+  for (const h of loadHandled()) {
+    const d = new Date(h.at)
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    bump(`${h.cardId}|${h.amount}|${date}`)
+  }
+
+  const added = []
+  let duplicate = 0
+  for (const d of drafts) {
+    const k = key(d)
+    const remaining = seen.get(k) ?? 0
+    if (remaining > 0) { seen.set(k, remaining - 1); duplicate++; continue }
+    added.push({ id: newId(), ...d })
+  }
+
+  if (added.length) saveInbox([...added, ...inbox])
+  return { added: added.length, duplicate, inbox: loadInbox() }
+}
+
 /** 受信箱から 1 件外す（承認・無視の共通処理） */
 function take(id) {
   const inbox = loadInbox()
