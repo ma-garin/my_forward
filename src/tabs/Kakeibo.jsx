@@ -9,6 +9,7 @@ import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/
 import MonthlyTrendCard from '../components/MonthlyTrendCard'
 import FixedInventoryCard from '../components/FixedInventoryCard'
 import YearlyReviewCard from '../components/YearlyReviewCard'
+import DiagnosisCard from '../components/DiagnosisCard'
 import { CARD_LIST, loadFixed, loadLimit, loadVar } from '../utils/ccStorage'
 import { isActiveForYm } from '../utils/finance'
 
@@ -66,6 +67,9 @@ export default function Kakeibo() {
 
       {/* 収支サマリー */}
       <IncomeSummaryCard ym={ym} salaryYm={billingYm} />
+
+      {/* 家計診断（5観点の採点） */}
+      <DiagnosisCard key={`diag-${billingYm}`} ym={billingYm} />
 
       {/* 2枚合計サマリー */}
       <CombinedSummary ym={billingYm} salaryYm={billingYm} combinedLimit={combinedLimit} />

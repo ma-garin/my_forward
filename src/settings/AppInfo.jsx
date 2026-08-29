@@ -210,16 +210,16 @@ export default function AppInfo() {
       {/* 変更履歴 */}
       <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>変更履歴</Typography>
       {CHANGELOG.map((release, ri) => (
-        <Box key={release.date} sx={{ mb: 2 }}>
+        <Box key={release.label} sx={{ mb: 2 }}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}>
             <Typography variant="caption" fontWeight={700}
               sx={{ bgcolor: ri === 0 ? 'var(--surface-header)' : 'var(--divider)',
                     color: ri === 0 ? '#fff' : 'text.primary',
                     px: 1, py: 0.25, borderRadius: 1, fontSize: 11 }}>
-              {release.date.replace('-', '年')}月
+              {release.label}
             </Typography>
             <Typography variant="caption" color="text.secondary" fontSize={10}>
-              {release.items.length}件
+              {release.date} · {release.items.length}件
             </Typography>
           </Stack>
           <Box sx={{ pl: 1.5, borderLeft: 2, borderColor: 'divider' }}>
