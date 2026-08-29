@@ -4,7 +4,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import SwipeRow from './SwipeRow'
-import { fmt } from '../utils/finance'
+import { fmt, signedAmount, countsAsSpending } from '../utils/finance'
 import { CATEGORY_COLORS, BORDER_LIGHT, SPEND_TYPE_COLORS } from '../utils/ccStorage'
 
 // ─── 共通スタイル ─────────────────────────────────────────
@@ -46,6 +46,8 @@ const SPEND_CHIP_BASE_SX = {
   '& .MuiChip-label': { px: 0, width: '100%', textAlign: 'center' },
 }
 const SPEND_CHIP_FALLBACK_SX = { ...SPEND_CHIP_BASE_SX, bgcolor: '#eceff1', color: '#fff' }
+// 振替は消費分類を持たない。分類の枠に「振替」を出して、支出でないと分かるようにする
+const TRANSFER_CHIP_SX = { ...SPEND_CHIP_BASE_SX, bgcolor: '#546e7a', color: '#fff' }
 const SPEND_CHIP_SX = Object.fromEntries(
   Object.entries(SPEND_TYPE_COLORS).map(([type, color]) => [
     type, { ...SPEND_CHIP_BASE_SX, bgcolor: color, color: '#fff' },
@@ -77,7 +79,7 @@ const MIN0_SX        = { minWidth: 0 }
 export const ExpenseRow = memo(function ExpenseRow({
   item, sub, notes, billed = false, onToggleBilled, onEdit, onDelete, onContextMenu,
 }) {
-  const { category, spendType, sign, name, payee, amount } = item
+  const { category, spendType, sign, name, payee, amount, transfer } = item
   return (
     <SwipeRow onDelete={() => onDelete(item.id)} onClick={() => onEdit(item)}>
       <Box
@@ -96,7 +98,9 @@ export const ExpenseRow = memo(function ExpenseRow({
             ) : (
               // 返金は分類を出さないが、枠は空のまま残して見出しの開始位置を揃える
               <Box sx={SPEND_SLOT_SX}>
-                {spendType && sign !== 1 && (
+                {transfer ? (
+                  <Chip label="振替" size="small" sx={TRANSFER_CHIP_SX} />
+                ) : spendType && sign !== 1 && (
                   <Chip label={spendType} size="small"
                     sx={SPEND_CHIP_SX[spendType] ?? SPEND_CHIP_FALLBACK_SX} />
                 )}
@@ -116,7 +120,10 @@ export const ExpenseRow = memo(function ExpenseRow({
           </Stack>
           <Stack alignItems="center" direction="row" gap={0.25} sx={RIGHT_STACK_SX}>
             <Stack alignItems="flex-end">
-              <Typography variant="body2" sx={AMOUNT_SX}>¥{fmt(amount)}</Typography>
+              <Typography variant="body2"
+                sx={transfer ? { ...AMOUNT_SX, color: 'text.disabled', fontWeight: 500 } : AMOUNT_SX}>
+                ¥{fmt(amount)}
+              </Typography>
               {sub && <Typography variant="caption" sx={SUBTOTAL_SX}>{sub}</Typography>}
             </Stack>
             <ChevronRightIcon sx={CHEVRON_SX} />
@@ -145,8 +152,6 @@ const shortDate = (d) => {
   return `${parseInt(m)}/${parseInt(day)}`
 }
 
-// 返金（sign=1）はマイナス扱い。金額順で上に来ないよう符号を戻して比べる。
-const signedAmount = (x) => (x.sign === 1 ? -x.amount : x.amount)
 
 /**
  * 変動費リスト。
@@ -182,12 +187,15 @@ export function VarExpenseTable({ varList, sort = 'date_asc', emptyText, onEdit,
     let running = 0
     // varList は日付の古い順で保存されている（ccStorage の byDate）
     varList.forEach(item => {
-      running += item.amount
+      // 累計・日付ごとの合計も signedAmount で積む。ここで item.amount を
+      // 直に足すと、返金や振替を含んだ額が出て、カード上部の使用額と食い違う
+      const value = signedAmount(item)
+      running += value
       const row  = { ...item, sub: `累計 ¥${fmt(running)}` }
       const last = out[out.length - 1]
       const d    = item.date ?? '—'
-      if (last && last.date === d) { last.items.push(row); last.total += item.amount }
-      else out.push({ date: d, header: d, items: [row], total: item.amount })
+      if (last && last.date === d) { last.items.push(row); last.total += value }
+      else out.push({ date: d, header: d, items: [row], total: value })
     })
     if (sort === 'date_asc') return out
     // 累計は「その日までの合計」なので、必ず古い順で積んでから並べ替える。
@@ -244,7 +252,7 @@ export function DailyBarChart({ varList }) {
 
   const byDate = {}
   varList.forEach(x => {
-    if (!x.date || x.sign === 1) return
+    if (!x.date || x.sign === 1 || !countsAsSpending(x)) return
     byDate[x.date] = (byDate[x.date] ?? 0) + x.amount
   })
   const dates = Object.keys(byDate).sort()

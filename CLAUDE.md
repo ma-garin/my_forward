@@ -40,6 +40,7 @@ Kiro Spec Driven Development を使う場合は `/kiro` skill を呼び出す。
 | 支払い元の一覧 | `cc_cards`（`loadCards` / `saveCards`。`CARDS` / `CARD_LIST` は中身を入れ替える） |
 | 今どの請求月か | `finance.currentBillingYm(cutoffDay)` |
 | その月の手取り | `utils/income.js` の `takeHomeFor(ym)`（実績があれば実績・無ければ見込み） |
+| 合計に足す額 | `finance.signedAmount(item)`（返金はマイナス・振替は 0）。行ごとに書かない |
 | その月の収支 | `utils/monthly.js` の `monthlyBalance(ym)`（年次はこれを 12 ヶ月ぶん積む） |
 | 生活費の週数 | `utils/monthly.js` の `livingWeeksFor(ym)`（今日ではなく請求サイクルで数える） |
 | 記録と請求額の差 | `utils/statement.js` の `compare(recorded, statement)`（記録額は画面から渡す） |

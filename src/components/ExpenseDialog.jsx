@@ -27,6 +27,8 @@ export default function ExpenseDialog({ open, onClose, onSave, onDuplicate, init
   const [targetYm,       setTargetYm]       = useState(initial?.targetYm       ?? '')
   // 返金（sign=1）。マイナス扱いで集計される。変動費のみ
   const [refund,         setRefund]         = useState(initial?.sign === 1)
+  // 振替。チャージなど、家計の外にお金が出ていない行。合計から外す
+  const [transfer,       setTransfer]       = useState(initial?.transfer === true)
 
 
   // 保存と複製で同じ内容を渡す（複製＝今の入力内容を新規として保存）
@@ -51,7 +53,7 @@ export default function ExpenseDialog({ open, onClose, onSave, onDuplicate, init
       // 固定費は消費分類を持たない（既存データに残っていても保存時に落とす）
       ...(isFixed
         ? { spendType: undefined, day: dayField, ...recurrenceFields }
-        : { spendType, date, sign: refund ? 1 : undefined }),
+        : { spendType, date, sign: refund ? 1 : undefined, transfer: transfer || undefined }),
     }
   }
 
@@ -184,6 +186,19 @@ export default function ExpenseDialog({ open, onClose, onSave, onDuplicate, init
                 color: refund ? '#fff' : 'text.secondary',
                 fontWeight: refund ? 700 : 400,
               }}>返金として記録（マイナス扱い）</Box>
+            </Stack>
+          )}
+          {/* チャージは家計の外にお金が出ていない。支出として数えると、
+              チャージ元と使った先で 2 回数えることになる */}
+          {!isFixed && (
+            <Stack direction="row" alignItems="center" gap={1}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12, minWidth: 52 }}>振替</Typography>
+              <Box onClick={() => setTransfer(v => !v)} sx={{
+                px: 1.5, py: 0.5, borderRadius: 2, cursor: 'pointer', fontSize: 12, userSelect: 'none',
+                bgcolor: transfer ? '#37474f' : 'var(--surface-line)',
+                color: transfer ? '#fff' : 'text.secondary',
+                fontWeight: transfer ? 700 : 400,
+              }}>チャージ・移動（支出に数えない）</Box>
             </Stack>
           )}
         </Stack>

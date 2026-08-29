@@ -181,6 +181,13 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- 日本語の文字認識モデルをインストール時に落としておく。
+             書かなくても初回の読み取り時に落ちてくるが、そのときだけ
+             失敗したように見える（実際は準備中） -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr_japanese" />
     </application>
 
     <!-- Permissions -->

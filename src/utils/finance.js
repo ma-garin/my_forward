@@ -310,9 +310,23 @@ export function isActiveForYm(item, ym) {
 // カレンダー月の変動費合計（CCタブ表示用）
 // 返金（sign=1）はマイナスとして数える。支出の集計はどの画面でもこれを通す。
 // 画面ごとに「返金を除外する/引く」が割れると、合計がタブ間で食い違う
+/**
+ * 合計に足す額。
+ *
+ * 返金（sign=1）はマイナス。振替（transfer）は 0 ——
+ * チャージは家計の外にお金が出ていないので、支出として数えない
+ * （数えるとチャージ元と使った先で 2 回数えることになる）。
+ *
+ * この判断はここ 1 箇所に置く。画面ごとに書くと、片方だけ直したときに
+ * 同じ月なのに合計が食い違う。
+ */
 export function signedAmount(item) {
+  if (item.transfer) return 0
   return item.sign === 1 ? -item.amount : item.amount
 }
+
+/** カテゴリ・消費分類・グラフに載せる行か（振替は家計の支出ではない） */
+export const countsAsSpending = (item) => !item?.transfer
 
 export function getCCTotal(cardId, ym) {
   try {

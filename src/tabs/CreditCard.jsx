@@ -20,7 +20,7 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import SwapVertIcon from '@mui/icons-material/SwapVert'
 import SearchIcon from '@mui/icons-material/Search'
 import CloseIcon from '@mui/icons-material/Close'
-import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm, addMonth, currentBillingYm } from '../utils/finance'
+import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm, addMonth, currentBillingYm, signedAmount } from '../utils/finance'
 import {
   CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
   sumLiving,
@@ -280,7 +280,7 @@ function YearlySummary({ year, cardId }) {
       const ym = ymStr(year, m)
       const fixedTotal = fixedAll.filter(x => isActiveForYm(x, ym)).reduce((s, x) => s + x.amount, 0)
       const vl = loadVar(cardId, ym)
-      const varTotal = vl.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
+      const varTotal = vl.reduce((s, x) => s + signedAmount(x), 0)
       return { m, fixedTotal, varTotal, total: fixedTotal + varTotal }
     })
     const maxTotal = Math.max(...data.map(d => d.total), 1)
@@ -873,7 +873,7 @@ export default function CreditCard() {
   const { filteredFixed, fixedTotal, varTotal, grandTotal } = useMemo(() => {
     const filteredFixed = fixedList.filter((x) => isActiveForYm(x, ym))
     const fixedTotal = filteredFixed.reduce((s, x) => s + x.amount, 0)
-    const varTotal   = varList.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
+    const varTotal   = varList.reduce((s, x) => s + signedAmount(x), 0)
     return { filteredFixed, fixedTotal, varTotal, grandTotal: fixedTotal + varTotal }
   }, [fixedList, varList, ym])
 
@@ -883,7 +883,7 @@ export default function CreditCard() {
     const shownVarList = query ? varList.filter((x) => matchesQuery(x, query)) : varList
     return {
       shownVarList,
-      hitTotal: shownVarList.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0),
+      hitTotal: shownVarList.reduce((s, x) => s + signedAmount(x), 0),
     }
   }, [varList, query])
 
@@ -1139,7 +1139,7 @@ export default function CreditCard() {
       <Card sx={{ mb: 1.5 }}>
         {(() => {
           // 前月変動費は上部でメモ化済みの prevVarListForCat（同一 prevYm）を再利用
-          const prevVarTotal = prevVarListForCat.reduce((s, x) => s + (x.sign === 1 ? -x.amount : x.amount), 0)
+          const prevVarTotal = prevVarListForCat.reduce((s, x) => s + signedAmount(x), 0)
           const varDiff = varTotal - prevVarTotal
           return (
         <Box

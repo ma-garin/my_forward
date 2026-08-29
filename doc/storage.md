@@ -92,6 +92,7 @@ VarItem = {
   spendType: '消費' | '投資' | '浪費'
   date: string              // YYYY-MM-DD
   sign?: 0 | 1              // 1=返金（マイナス扱い）
+  transfer?: boolean        // true=振替（チャージ等）。合計にも分析にも入れない
 }
 
 // 支出の下書き（受信箱）。通知から作るものと、明細 CSV から作るものがある
