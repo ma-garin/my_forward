@@ -14,7 +14,6 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(SharedTextPlugin.class);
         registerPlugin(WidgetBridgePlugin.class);
         registerPlugin(IconPlugin.class);
-        registerPlugin(OcrPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
