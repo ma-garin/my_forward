@@ -37,6 +37,7 @@ Kiro Spec Driven Development を使う場合は `/kiro` skill を呼び出す。
 | アプリのバージョン | `package.json` の `version`（Vite が `__APP_VERSION__` で注入、`build.gradle` も同じファイルを読む） |
 | 週予算 | `cc_living_unit`（`loadLivingUnit` / `saveLivingUnit`） |
 | 明暗の判定 | `utils/useColorMode.js`（スプラッシュは結果の色 `cc_theme_bg` を読むだけ） |
+| 支払い元の一覧 | `cc_cards`（`loadCards` / `saveCards`。`CARDS` / `CARD_LIST` は中身を入れ替える） |
 | 今どの請求月か | `finance.currentBillingYm(cutoffDay)` |
 | その月の手取り | `utils/income.js` の `takeHomeFor(ym)`（実績があれば実績・無ければ見込み） |
 | その月の収支 | `utils/monthly.js` の `monthlyBalance(ym)`（年次はこれを 12 ヶ月ぶん積む） |

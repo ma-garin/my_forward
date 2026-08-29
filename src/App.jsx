@@ -114,20 +114,26 @@ function AppInner() {
   }, [])
   useLaunchIntent(showCreditCardTab)
 
+  // 前回描画したときからデータが変わっていれば作り直す。
+  // タブを切り替えたときと、設定を閉じたときの両方で見る。設定でしか変えられない
+  // もの（支払い元・週予算）は、切替を挟まないと反映されなかった
+  const refreshTabIfChanged = useCallback((index) => {
+    const version = getDataVersion()
+    if (seenVersion.current[index] === version) return
+    seenVersion.current[index] = version
+    setRefreshKeys((prev) => {
+      const next = [...prev]
+      next[index] = next[index] + 1
+      return next
+    })
+  }, [])
+
   const handleTabChange = useCallback((_, v) => {
     setActiveTab(v)
     setMounted(prev => prev[v] ? prev : prev.map((m, i) => i === v ? true : m))
-    const version = getDataVersion()
-    if (seenVersion.current[v] !== version) {
-      seenVersion.current[v] = version
-      setRefreshKeys(prev => {
-        const next = [...prev]
-        next[v] = next[v] + 1
-        return next
-      })
-    }
+    refreshTabIfChanged(v)
     window.scrollTo(0, 0)
-  }, [])
+  }, [refreshTabIfChanged])
 
   // 設定は履歴に積む。Android の戻るボタンは履歴があればそれを辿り、無ければ
   // アプリを終了する。積んでおかないと、設定を開いたまま戻るとアプリごと落ちる。
@@ -143,19 +149,21 @@ function AppInner() {
   }
   const closeSettings = () => {
     if (window.history.state?.settings) window.history.back()
-    else setSettingsOpen(false)
+    else { setSettingsOpen(false); refreshTabIfChanged(activeTab) }
   }
   const goBack = closeSettings
 
   useEffect(() => {
     const onPop = (e) => {
       const s = e.state
-      setSettingsOpen(!!s?.settings)
-      setSettingsPage(s?.settings ? (s.page ?? null) : null)
+      const open = !!s?.settings
+      setSettingsOpen(open)
+      setSettingsPage(open ? (s.page ?? null) : null)
+      if (!open) refreshTabIfChanged(activeTab)
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
-  }, [])
+  }, [activeTab, refreshTabIfChanged])
 
   return (
     <ThemeProvider theme={theme}>

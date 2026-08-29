@@ -59,8 +59,9 @@ describe('Google ウォレット', () => {
     })
   })
 
-  it('カードが分からない支払いは落とす', () => {
-    expect(parseCardNotification({ ...GPAY, text: 'Suica ••1004 で ¥740' })).toBe(null)
+  it('登録の無い支払い元は落とす', () => {
+    // Suica は支払い元として登録したので、登録の無いブランドで見る
+    expect(parseCardNotification({ ...GPAY, text: 'AMEX ••1004 で ¥740' })).toBe(null)
   })
 })
 
