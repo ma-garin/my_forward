@@ -95,10 +95,10 @@ VarItem = {
   transfer?: boolean        // true=振替（チャージ等）。合計にも分析にも入れない
 }
 
-// 支出の下書き（受信箱）。通知から作るものと、明細 CSV から作るものがある
+// 通知から作った支出の下書き（受信箱）
 Draft = {
   id: string
-  source: 'vpass' | 'googlepay' | 'card' | 'csv'
+  source: 'vpass' | 'googlepay' | 'card'
   cardId: string
   amount: number
   at: number                // 取引時刻(ms)。二重通知の判定に使う

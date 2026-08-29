@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { ingestNotifications, ingestDrafts, loadInbox, acceptDraft, dismissDraft } from './inbox'
+import { ingestNotifications, loadInbox, acceptDraft, dismissDraft } from './inbox'
 import { loadVar } from './ccStorage'
 
 beforeEach(() => localStorage.clear())
@@ -106,59 +106,6 @@ describe('承認', () => {
     ingestNotifications([vpass(1320, 'スシロー', 12, 12)])
     acceptDraft(loadInbox()[0].id)
     expect(loadInbox()).toHaveLength(0)
-  })
-})
-
-describe('CSV からの取り込み', () => {
-  const draft = (amount, date, payee = '') =>
-    ({ source: 'csv', cardId: 'paypay', amount, date, payee,
-      at: new Date(...date.split('-').map(Number).map((v, i) => (i === 1 ? v - 1 : v)), 12).getTime() })
-
-  it('受信箱に足す', () => {
-    const r = ingestDrafts([draft(540, '2026-08-20'), draft(1200, '2026-08-22')])
-    expect(r.added).toBe(2)
-    expect(loadInbox()).toHaveLength(2)
-  })
-
-  it('同じ日の同じ金額でも、ファイルの中では潰さない', () => {
-    const r = ingestDrafts([draft(540, '2026-08-20'), draft(540, '2026-08-20')])
-    expect(r.added).toBe(2)
-  })
-
-  it('二度取り込んでも増えない', () => {
-    const rows = [draft(540, '2026-08-20'), draft(1200, '2026-08-22')]
-    ingestDrafts(rows)
-    const again = ingestDrafts(rows)
-    expect(again.added).toBe(0)
-    expect(again.duplicate).toBe(2)
-    expect(loadInbox()).toHaveLength(2)
-  })
-
-  it('増えたぶんだけ足す', () => {
-    ingestDrafts([draft(540, '2026-08-20')])
-    const r = ingestDrafts([draft(540, '2026-08-20'), draft(540, '2026-08-20')])
-    expect(r.added).toBe(1)
-    expect(r.duplicate).toBe(1)
-  })
-
-  it('承認済みのものは戻ってこない', () => {
-    ingestDrafts([draft(540, '2026-08-20')])
-    acceptDraft(loadInbox()[0].id)
-    expect(loadInbox()).toHaveLength(0)
-    const r = ingestDrafts([draft(540, '2026-08-20')])
-    expect(r.added).toBe(0)
-    expect(loadInbox()).toHaveLength(0)
-  })
-
-  it('無視したものも戻ってこない', () => {
-    ingestDrafts([draft(540, '2026-08-20')])
-    dismissDraft(loadInbox()[0].id)
-    expect(ingestDrafts([draft(540, '2026-08-20')]).added).toBe(0)
-  })
-
-  it('日が違えば別の買い物として足す', () => {
-    ingestDrafts([draft(540, '2026-08-20')])
-    expect(ingestDrafts([draft(540, '2026-08-21')]).added).toBe(1)
   })
 })
 
