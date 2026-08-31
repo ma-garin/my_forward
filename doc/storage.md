@@ -36,6 +36,7 @@
 | `cc_inbox` | `Draft[]` | カード利用通知から作った未確定の支出 | `loadInbox` / `ingestNotifications`（inbox.js） |
 | `cc_inbox_handled` | `{ cardId, amount, at }[]` | 承認・無視した通知の記録（再取り込みで復活させない。最大400件） | 自動管理（inbox.js） |
 | `cc_theme_bg` | `string` | 起動スプラッシュ用に、解決済みの地の色を控える。判定は持たない（useColorMode の結果を写すだけ） | 自動管理（App.jsx） |
+| `cc_hidden_cards` | `string[]` | 隠しているカードの id（表示が既定なので、増やしたカードは必ず出る） | `loadHiddenCards` / `setCardVisible`（cardVisibility.js） |
 | `cc_theme_mode` | `'system' \| 'light' \| 'dark'` | 外観（既定は system＝端末追従） | `loadThemeMode` / `saveThemeMode`（useColorMode.js） |
 
 ## 給与

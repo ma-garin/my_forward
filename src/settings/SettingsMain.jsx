@@ -8,6 +8,7 @@ import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsAc
 import AlarmOutlinedIcon from '@mui/icons-material/AlarmOutlined'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import AppsOutlinedIcon from '@mui/icons-material/AppsOutlined'
 import { isNativeApp } from '../utils/notificationCapture'
 
@@ -17,6 +18,7 @@ const ITEMS = [
   { key: 'salaryHistory', label: '給与履歴',    sub: '給与明細の履歴・推移グラフ',    icon: <HistoryIcon /> },
   { key: 'data',          label: 'データ管理',  sub: 'エクスポート・インポート・暗号化バックアップ', icon: <CloudDownloadIcon /> },
   { key: 'appearance',    label: '外観',        sub: 'ライト / ダークの切り替え',      icon: <DarkModeOutlinedIcon /> },
+  { key: 'cards',         label: '表示するカード', sub: '使わないカードを隠す',        icon: <TuneOutlinedIcon /> },
   { key: 'appInfo',       label: 'アプリ情報',  sub: 'バージョン・変更履歴・ライセンス', icon: <InfoOutlinedIcon /> },
 ]
 

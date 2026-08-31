@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 自動生成: scripts/gen-icon-variants.mjs -->
+<resources>
+    <color name="ic_launcher_wallet_background">#fbfcfb</color>
+    <color name="ic_launcher_chart_background">#fdfdfd</color>
+</resources>
