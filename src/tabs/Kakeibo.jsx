@@ -72,6 +72,9 @@ export default function Kakeibo() {
       {/* 家計診断（5観点の採点） */}
       {isCardVisible('kk.diagnosis') && <DiagnosisCard key={`diag-${billingYm}`} ym={billingYm} />}
 
+      {/* 家計診断（5観点の採点） */}
+      <DiagnosisCard key={`diag-${billingYm}`} ym={billingYm} />
+
       {/* 2枚合計サマリー */}
       {isCardVisible('kk.combined') && <CombinedSummary ym={billingYm} salaryYm={billingYm} combinedLimit={combinedLimit} />}
 
