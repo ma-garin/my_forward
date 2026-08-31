@@ -44,7 +44,7 @@ import { pushScreen } from '../utils/useAndroidBack'
 import { onQuickAdd, takePendingQuickAdd } from '../utils/quickAdd'
 import { cycleDatesForYm, cycleLabel, cutoffLabel, paymentLabel } from '../utils/billingCycle'
 import StatementReconcile from '../components/StatementReconcile'
-import { isCardVisible } from '../utils/cardVisibility'
+import { isCardVisible, visibleCardList } from '../utils/cardVisibility'
 import { findDuplicate, duplicateMessage } from '../utils/duplicates'
 import { detectSubscriptions, dismissSubscription } from '../utils/subscriptions'
 
@@ -470,7 +470,7 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
       <Box sx={IROW}>
         <Typography sx={ILABEL}>カード</Typography>
         <Stack direction="row" spacing={1}>
-          {CARD_LIST.map(c => (
+          {visibleCardList().map(c => (
             <Chip key={c.id} label={c.shortName} size="small" onClick={() => setCardId(c.id)}
               sx={{ fontWeight: 600, fontSize: 12, bgcolor: cardId === c.id ? c.color : 'transparent',
                 color: cardId === c.id ? '#fff' : 'text.secondary', border: `1px solid ${c.color}` }} />
@@ -633,7 +633,7 @@ function defaultBillingMonth() {
 
 export default function CreditCard() {
   const { year: defaultYear, month: defaultMonth } = defaultBillingMonth()
-  const [cardId,  setCardId]  = useState('jcb')
+  const [cardId,  setCardId]  = useState(() => visibleCardList()[0]?.id ?? 'jcb')
   const [year,    setYear]    = useState(defaultYear)
   const [month,   setMonth]   = useState(defaultMonth)
 
@@ -910,7 +910,7 @@ export default function CreditCard() {
       {/* カード選択 */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Stack direction="row" spacing={1}>
-          {CARD_LIST.map((c) => (
+          {visibleCardList().map((c) => (
             <Chip key={c.id} label={c.shortName} onClick={() => switchCard(c.id)}
               variant={cardId === c.id ? 'filled' : 'outlined'}
               sx={{
@@ -928,7 +928,7 @@ export default function CreditCard() {
       </Stack>
 
       {/* 個別カードサマリー */}
-      {(() => {
+      {isCardVisible('cc.summary') && (() => {
         const limitInput = limitInputs[cardId]
         const limit = parseFloat(limitInput) || 0
         const pct   = limit > 0 ? Math.min(grandTotal / limit * 100, 100) : 0
@@ -1068,13 +1068,15 @@ export default function CreditCard() {
       )}
 
       {/* カード利用通知から作った未確定の支出。押したものだけ登録する */}
-      <InboxCard
-        drafts={inboxDrafts.filter((d) => d.cardId === cardId)}
-        onAccept={acceptDraft} onDismiss={dismissDraft} categories={categories}
-      />
+      {isCardVisible('cc.inbox') && (
+        <InboxCard
+          drafts={inboxDrafts.filter((d) => d.cardId === cardId)}
+          onAccept={acceptDraft} onDismiss={dismissDraft} categories={categories}
+        />
+      )}
 
       {/* サブスクの提案（毎月・同じ相手・同額が続いたら固定費化を勧める） */}
-      {subsCandidates.length > 0 && (
+      {isCardVisible('cc.subs') && subsCandidates.length > 0 && (
         <Card sx={{ mb: 1.5, bgcolor: '#fffde7', border: '1px solid #fff59d' }}>
           <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
             <Typography variant="caption" fontWeight={700} sx={{ color: '#795548' }}>
@@ -1108,6 +1110,7 @@ export default function CreditCard() {
       )}
 
       {/* 固定費テーブル */}
+      {isCardVisible('cc.fixed') && (
       <Card sx={{ mb: 1.5 }}>
         <Box
           onClick={() => setFixedOpen((v) => !v)}
@@ -1137,8 +1140,10 @@ export default function CreditCard() {
           </CardContent>
         </Collapse>
       </Card>
+      )}
 
       {/* 変動費 */}
+      {isCardVisible('cc.var') && (
       <Card sx={{ mb: 1.5 }}>
         {(() => {
           // 前月変動費は上部でメモ化済みの prevVarListForCat（同一 prevYm）を再利用
@@ -1220,6 +1225,7 @@ export default function CreditCard() {
           </CardContent>
         </Collapse>
       </Card>
+      )}
 
       {/* 消費分類（当カード） */}
       {isCardVisible('cc.spendType') && <SpendTypeChart varList={varList} />}
