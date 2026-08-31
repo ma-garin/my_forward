@@ -77,6 +77,36 @@
         </activity-alias>
 
         <activity-alias
+            android:name=".IconWallet"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_wallet"
+            android:roundIcon="@mipmap/ic_launcher_wallet_round"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconChart"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_chart"
+            android:roundIcon="@mipmap/ic_launcher_chart_round"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
+        </activity-alias>
+
+        <activity-alias
             android:name=".IconIndigo"
             android:targetActivity=".MainActivity"
             android:icon="@mipmap/ic_launcher_indigo"

@@ -1,4 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core'
+import walletIcon from '../assets/icons/wallet.png'
+import chartIcon from '../assets/icons/chart.png'
 
 /**
  * ホーム画面のアイコンの切り替え。
@@ -16,13 +18,18 @@ const AppIcon = registerPlugin('AppIcon')
 
 /**
  * 候補。id は AndroidManifest の activity-alias 名と一致させる。
- * 画像は scripts/gen-icon-variants.mjs が color から作る（色の定義もそこ）。
+ * 画像は scripts/gen-icon-variants.mjs が作る（色違いは color から、
+ * 別デザインは assets/icon-sources の元画像から）。
  */
 export const APP_ICONS = [
-  { id: 'IconDefault',  label: '標準',           color: '#263238' },
-  { id: 'IconMidnight', label: 'ミッドナイト',   color: '#0f1417' },
-  { id: 'IconIndigo',   label: 'インディゴ',     color: '#1a237e' },
-  { id: 'IconWine',     label: 'ワイン',         color: '#5d2b31' },
+  { id: 'IconDefault',  label: '標準',         color: '#263238' },
+  { id: 'IconMidnight', label: 'ミッドナイト', color: '#0f1417' },
+  { id: 'IconIndigo',   label: 'インディゴ',   color: '#1a237e' },
+  { id: 'IconWine',     label: 'ワイン',       color: '#5d2b31' },
+  // 色違いではなく絵そのものが違うもの。設定画面には実物を出す
+  // （色の四角では、どのアイコンになるか分からない）
+  { id: 'IconWallet',   label: 'ウォレット',   image: walletIcon },
+  { id: 'IconChart',    label: 'チャート',     image: chartIcon },
 ]
 
 export const DEFAULT_ICON_ID = APP_ICONS[0].id

@@ -68,13 +68,20 @@ export default function IconSettings() {
               }}
             >
               <Box sx={{ position: 'relative' }}>
-                <Box sx={{
-                  width: 56, height: 56, borderRadius: '28%',
-                  bgcolor: icon.color,
-                  border: 2,
-                  borderColor: selected ? 'primary.main' : 'transparent',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
-                }} />
+                {/* 絵そのものが違うものは実物を出す。色の四角では区別がつかない */}
+                <Box
+                  component={icon.image ? 'img' : 'div'}
+                  src={icon.image}
+                  alt=""
+                  sx={{
+                    width: 56, height: 56, borderRadius: '28%', display: 'block',
+                    objectFit: 'cover',
+                    ...(icon.image ? {} : { bgcolor: icon.color }),
+                    border: 2,
+                    borderColor: selected ? 'primary.main' : 'transparent',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+                  }}
+                />
                 {selected && (
                   <CheckCircleIcon
                     sx={{

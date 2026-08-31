@@ -25,7 +25,7 @@ public class IconPlugin extends Plugin {
 
     // manifest の activity-alias と対応する。並びもここが基準
     private static final String[] ALIASES = {
-        "IconDefault", "IconMidnight", "IconIndigo", "IconWine",
+        "IconDefault", "IconMidnight", "IconIndigo", "IconWine", "IconWallet", "IconChart",
     };
 
     private ComponentName componentFor(String alias) {

@@ -24,6 +24,16 @@ const BASE = [0x26, 0x32, 0x38]
 // 色の差し替え範囲。境界のぼかしを残すため、距離に応じて混ぜる
 const TOLERANCE = 70
 
+/**
+ * 別デザインのアイコン。色違いではなく絵そのものが違うので、
+ * 元画像から各密度へ焼き直す。src は 1:1 の PNG（角丸込みで作られている）。
+ * background は adaptive icon の地（絵の周りが切られる端末で見える色）。
+ */
+export const IMAGE_VARIANTS = [
+  { id: 'wallet', src: 'assets/icon-sources/wallet.png', background: '#fbfcfb' },
+  { id: 'chart',  src: 'assets/icon-sources/chart.png',  background: '#fdfdfd' },
+]
+
 // 変える色。default は元のままなので生成しない
 export const VARIANTS = [
   { id: 'midnight', color: [0x0f, 0x14, 0x17] },
@@ -59,6 +69,17 @@ async function recolor(srcPath, target) {
     .png()
 }
 
+/** 別デザイン用。地は単色、前景は絵をそのまま（安全域ぶん内側に置く） */
+const imageAdaptiveXml = (id) => `<?xml version="1.0" encoding="utf-8"?>
+<!-- 自動生成: scripts/gen-icon-variants.mjs -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_${id}_background" />
+    <foreground>
+        <inset android:drawable="@mipmap/ic_launcher_${id}_foreground" android:inset="16.7%" />
+    </foreground>
+</adaptive-icon>
+`
+
 const adaptiveXml = (id) => `<?xml version="1.0" encoding="utf-8"?>
 <!-- 自動生成: scripts/gen-icon-variants.mjs -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
@@ -82,6 +103,39 @@ async function main() {
 
   const anydpi = `${RES}/mipmap-anydpi-v26`
   mkdirSync(anydpi, { recursive: true })
+
+  const { writeFileSync: write } = await import('fs')
+
+  // 別デザイン: 元画像を各密度へ焼く。丸アイコンは円に切り抜く
+  for (const v of IMAGE_VARIANTS) {
+    if (!existsSync(v.src)) throw new Error(`元画像が見つかりません: ${v.src}`)
+    for (const d of DENSITIES) {
+      const dir = `${RES}/mipmap-${d.dir}`
+      mkdirSync(dir, { recursive: true })
+      const square = sharp(v.src).ensureAlpha()
+      await square.clone().resize(d.legacy, d.legacy)
+        .toFile(path.join(dir, `ic_launcher_${v.id}.png`))
+      await square.clone().resize(d.fg, d.fg)
+        .toFile(path.join(dir, `ic_launcher_${v.id}_foreground.png`))
+      const r = d.legacy / 2
+      const circle = Buffer.from(
+        `<svg width="${d.legacy}" height="${d.legacy}"><circle cx="${r}" cy="${r}" r="${r}" fill="#fff"/></svg>`)
+      await square.clone().resize(d.legacy, d.legacy)
+        .composite([{ input: circle, blend: 'dest-in' }])
+        .toFile(path.join(dir, `ic_launcher_${v.id}_round.png`))
+    }
+    write(path.join(anydpi, `ic_launcher_${v.id}.xml`), imageAdaptiveXml(v.id))
+    write(path.join(anydpi, `ic_launcher_${v.id}_round.xml`), imageAdaptiveXml(v.id))
+    console.log(`${v.id}: ${DENSITIES.length} 密度 × 3 枚 + adaptive 2 枚（別デザイン）`)
+  }
+
+  // adaptive icon の地の色をまとめて 1 ファイルに書く
+  const colorsDir = `${RES}/values`
+  mkdirSync(colorsDir, { recursive: true })
+  write(path.join(colorsDir, 'ic_launcher_backgrounds.xml'),
+    `<?xml version="1.0" encoding="utf-8"?>\n<!-- 自動生成: scripts/gen-icon-variants.mjs -->\n<resources>\n${
+      IMAGE_VARIANTS.map((v) => `    <color name="ic_launcher_${v.id}_background">${v.background}</color>`).join('\n')
+    }\n</resources>\n`)
 
   for (const v of VARIANTS) {
     const fg = await recolor(masterFg, v.color)
