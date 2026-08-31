@@ -21,6 +21,7 @@ import {
 } from '../utils/finance'
 import AmountField, { parseAmount } from '../components/AmountField'
 import CardHeaderBar from '../components/CardHeaderBar'
+import { isCardVisible } from '../utils/cardVisibility'
 
 function save(ym, fixed, overtime, customUnit = '', payItems = [], dedItems = [], bonusTakeHome = '') {
   saveSalaryMonth(ym, { fixed, overtime, customUnit, payItems, dedItems, bonusTakeHome })
@@ -449,6 +450,7 @@ export default function SalarySimulation() {
       </Stack>
 
       {/* 手取りサマリー */}
+      {isCardVisible('sal.result') && (
       <Card sx={{ mb: 2, bgcolor: '#263238', color: '#fff' }}>
         <CardContent sx={{ px: 3, py: 2, '&:last-child': { pb: 2 } }}>
           <Typography variant="caption" sx={{ opacity: .6, letterSpacing: .5 }}>{ym} の手取り（シミュレーション）</Typography>
@@ -463,8 +465,10 @@ export default function SalarySimulation() {
           </Typography>
         </CardContent>
       </Card>
+      )}
 
       {/* 残業時間 */}
+      {isCardVisible('sal.overtime') && (
       <SectionCard title="残業時間">
         <OvertimeInput overtime={overtime} onChange={handleOvertimeChange} />
 
@@ -500,6 +504,7 @@ export default function SalarySimulation() {
           )}
         </Stack>
       </SectionCard>
+      )}
 
       {/* 編集ボタン */}
       <Stack direction="row" justifyContent="flex-end" sx={{ mb: 1 }}>
@@ -516,6 +521,7 @@ export default function SalarySimulation() {
       </Stack>
 
       {/* 支給項目 */}
+      {isCardVisible('sal.pay') && (
       <SectionCard title="支給項目">
         <FixedRow label="基本給"   value={fixed.shokunokyuu}   editMode={editMode} fieldKey="shokunokyuu"   onEdit={editFixed} />
         <Divider />
@@ -563,8 +569,10 @@ export default function SalarySimulation() {
           </Typography>
         </Stack>
       </SectionCard>
+      )}
 
       {/* 控除項目 */}
+      {isCardVisible('sal.deduction') && (
       <SectionCard title="控除項目">
         <FixedRow label="健康保険"     value={fixed.kenkouhoken}  editMode={editMode} fieldKey="kenkouhoken"  onEdit={editFixed} />
         <Divider />
@@ -613,6 +621,7 @@ export default function SalarySimulation() {
           </Typography>
         </Stack>
       </SectionCard>
+      )}
 
       <AddItemDialog
         open={addDlg !== null}

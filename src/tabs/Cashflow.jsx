@@ -13,6 +13,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import AmountField, { parseAmount } from '../components/AmountField'
 import { signedAmount, fmt, isActiveForYm, loadCategories, ymStr } from '../utils/finance'
+import { isCardVisible } from '../utils/cardVisibility'
 import {
   CARDS, CARD_LIST, CHART_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
   billingYmForCard, loadFixed, saveFixed, loadVar, saveVar,
@@ -445,6 +446,7 @@ export default function Cashflow() {
 
       {searchOpen && <SearchScreen onClose={() => setSearchOpen(false)} />}
 
+      {isCardVisible('cf.total') && (
       <Box sx={{ bgcolor: '#263238', color: '#fff', borderRadius: 2, px: 2, py: 1.25, mb: 1.5 }}>
         <Typography variant="caption" sx={{ opacity: 0.75 }}>月合計</Typography>
         <Typography variant="h6" fontWeight={700}>{fmtOutflow(total)}</Typography>
@@ -452,8 +454,9 @@ export default function Cashflow() {
           固定費: {fmtOutflow(fixedTotal)} ({pct(fixedTotal, total)}%) / 変動費: {fmtOutflow(variableTotal)} ({pct(variableTotal, total)}%)
         </Typography>
       </Box>
+      )}
 
-      {rows.length === 0 ? (
+      {isCardVisible('cf.list') && (rows.length === 0 ? (
         <Typography variant="caption" color="text.disabled" sx={{ display: 'block', py: 2, textAlign: 'center' }}>
           この月の支出はありません
         </Typography>
@@ -561,9 +564,9 @@ export default function Cashflow() {
             </Table>
           </TableContainer>
         </>
-      )}
+      ))}
 
-      <SummaryCard rows={rows} total={total} />
+      {isCardVisible('cf.summary') && <SummaryCard rows={rows} total={total} />}
 
       <ExpenseEditDialog
         open={!!editItem}

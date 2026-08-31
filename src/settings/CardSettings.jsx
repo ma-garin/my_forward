@@ -9,6 +9,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import { newId } from '../utils/finance'
 import { loadCards, saveCards, cardHasRecords } from '../utils/ccStorage'
+import { paymentCardKey, loadHiddenCards, setCardVisible } from '../utils/cardVisibility'
 import { cutoffLabel, paymentLabel } from '../utils/billingCycle'
 
 const COLORS = ['#37474f', '#1b5e20', '#1a237e', '#4a148c', '#b71c1c', '#e65100']
@@ -91,6 +92,13 @@ export default function CardSettings() {
   const [cards, setCards] = useState(loadCards)
   const [dlg, setDlg] = useState(null) // null | { mode: 'add' | 'edit', initial? }
   const [confirm, setConfirm] = useState(null) // 記録があるカードを消す前の確認
+  // 隠しているものの一覧。消すのと違い、隠すだけなら合計は変わらない
+  const [hidden, setHidden] = useState(loadHiddenCards)
+
+  const toggleVisible = (id, visible) => {
+    setCardVisible(paymentCardKey(id), visible)
+    setHidden(loadHiddenCards())
+  }
 
   const handleSave = (data) => {
     let next
@@ -125,6 +133,7 @@ export default function CardSettings() {
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
         クレジットカードのほか、現金・電子マネー（PayPay・Suica）も支払い元として
         足せます。ここで足したものは支出の入力・集計・グラフすべてに出ます。
+        使わないものはスイッチで隠せます（合計は変わりません）。
       </Typography>
 
       {cards.length === 0 && (
@@ -151,7 +160,14 @@ export default function CardSettings() {
                     : `${cutoffLabel(card)} ${paymentLabel(card)}`}
                 </Typography>
               </Box>
-              <Stack direction="row">
+              <Stack direction="row" alignItems="center">
+                {/* 隠すのは並びだけ。合計や家計タブの合算からは外さない */}
+                <Switch
+                  size="small"
+                  checked={!hidden.includes(paymentCardKey(card.id))}
+                  onChange={(e) => toggleVisible(card.id, e.target.checked)}
+                  slotProps={{ input: { 'aria-label': `${card.name} を表示` } }}
+                />
                 <IconButton size="small" aria-label="カードを編集" onClick={() => setDlg({ mode: 'edit', initial: card })}>
                   <EditIcon fontSize="small" />
                 </IconButton>
