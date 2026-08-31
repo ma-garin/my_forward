@@ -22,6 +22,7 @@ import AppInfo from './settings/AppInfo'
 import NotificationCaptureSettings from './settings/NotificationCaptureSettings'
 import ReminderSettings from './settings/ReminderSettings'
 import AppearanceSettings from './settings/AppearanceSettings'
+import CardVisibilitySettings from './settings/CardVisibilitySettings'
 import IconSettings from './settings/IconSettings'
 import { useAndroidBack, pushScreen } from './utils/useAndroidBack'
 import { useKeyboardInset } from './utils/useKeyboardInset'
@@ -58,6 +59,7 @@ const SETTINGS_TITLES = {
   reminders:     '通知',
   notifications: '通知の取り込み',
   appearance:    '外観',
+  cards:         '表示するカード',
   icon:          'アイコン',
 }
 
@@ -231,6 +233,7 @@ function AppInner() {
             {settingsPage === 'reminders'     && <ReminderSettings />}
             {settingsPage === 'notifications' && <NotificationCaptureSettings />}
             {settingsPage === 'appearance'    && <AppearanceSettings />}
+            {settingsPage === 'cards'         && <CardVisibilitySettings />}
             {settingsPage === 'icon'          && <IconSettings />}
           </Box>
         </Drawer>

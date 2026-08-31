@@ -44,6 +44,7 @@ import { pushScreen } from '../utils/useAndroidBack'
 import { onQuickAdd, takePendingQuickAdd } from '../utils/quickAdd'
 import { cycleDatesForYm, cycleLabel, cutoffLabel, paymentLabel } from '../utils/billingCycle'
 import StatementReconcile from '../components/StatementReconcile'
+import { isCardVisible } from '../utils/cardVisibility'
 import { findDuplicate, duplicateMessage } from '../utils/duplicates'
 import { detectSubscriptions, dismissSubscription } from '../utils/subscriptions'
 
@@ -1048,14 +1049,16 @@ export default function CreditCard() {
 
       {/* 締めが終わった月だけ、カード明細の請求額と突き合わせる。
           記録額は上のカードに出ている使用額と同じものを渡す */}
-      <StatementReconcile
-        key={`${cardId}-${ym}`}
-        cardId={cardId} ym={ym} recorded={grandTotal}
-      />
+      {isCardVisible('cc.statement') && (
+        <StatementReconcile
+          key={`${cardId}-${ym}`}
+          cardId={cardId} ym={ym} recorded={grandTotal}
+        />
+      )}
 
       {/* 予算内訳カード。クレカの上限運用の画面なので、請求サイクルの無い
           現金には出さない（生活費の週予算がその役目を持っている） */}
-      {!card.noBilling && (
+      {!card.noBilling && isCardVisible('cc.budget') && (
         <BudgetBreakdown
           cardId={cardId} ym={ym}
           limit={parseFloat(limitInputs[cardId]) || 0}
@@ -1206,7 +1209,7 @@ export default function CreditCard() {
                 )}
               </Box>
             )}
-            <DailyBarChart varList={shownVarList} />
+            {isCardVisible('cc.daily') && <DailyBarChart varList={shownVarList} />}
             <VarExpenseTable
               varList={shownVarList}
               sort={varSort}
@@ -1219,24 +1222,26 @@ export default function CreditCard() {
       </Card>
 
       {/* 消費分類（当カード） */}
-      <SpendTypeChart varList={varList} />
+      {isCardVisible('cc.spendType') && <SpendTypeChart varList={varList} />}
 
       {/* カテゴリ別グラフ（当カード） */}
-      <CategoryChart fixedList={filteredFixed} varList={varList} />
+      {isCardVisible('cc.categoryChart') && <CategoryChart fixedList={filteredFixed} varList={varList} />}
 
       {/* カテゴリ別集計（当カード） */}
-      <CategoryBreakdown
-        fixedList={filteredFixed}
-        varList={varList}
-        cardId={cardId}
-        ym={ym}
-        onUpdate={refreshLists}
-        prevFixedList={prevFilteredFixed}
-        prevVarList={prevVarListForCat}
-      />
+      {isCardVisible('cc.categoryBreakdown') && (
+        <CategoryBreakdown
+          fixedList={filteredFixed}
+          varList={varList}
+          cardId={cardId}
+          ym={ym}
+          onUpdate={refreshLists}
+          prevFixedList={prevFilteredFixed}
+          prevVarList={prevVarListForCat}
+        />
+      )}
 
       {/* 年間サマリー */}
-      <YearlySummary year={year} cardId={cardId} />
+      {isCardVisible('cc.yearly') && <YearlySummary year={year} cardId={cardId} />}
 
       {/* ダイアログ */}
       {dlg?.type === 'fixed' && (

@@ -12,6 +12,7 @@ import YearlyReviewCard from '../components/YearlyReviewCard'
 import DiagnosisCard from '../components/DiagnosisCard'
 import { CARD_LIST, loadFixed, loadLimit, loadVar } from '../utils/ccStorage'
 import { isActiveForYm } from '../utils/finance'
+import { isCardVisible } from '../utils/cardVisibility'
 
 function ymStr(y, m) {
   return `${y}-${String(m).padStart(2, '0')}`
@@ -66,45 +67,47 @@ export default function Kakeibo() {
       <MonthNav year={year} month={month} onStep={changeMonth} onJump={goToMonth} />
 
       {/* 収支サマリー */}
-      <IncomeSummaryCard ym={ym} salaryYm={billingYm} />
+      {isCardVisible('kk.income') && <IncomeSummaryCard ym={ym} salaryYm={billingYm} />}
 
       {/* 家計診断（5観点の採点） */}
-      <DiagnosisCard key={`diag-${billingYm}`} ym={billingYm} />
+      {isCardVisible('kk.diagnosis') && <DiagnosisCard key={`diag-${billingYm}`} ym={billingYm} />}
 
       {/* 2枚合計サマリー */}
-      <CombinedSummary ym={billingYm} salaryYm={billingYm} combinedLimit={combinedLimit} />
+      {isCardVisible('kk.combined') && <CombinedSummary ym={billingYm} salaryYm={billingYm} combinedLimit={combinedLimit} />}
 
       {/* 資産（口座残高・純資産） */}
-      <NetWorthCard billingYm={billingYm} isCurrentMonth={ym === currentYm()} />
+      {isCardVisible('kk.networth') && <NetWorthCard billingYm={billingYm} isCurrentMonth={ym === currentYm()} />}
 
       {/* 生活費カード */}
-      <LivingExpenseCard ym={billingYm} />
+      {isCardVisible('kk.living') && <LivingExpenseCard ym={billingYm} />}
 
       {/* 支出トレンド */}
-      <MonthlyTrendCard currentBillingYm={billingYm} />
+      {isCardVisible('kk.trend') && <MonthlyTrendCard currentBillingYm={billingYm} />}
 
       {/* 1 年でいくら入っていくら残ったか。月の画面と同じ足し方で積む */}
-      <YearlyReviewCard key={billingYm.slice(0, 4)} year={Number(billingYm.slice(0, 4))} />
+      {isCardVisible('kk.yearlyReview') && <YearlyReviewCard key={billingYm.slice(0, 4)} year={Number(billingYm.slice(0, 4))} />}
 
       {/* 固定費を年額で並べる。解約する / しないの判断はここでする */}
-      <FixedInventoryCard fromYm={billingYm} />
+      {isCardVisible('kk.inventory') && <FixedInventoryCard fromYm={billingYm} />}
 
       {/* 消費分類（全カード） */}
-      <SpendTypeChart varList={allVar} />
+      {isCardVisible('kk.spendType') && <SpendTypeChart varList={allVar} />}
 
       {/* カテゴリ別グラフ（全カード） */}
-      <CategoryChart fixedList={allFixed} varList={allVar} />
+      {isCardVisible('kk.categoryChart') && <CategoryChart fixedList={allFixed} varList={allVar} />}
 
       {/* カテゴリ別集計（全カード） */}
-      <CategoryBreakdown
-        fixedList={allFixed}
-        varList={allVar}
-        cardId="all"
-        ym={billingYm}
-        onUpdate={() => setRefreshKey(k => k + 1)}
-        prevFixedList={allFixedPrev}
-        prevVarList={allVarPrev}
-      />
+      {isCardVisible('kk.categoryBreakdown') && (
+        <CategoryBreakdown
+          fixedList={allFixed}
+          varList={allVar}
+          cardId="all"
+          ym={billingYm}
+          onUpdate={() => setRefreshKey(k => k + 1)}
+          prevFixedList={allFixedPrev}
+          prevVarList={allVarPrev}
+        />
+      )}
 
     </Box>
   )
