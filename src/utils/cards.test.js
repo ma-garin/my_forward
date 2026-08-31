@@ -90,3 +90,48 @@ describe('記録があるか', () => {
     expect(cardHasRecords('jcb')).toBe(false)
   })
 })
+
+describe('支払い元の並び', () => {
+  const ORDER = ['jcb', 'smbc', 'cash', 'paypay', 'suica']
+
+  it('既定は JCB → VISA → 現金 → PayPay → Suica', async () => {
+    const { CARD_LIST } = await freshImport()
+    expect(CARD_LIST.map((c) => c.id)).toEqual(ORDER)
+    expect(CARD_LIST.map((c) => c.shortName)).toEqual(['JCB', 'VISA', '現金', 'PayPay', 'Suica'])
+  })
+
+  it('保存の順がばらばらでも読むときにそろえる', async () => {
+    localStorage.setItem('cc_cards_seeded_v2', '1')
+    localStorage.setItem('cc_cards', JSON.stringify([
+      { id: 'suica', name: 'モバイルSuica', shortName: 'Suica', cutoffDay: 0, paymentDay: 0, color: '#1b4d3e', noBilling: true },
+      { id: 'cash', name: '現金', shortName: '現金', cutoffDay: 0, paymentDay: 0, color: '#616161', noBilling: true },
+      { id: 'jcb', name: 'JCBゴールド', shortName: 'JCB', cutoffDay: 15, paymentDay: 10, color: '#37474f' },
+      { id: 'paypay', name: 'PayPay', shortName: 'PayPay', cutoffDay: 0, paymentDay: 0, color: '#7b3b41', noBilling: true },
+      { id: 'smbc', name: '三井住友VISA', shortName: 'VISA', cutoffDay: 0, paymentDay: 26, color: '#1b5e20' },
+    ]))
+    const { CARD_LIST } = await freshImport()
+    expect(CARD_LIST.map((c) => c.id)).toEqual(ORDER)
+  })
+
+  it('自分で足したカードは既定の後ろ・入れた順のまま', async () => {
+    localStorage.setItem('cc_cards_seeded_v2', '1')
+    localStorage.setItem('cc_cards', JSON.stringify([
+      { id: 'rakuten', name: '楽天カード', shortName: '楽天', cutoffDay: 0, paymentDay: 27, color: '#b71c1c' },
+      { id: 'suica', name: 'モバイルSuica', shortName: 'Suica', cutoffDay: 0, paymentDay: 0, color: '#1b4d3e', noBilling: true },
+      { id: 'aeon', name: 'イオンカード', shortName: 'イオン', cutoffDay: 10, paymentDay: 2, color: '#4a148c' },
+      { id: 'jcb', name: 'JCBゴールド', shortName: 'JCB', cutoffDay: 15, paymentDay: 10, color: '#37474f' },
+    ]))
+    const { CARD_LIST } = await freshImport()
+    expect(CARD_LIST.map((c) => c.id)).toEqual(['jcb', 'suica', 'rakuten', 'aeon'])
+  })
+
+  it('既定を消していても残りの順は変わらない', async () => {
+    localStorage.setItem('cc_cards_seeded_v2', '1')
+    localStorage.setItem('cc_cards', JSON.stringify([
+      { id: 'paypay', name: 'PayPay', shortName: 'PayPay', cutoffDay: 0, paymentDay: 0, color: '#7b3b41', noBilling: true },
+      { id: 'jcb', name: 'JCBゴールド', shortName: 'JCB', cutoffDay: 15, paymentDay: 10, color: '#37474f' },
+    ]))
+    const { CARD_LIST } = await freshImport()
+    expect(CARD_LIST.map((c) => c.id)).toEqual(['jcb', 'paypay'])
+  })
+})

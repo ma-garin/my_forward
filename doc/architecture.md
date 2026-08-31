@@ -175,6 +175,10 @@ CARD_LIST  // 同じ配列の中身を入れ替える
 loadCards() / saveCards(list) / cardHasRecords(cardId)
 ```
 
+並びは `DEFAULT_CARD_LIST` の順（JCB → VISA → 現金 → PayPay → Suica）に
+読むたびにそろえる。自分で足したカードはその後ろに、入れた順のまま並ぶ。
+保存の順に引きずられると、古いバックアップを戻したときなどに入れ替わる。
+
 `CARDS` / `CARD_LIST` は **参照を変えずに中身だけ入れ替える**。読む側が 49 箇所
 あり、そのすべてを関数呼び出しに書き換えると、どこか 1 つ書き忘れたときに
 古いカード一覧が残る。

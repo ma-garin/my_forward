@@ -68,19 +68,36 @@ function readCards() {
  * 足りない既定は補って書き戻す。二度目からは `cc_cards` をそのまま使う
  * （消したカードを毎回復活させない）。
  */
+/**
+ * 並び順をそろえる。既定の支払い元は DEFAULT_CARD_LIST の順
+ * （JCB → VISA → 現金 → PayPay → Suica）、自分で足したものはその後ろ。
+ *
+ * 並びは保存の順に引きずられる。設定画面が壊れていた頃の保存や、古い
+ * バックアップを戻したときに順番が入れ替わるので、読むたびにそろえる。
+ */
+function inDefaultOrder(list) {
+  const order = DEFAULT_CARD_LIST.map((c) => c.id)
+  const rank = (c) => {
+    const i = order.indexOf(c.id)
+    return i < 0 ? order.length : i
+  }
+  // sort は安定なので、自分で足したカード同士の順は保存のまま
+  return [...list].sort((a, b) => rank(a) - rank(b))
+}
+
 export function loadCards() {
   const stored = readCards()
   const seeded = (() => {
     try { return localStorage.getItem(CARDS_SEEDED_KEY) === '1' } catch { return false }
   })()
 
-  if (seeded && stored) return stored
+  if (seeded && stored) return inDefaultOrder(stored)
 
   const known = new Set((stored ?? []).map((c) => c.id))
-  const merged = [
+  const merged = inDefaultOrder([
     ...DEFAULT_CARD_LIST.filter((c) => !known.has(c.id)),
     ...(stored ?? []),
-  ]
+  ])
   try {
     localStorage.setItem(CARDS_KEY, JSON.stringify(merged))
     localStorage.setItem(CARDS_SEEDED_KEY, '1')
