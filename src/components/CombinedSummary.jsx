@@ -5,7 +5,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { getCCTotal, fmt, newId } from '../utils/finance'
 import { takeHomeFor, incomeDiffLabel } from '../utils/income'
-import { monthlyBalance } from '../utils/monthly'
+import { monthlyBalance, livingWeeksFor } from '../utils/monthly'
 import {
   CARD_LIST,
   loadSalaryOverride, saveSalaryOverride,
@@ -49,9 +49,13 @@ function CombinedSummaryBase({ ym, salaryYm = ym, combinedLimit = 0 }) {
   const hasSalary   = salary > 0
 
   // 生活費は「その請求月の週数 × 週予算」。以前は今日から次の支払日までで
-  // 数えていたので、どの月を開いても同じ週数になっていた
+  // 数えていたので、どの月を開いても同じ週数になっていた。
+  // 合計に足すのは予算の残り。使った分は既にカード合計へ入っている
   const livingCost      = balanceOf.living
-  const fridays         = livingUnit > 0 ? Math.round(livingCost / livingUnit) : 0
+  const livingBudget    = balanceOf.livingBudget
+  const livingSpent     = balanceOf.livingSpent
+  // 週数は livingWeeksFor が持つ。金額から割り戻すと手動上書きの月で崩れる
+  const fridays         = livingWeeksFor(salaryYm)
   const fixedItemsTotal = fixedItems.reduce((s, i) => s + i.amount, 0)
   const fixedTotal      = fixedItemsTotal + livingCost
   const planBalance     = totalIncome - fixedTotal - combinedLimit
@@ -268,6 +272,7 @@ function CombinedSummaryBase({ ym, salaryYm = ym, combinedLimit = 0 }) {
                   />
                 </Stack>
               ) : (
+                <Box>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Typography variant="caption" sx={{ opacity: .6, flex: 1 }}>
                     生活費（{fridays}週 × {fmt(livingUnit)}）
@@ -282,6 +287,14 @@ function CombinedSummaryBase({ ym, salaryYm = ym, combinedLimit = 0 }) {
                     </IconButton>
                   </Stack>
                 </Stack>
+                {/* 足しているのは残りだけ。内訳を出さないと引き算が読めない */}
+                {livingSpent !== 0 && (
+                  <Typography variant="caption"
+                    sx={{ opacity: .4, fontSize: 9, display: 'block', textAlign: 'right', pr: 5 }}>
+                    予算 ¥{fmt(livingBudget)} − 記録済み ¥{fmt(livingSpent)}
+                  </Typography>
+                )}
+                </Box>
               ))}
               <Divider sx={{ borderColor: 'rgba(255,255,255,.1)', my: 0.5 }} />
               <Stack direction="row" justifyContent="space-between">

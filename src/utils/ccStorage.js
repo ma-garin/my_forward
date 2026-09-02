@@ -1,4 +1,4 @@
-import { DEFAULT_JCB_FIXED, currentBillingYm } from './finance'
+import { DEFAULT_JCB_FIXED, currentBillingYm, signedAmount } from './finance'
 import { recordPriceChange } from './priceLog'
 
 // ─── カード定義 ────────────────────────────────────────────
@@ -251,20 +251,26 @@ export function getRecentWeeks(n = 4) {
   return weeks
 }
 
+/** 生活費として数える行か（カテゴリと期間だけを見る。足す額は signedAmount が決める） */
+const isLivingRow = (x, fromStr, toStr) =>
+  LIVING_CATEGORIES.includes(x.category) && x.date &&
+  (!fromStr || x.date >= fromStr) && (!toStr || x.date <= toStr)
+
+// 足す額は signedAmount 1 箇所で決める（返金はマイナス・振替は 0）。
+// ここで sign を見て除外すると、返金だけの週が「使っていない」ことになり、
+// カード合計との差が説明できなくなる。
 export function sumLiving(list, fromStr, toStr) {
   return list
-    .filter(x => LIVING_CATEGORIES.includes(x.category) && x.sign !== 1 && x.date)
-    .filter(x => (!fromStr || x.date >= fromStr) && (!toStr || x.date <= toStr))
-    .reduce((s, x) => s + x.amount, 0)
+    .filter(x => isLivingRow(x, fromStr, toStr))
+    .reduce((s, x) => s + signedAmount(x), 0)
 }
 
 export function sumLivingByCategory(list, fromStr, toStr) {
   const result = {}
   LIVING_CATEGORIES.forEach(c => { result[c] = 0 })
   list
-    .filter(x => LIVING_CATEGORIES.includes(x.category) && x.sign !== 1 && x.date)
-    .filter(x => (!fromStr || x.date >= fromStr) && (!toStr || x.date <= toStr))
-    .forEach(x => { result[x.category] = (result[x.category] ?? 0) + x.amount })
+    .filter(x => isLivingRow(x, fromStr, toStr))
+    .forEach(x => { result[x.category] = (result[x.category] ?? 0) + signedAmount(x) })
   return result
 }
 

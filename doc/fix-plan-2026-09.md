@@ -20,7 +20,7 @@
 コードを読めば分かる話ではなく、家計の見せ方をどうしたいかの選択。ここが決まらないと
 P20 以降が書けない。
 
-### D1. 生活費の二重計上をどう解く（監査 H1・最重要）
+### D1. 生活費の二重計上をどう解く（監査 H1・最重要）〈**決定: A（残差）／P20 実装済み**〉
 
 いま `expense = カード記録 + 固定費内訳 + 生活費予算` なので、食費・日用品をカードで
 払うと記録と予算の両方で数えている。
@@ -492,7 +492,24 @@ export function upsertVarItem({ item, fromCard, fromYm, toCard = fromCard }) {
 
 ## §3 判断が決まってから着手するもの
 
-### P20. 生活費の二重計上を直す 〈L〉 依存: **D1**・P4
+### P20. 生活費の二重計上を直す 〈L〉 ✅ **完了**（D1 = A 残差方式）
+
+実装した内容:
+- `monthly.js` に `livingSpentFor(ym)` を追加。`monthlyBalance` の `living` を
+  `Math.max(0, 予算 − 実績)` にし、戻り値に `livingBudget` / `livingSpent` を足した
+- `ccStorage.js` の `sumLiving` / `sumLivingByCategory` を `signedAmount` 経由にした
+  （実績が正しくないと残差が狂うため。返金はマイナス・振替は 0）
+- `CombinedSummary.jsx` — 週数を金額から割り戻さず `livingWeeksFor` から取る。
+  記録済みがあるとき `予算 ¥X − 記録済み ¥Y` を出す
+- `YearlyReviewCard.jsx` の注記を実態に合わせた
+- `monthly.test.js` に 7 件追加（295 件パス）
+
+**P4 の残り**: `CategoryViews.jsx:54,108,112` のカテゴリ別グラフ・集計は
+まだ返金を支出として加算している。別タスクとして残っている。
+
+<details><summary>元の手順（参考）</summary>
+
+依存: **D1**・P4
 
 **監査**: H1
 **読む**: `src/utils/monthly.js` 全体, `src/components/CombinedSummary.jsx:39-56`,
@@ -531,6 +548,8 @@ D1 で **案 A（残差）** を選んだ場合の手順:
 - 予算 40,000・生活費実績 0 → `living === 40000`
 - 実績 15,000 → `living === 25000`、`expense` に 15,000 が二重で入らない
 - 実績 50,000（予算超過）→ `living === 0`、`expense` は記録の 50,000 のみ
+
+</details>
 
 ---
 

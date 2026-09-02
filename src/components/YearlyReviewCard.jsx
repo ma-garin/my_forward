@@ -131,7 +131,8 @@ export default function YearlyReviewCard({ year: initialYear }) {
 
               <Typography variant="caption" color="text.secondary"
                 sx={{ display: 'block', fontSize: 10, mt: 0.75 }}>
-                収入は手取り（実績があれば実績）＋その他収入。支出はカード・現金＋固定費内訳＋生活費。
+                収入は手取り（実績があれば実績）＋その他収入。支出はカード・現金＋固定費内訳＋生活費の残り
+                （使った生活費はカード側に入っているので、予算から引いて二重に数えないようにしています）。
               </Typography>
             </Collapse>
           </>

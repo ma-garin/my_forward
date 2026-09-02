@@ -12,6 +12,9 @@ const putVar = (cardId, ym, list) =>
   localStorage.setItem(`cc_var_${cardId}_${ym}`, JSON.stringify(list))
 const buy = (id, amount, date) =>
   ({ id, name: '買い物', amount, category: 'その他', spendType: '消費', date })
+// 生活費として数えられるカテゴリ（LIVING_CATEGORIES）
+const food = (id, amount, date) =>
+  ({ id, name: 'スーパー', amount, category: '食費', spendType: '消費', date })
 
 // 家計タブの固定費内訳は既定値（家賃 82,330 + 奨学金 13,262 + 都民共済 3,000）
 const SUMMARY_FIXED = 82330 + 13262 + 3000
@@ -99,6 +102,64 @@ describe('月次の収支', () => {
     putSalary({ '2026-07': '271500' })
     expect(monthlyBalance('2026-07').isActual).toBe(true)
     expect(monthlyBalance('2026-08').isActual).toBe(false)
+  })
+})
+
+// 生活費はカードの記録にも入っている。予算をそのまま足すと同じ買い物を
+// 記録と予算で 2 回数えるので、足すのは「これから出ていく残り」だけにする。
+describe('生活費は記録と予算で二重に数えない', () => {
+  // 2026-08 サイクル = 8/16〜9/15。金曜 4 回 → 週予算 10,000 なら予算 40,000
+  beforeEach(() => localStorage.setItem('cc_living_unit', '10000'))
+
+  it('まだ使っていなければ予算をそのまま足す', () => {
+    const b = monthlyBalance('2026-08')
+    expect(b.livingBudget).toBe(40000)
+    expect(b.livingSpent).toBe(0)
+    expect(b.living).toBe(40000)
+  })
+
+  it('使った分は予算から引く（合計に 1 回だけ乗る）', () => {
+    putVar('jcb', '2026-08', [food('a', 15000, '2026-08-20')])
+    const b = monthlyBalance('2026-08')
+    expect(b.cards).toBe(15000)
+    expect(b.livingSpent).toBe(15000)
+    expect(b.living).toBe(25000)
+    expect(b.expense).toBe(15000 + SUMMARY_FIXED + 25000)
+  })
+
+  it('予算を超えても引きすぎない（記録だけになる）', () => {
+    putVar('jcb', '2026-08', [food('a', 50000, '2026-08-20')])
+    const b = monthlyBalance('2026-08')
+    expect(b.living).toBe(0)
+    expect(b.expense).toBe(50000 + SUMMARY_FIXED)
+  })
+
+  it('生活費以外のカテゴリは予算から引かない', () => {
+    putVar('jcb', '2026-08', [buy('a', 15000, '2026-08-20')])
+    const b = monthlyBalance('2026-08')
+    expect(b.livingSpent).toBe(0)
+    expect(b.living).toBe(40000)
+  })
+
+  it('カードをまたいで数える', () => {
+    putVar('jcb', '2026-08', [food('a', 8000, '2026-08-20')])
+    putVar('cash', '2026-08', [food('b', 2000, '2026-08-21')])
+    expect(monthlyBalance('2026-08').livingSpent).toBe(10000)
+  })
+
+  it('返金は使った分から差し引く', () => {
+    putVar('jcb', '2026-08', [
+      food('a', 15000, '2026-08-20'),
+      { ...food('b', 5000, '2026-08-21'), sign: 1 },
+    ])
+    const b = monthlyBalance('2026-08')
+    expect(b.livingSpent).toBe(10000)
+    expect(b.living).toBe(30000)
+  })
+
+  it('振替（チャージ）は使った分に数えない', () => {
+    putVar('jcb', '2026-08', [{ ...food('a', 5000, '2026-08-20'), transfer: true }])
+    expect(monthlyBalance('2026-08').livingSpent).toBe(0)
   })
 })
 

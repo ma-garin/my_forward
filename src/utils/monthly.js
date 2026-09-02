@@ -1,5 +1,5 @@
 import {
-  CARDS, CARD_LIST, countFridaysUntil,
+  CARDS, CARD_LIST, countFridaysUntil, loadVar, sumLiving,
   loadLivingUnit, loadLivingOverride, loadOtherIncome, loadSummaryFixed,
 } from './ccStorage'
 import { getCCTotal } from './finance'
@@ -42,12 +42,27 @@ export function livingWeeksFor(ym) {
 }
 
 /**
+ * その請求月に既に使った生活費（全カード）。
+ *
+ * 読む範囲は `getCCTotal` と同じ `cc_var_{card}_{ym}` にそろえる。ずらすと
+ * 「カード合計に入っている生活費」と一致しなくなり、下の引き算が合わなくなる。
+ */
+export function livingSpentFor(ym) {
+  return CARD_LIST.reduce((s, c) => s + sumLiving(loadVar(c.id, ym)), 0)
+}
+
+/**
  * その請求月の収支。
+ *
+ * 生活費は予算で持つが、使った分は既にカードの記録に入っている。予算を
+ * そのまま足すと同じ買い物を記録と予算で 2 回数える（実際にそうなっていた）。
+ * 足すのは「これから出ていく残り」だけにする。
  *
  * @returns {{
  *   salary: number, isActual: boolean, other: number, income: number,
- *   cards: number, fixed: number, living: number, expense: number,
- *   balance: number, savingRate: number,
+ *   cards: number, fixed: number, living: number,
+ *   livingBudget: number, livingSpent: number,
+ *   expense: number, balance: number, savingRate: number,
  * }}
  */
 export function monthlyBalance(ym) {
@@ -57,13 +72,17 @@ export function monthlyBalance(ym) {
 
   const cards  = CARD_LIST.reduce((s, c) => s + getCCTotal(c.id, ym).total, 0)
   const fixed  = loadSummaryFixed().reduce((s, x) => s + x.amount, 0)
-  const living = livingBudgetFor(ym)
+
+  const livingBudget = livingBudgetFor(ym)
+  const livingSpent  = livingSpentFor(ym)
+  // 使いすぎた月はマイナスにしない（記録側が既に多く出ている）
+  const living  = Math.max(0, livingBudget - livingSpent)
   const expense = cards + fixed + living
 
   const balance = income - expense
   return {
     salary: takeHome.amount, isActual: takeHome.isActual, other, income,
-    cards, fixed, living, expense, balance,
+    cards, fixed, living, livingBudget, livingSpent, expense, balance,
     savingRate: income > 0 ? Math.round((balance / income) * 100) : 0,
   }
 }
