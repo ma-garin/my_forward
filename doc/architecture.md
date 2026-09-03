@@ -139,6 +139,9 @@ NotificationCaptureService(Java)  通知を SharedPreferences に貯める
   → components/InboxCard.jsx      クレカタブの「未確定の支出」
 ```
 
+受信箱の行は**押した瞬間には登録しない**。行タップでも「確認」でも編集ダイアログを
+開き、そこで保存したものだけが変動費へ入る（分類の既定は「その他」）。
+
 読める文面は Vpass（日時・利用先・金額）と Google ウォレット（金額・カード）。
 支払い元は文面のカード名で決めるが、決まらなければ通知の送り主
 （`CARDS` の `androidPackage`）で決める。PayPay は文面に「PayPay」を書かない

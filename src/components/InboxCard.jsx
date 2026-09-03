@@ -11,9 +11,13 @@ import { fmt } from '../utils/finance'
  *
  * 通知が届いたぶんをそのまま家計に入れると身に覚えのない行が増えるので、
  * ここで一度見せて、押したものだけ登録する。
- *   行をタップ … 分類などを直してから登録
- *   「登録」   … そのまま変動費へ（分類は「その他」）
- *   ✕        … 無視（同じ通知が再び届いても復活しない）
+ *
+ * **押した瞬間には登録しない。** 必ず内容を出してから確定させる。
+ * 以前は「登録」で分類「その他」のまま即座に変動費へ入っていたので、
+ * あとから変動費リストで探して直すことになっていた。
+ *
+ *   行をタップ / 「確認」 … 内容を出す。そこで保存すると変動費へ入る
+ *   ✕                  … 無視（同じ通知が再び届いても復活しない）
  */
 export default function InboxCard({ drafts, onAccept, onDismiss, categories }) {
   const [editing, setEditing] = useState(null)
@@ -58,7 +62,7 @@ export default function InboxCard({ drafts, onAccept, onDismiss, categories }) {
                 <Typography fontSize={13} fontWeight={500} noWrap>{label(d)}</Typography>
               </Stack>
               <Typography variant="caption" color="text.secondary">
-                タップして分類を選ぶ
+                タップして内容を確認
               </Typography>
             </Box>
 
@@ -66,12 +70,13 @@ export default function InboxCard({ drafts, onAccept, onDismiss, categories }) {
               ¥{fmt(d.amount)}
             </Typography>
 
+            {/* 押した瞬間には登録しない。行タップと同じく内容を出してから確定させる */}
             <Button
               size="small" variant="contained" disableElevation
-              onClick={() => onAccept(d.id, { name: label(d) })}
+              onClick={() => setEditing(d)}
               sx={{ minWidth: 0, px: 1.25, fontSize: 11 }}
             >
-              登録
+              確認
             </Button>
             <IconButton size="small" aria-label="無視する" onClick={() => onDismiss(d.id)}>
               <CloseIcon sx={{ fontSize: 16 }} />
@@ -84,7 +89,10 @@ export default function InboxCard({ drafts, onAccept, onDismiss, categories }) {
         <ExpenseDialog
           open
           title="通知から追加"
-          initial={{ ...editing, name: label(editing) }}
+          // 分類の既定は「その他」。ダイアログの既定（categories[0]）だと
+          // 水道光熱費のまま保存されうる。通知からは分類が分からないので、
+          // 中立なものを置いて選び直させる
+          initial={{ category: 'その他', ...editing, name: label(editing) }}
           categories={categories}
           cardId={editing.cardId}
           onClose={() => setEditing(null)}
