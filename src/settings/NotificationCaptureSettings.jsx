@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Box, Typography, Button, Stack, Chip, Divider, Alert, TextField,
-  IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
+  IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Snackbar,
 } from '@mui/material'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
@@ -10,6 +10,17 @@ import {
   isCaptureAvailable, isPermissionGranted, openPermissionSettings,
   getRecords, clearRecords, getAllowedPackages, setAllowedPackages,
 } from '../utils/notificationCapture'
+import ExpenseDialog from '../components/ExpenseDialog'
+import {
+  CARDS, upsertVarItem, billingYmForCard,
+  loadRegisteredNotifications, addRegisteredNotification,
+} from '../utils/ccStorage'
+import { loadCategories, newId, fmt, currentBillingYm } from '../utils/finance'
+import { parseCardNotification, notificationKey } from '../utils/parseCardNotification'
+
+// 通知から支出を作るときの既定カード。ここで決め打ちにせず、
+// 確認ダイアログで選び直せるようにしている。
+const DEFAULT_CARD = 'jcb'
 
 const fmtTime = (ms) => {
   const d = new Date(ms)
@@ -22,6 +33,49 @@ const bodyLines = (r) => [r.text, r.bigText, r.subText, r.infoText, r.ticker]
   .map((v) => (v ?? '').trim())
   .filter((v, i, a) => v && a.indexOf(v) === i)
 
+/**
+ * 通知 1 件の表示。読み取れた金額を見せ、「登録」で確認ダイアログを開く。
+ * ここでは保存しない（押し間違いでデータが増えないようにするため）。
+ */
+function CaptureRow({ record, done, onRegister }) {
+  const parsed = parseCardNotification(record)
+  return (
+    <Box sx={{ py: 1, borderBottom: '1px solid #f0f0f0' }}>
+      <Stack direction="row" justifyContent="space-between" gap={1}>
+        <Typography sx={{ fontSize: 10, color: 'text.disabled', wordBreak: 'break-all' }}>
+          {record.packageName}
+        </Typography>
+        <Typography sx={{ fontSize: 10, color: 'text.disabled', whiteSpace: 'nowrap' }}>
+          {fmtTime(record.postTime)}
+        </Typography>
+      </Stack>
+      {record.title && <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{record.title}</Typography>}
+      {bodyLines(record).map((line, j) => (
+        <Typography key={j} sx={{ fontSize: 12, color: 'text.secondary', whiteSpace: 'pre-wrap' }}>
+          {line}
+        </Typography>
+      ))}
+      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} sx={{ mt: 0.75 }}>
+        <Stack direction="row" alignItems="center" gap={0.75} sx={{ minWidth: 0 }}>
+          {parsed.hasAmount ? (
+            <Typography sx={{ fontSize: 15, fontWeight: 700 }}>¥{fmt(parsed.amount)}</Typography>
+          ) : (
+            <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>金額を読み取れませんでした</Typography>
+          )}
+          {done && (
+            <Chip size="small" label="登録済み" color="success" variant="outlined"
+              sx={{ fontSize: 10, height: 20 }} />
+          )}
+        </Stack>
+        <Button size="small" variant={done ? 'text' : 'outlined'}
+          onClick={() => onRegister(record)} sx={{ flexShrink: 0 }}>
+          {done ? '再登録' : '登録'}
+        </Button>
+      </Stack>
+    </Box>
+  )
+}
+
 export default function NotificationCaptureSettings() {
   const available = isCaptureAvailable()
   const [granted, setGranted] = useState(false)
@@ -31,6 +85,12 @@ export default function NotificationCaptureSettings() {
   const [clearOpen, setClearOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  // 「登録」を押した通知の下書き。ここに値が入っている間だけ確認ダイアログを出す。
+  // ボタン押下では保存せず、ダイアログで保存を押して初めて書き込む。
+  const [draft, setDraft] = useState(null)
+  const [registered, setRegistered] = useState(() => loadRegisteredNotifications())
+  const [snack, setSnack] = useState(null)
+  const categories = useMemo(() => loadCategories(), [])
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
 
@@ -79,6 +139,41 @@ export default function NotificationCaptureSettings() {
     await setAllowedPackages(next)
   }
 
+  // 通知 → 支出の下書きを作って確認ダイアログを開く。この時点では保存しない。
+  const openDraft = useCallback((r) => {
+    const parsed = parseCardNotification(r)
+    setDraft({
+      key: notificationKey(r),
+      initial: {
+        name: parsed.payee || (r.title ?? '').trim(),
+        payee: parsed.payee,
+        amount: parsed.amount || '',
+        date: parsed.date,
+        spendType: '消費',
+      },
+    })
+  }, [])
+
+  // ダイアログの保存を押したときだけ変動費に書き込む。
+  const saveDraft = (v) => {
+    try {
+      const fallbackYm = currentBillingYm(CARDS[v.cardId]?.cutoffDay ?? 0)
+      const ym = billingYmForCard(v.date, v.cardId, fallbackYm)
+      upsertVarItem({
+        item: {
+          id: newId(),
+          name: v.name, payee: v.payee, amount: v.amount,
+          category: v.category, spendType: v.spendType, date: v.date,
+        },
+        fromCard: v.cardId, fromYm: ym, toCard: v.cardId,
+      })
+      setRegistered(addRegisteredNotification(draft.key))
+      setSnack({ severity: 'success', message: `変動費に登録しました（${ym.replace('-', '年')}月分）` })
+    } catch {
+      setSnack({ severity: 'error', message: '登録に失敗しました' })
+    }
+  }
+
   if (!available) {
     return (
       <Box sx={{ p: 2 }}>
@@ -110,9 +205,9 @@ export default function NotificationCaptureSettings() {
       )}
 
       <Alert severity="info" sx={{ mb: 2, fontSize: 12 }}>
-        今の段階では通知を<b>そのまま記録するだけ</b>で、支出には反映しません。
-        カード会社が実際にどんな文面で通知してくるかが分かってから、解析を作ります。
-        数日ためたら内容を共有してください。
+        通知は<b>記録するだけ</b>で、そのままでは支出になりません。
+        「登録」を押すと読み取った金額を入れた確認画面が開くので、
+        内容を確かめて保存したものだけが変動費になります。
       </Alert>
 
       {senders.length > 0 && (
@@ -153,22 +248,12 @@ export default function NotificationCaptureSettings() {
       </Typography>
 
       {shown.map((r, i) => (
-        <Box key={`${r.postTime}-${i}`} sx={{ py: 1, borderBottom: '1px solid #f0f0f0' }}>
-          <Stack direction="row" justifyContent="space-between" gap={1}>
-            <Typography sx={{ fontSize: 10, color: 'text.disabled', wordBreak: 'break-all' }}>
-              {r.packageName}
-            </Typography>
-            <Typography sx={{ fontSize: 10, color: 'text.disabled', whiteSpace: 'nowrap' }}>
-              {fmtTime(r.postTime)}
-            </Typography>
-          </Stack>
-          {r.title && <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{r.title}</Typography>}
-          {bodyLines(r).map((line, j) => (
-            <Typography key={j} sx={{ fontSize: 12, color: 'text.secondary', whiteSpace: 'pre-wrap' }}>
-              {line}
-            </Typography>
-          ))}
-        </Box>
+        <CaptureRow
+          key={`${r.postTime}-${i}`}
+          record={r}
+          done={registered.includes(notificationKey(r))}
+          onRegister={openDraft}
+        />
       ))}
 
       <Dialog open={clearOpen} onClose={() => setClearOpen(false)} maxWidth="xs" fullWidth>
@@ -184,6 +269,30 @@ export default function NotificationCaptureSettings() {
           </Button>
         </DialogActions>
       </Dialog>
+      {draft && (
+        <ExpenseDialog
+          open
+          onClose={() => setDraft(null)}
+          onSave={saveDraft}
+          initial={draft.initial}
+          title="通知から支出を登録"
+          categories={categories}
+          cardId={DEFAULT_CARD}
+        />
+      )}
+
+      <Snackbar
+        open={!!snack} autoHideDuration={3000} onClose={() => setSnack(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        {snack ? (
+          <Alert severity={snack.severity} variant="filled" sx={{ fontSize: 13 }}
+            onClose={() => setSnack(null)}>
+            {snack.message}
+          </Alert>
+        ) : undefined}
+      </Snackbar>
+
       <Divider sx={{ mt: 2 }} />
     </Box>
   )

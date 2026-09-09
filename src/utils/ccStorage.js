@@ -371,3 +371,25 @@ export function saveCategoryBudgets(map) {
   try { localStorage.setItem('cc_category_budgets', JSON.stringify(map)) } catch {}
   bumpDataVersion()
 }
+
+// ─── 通知から登録済みの記録 ──────────────────────────────────
+//
+// 通知はアプリを開くたびに同じものが並ぶため、どれを支出にしたかを
+// 覚えていないと二重登録が起きる。通知キー（パッケージ名 + 受信時刻）を
+// 保存し、一覧で「登録済み」を出すために使う。
+
+const registeredNotifKey = 'cc_notif_registered'
+
+export function loadRegisteredNotifications() {
+  try { return JSON.parse(localStorage.getItem(registeredNotifKey) || '[]') } catch { return [] }
+}
+export function addRegisteredNotification(key) {
+  const list = loadRegisteredNotifications()
+  if (list.includes(key)) return list
+  // 通知の保持上限（300件）より多く覚えても使い道がないので、古い方から捨てる
+  const next = [...list, key].slice(-300)
+  try { localStorage.setItem(registeredNotifKey, JSON.stringify(next)) }
+  catch (e) { console.warn('addRegisteredNotification failed', e) }
+  bumpDataVersion()
+  return next
+}
