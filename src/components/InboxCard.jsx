@@ -11,9 +11,12 @@ import { fmt } from '../utils/finance'
  *
  * 通知が届いたぶんをそのまま家計に入れると身に覚えのない行が増えるので、
  * ここで一度見せて、押したものだけ登録する。
- *   行をタップ … 分類などを直してから登録
- *   「登録」   … そのまま変動費へ（分類は「その他」）
+ *   行をタップ … 内容を確かめて登録
+ *   「登録」   … 同じ確認ダイアログを開く（押しただけでは保存しない）
  *   ✕        … 無視（同じ通知が再び届いても復活しない）
+ *
+ * 「登録」で即保存していたが、押し間違いで身に覚えのない行が増えるため、
+ * 行タップと同じ確認ダイアログを通す 1 経路にした。
  */
 export default function InboxCard({ drafts, onAccept, onDismiss, categories }) {
   const [editing, setEditing] = useState(null)
@@ -68,7 +71,7 @@ export default function InboxCard({ drafts, onAccept, onDismiss, categories }) {
 
             <Button
               size="small" variant="contained" disableElevation
-              onClick={() => onAccept(d.id, { name: label(d) })}
+              onClick={() => setEditing(d)}
               sx={{ minWidth: 0, px: 1.25, fontSize: 11 }}
             >
               登録
