@@ -87,7 +87,7 @@ export default function InboxCard({ drafts, onAccept, onDismiss, categories }) {
         <ExpenseDialog
           open
           title="通知から追加"
-          initial={{ ...editing, name: label(editing) }}
+          initial={{ ...editing, name: '' }}
           categories={categories}
           cardId={editing.cardId}
           onClose={() => setEditing(null)}
