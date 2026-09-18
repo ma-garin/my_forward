@@ -30,8 +30,7 @@ export function addMonth(ym, n) {
   return ymStr(d.getFullYear(), d.getMonth() + 1)
 }
 
-export function currentBillingYm(cutoffDay = 15) {
-  const today = new Date()
+export function currentBillingYm(cutoffDay = 15, today = new Date()) {
   if (cutoffDay > 0 && today.getDate() <= cutoffDay) {
     return addMonth(ymStr(today.getFullYear(), today.getMonth() + 1), -1)
   }

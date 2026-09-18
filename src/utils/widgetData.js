@@ -24,7 +24,7 @@ const toDateStr = (d) =>
  */
 export function spendWidgetData(now = new Date()) {
   const card = CARDS.jcb
-  const ym = currentBillingYm(card?.cutoffDay ?? 15)
+  const ym = currentBillingYm(card?.cutoffDay ?? 15, now)
 
   const varTotal = CARD_LIST.reduce(
     (sum, c) => sum + loadVar(c.id, ym).reduce((s, x) => s + signedAmount(x), 0),
