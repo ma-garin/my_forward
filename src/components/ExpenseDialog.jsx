@@ -5,7 +5,7 @@ import {
   Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material'
 import { CARD_LIST, SPEND_TYPES, SPEND_TYPE_COLORS } from '../utils/ccStorage'
-import { ymStr } from '../utils/finance'
+import { ymStr, defaultExpenseCategory } from '../utils/finance'
 import AmountField, { parseAmount } from './AmountField'
 
 // 固定費・変動費・カテゴリ別集計のいずれからも同じダイアログで編集する。
@@ -16,7 +16,7 @@ export default function ExpenseDialog({ open, onClose, onSave, onDuplicate, init
   const [name,           setName]           = useState(initial?.name           ?? '')
   const [payee,          setPayee]          = useState(initial?.payee          ?? '')
   const [amount,         setAmount]         = useState(initial?.amount         ?? '')
-  const [category,       setCategory]       = useState(initial?.category       ?? categories[0] ?? 'その他')
+  const [category,       setCategory]       = useState(initial?.category       ?? defaultExpenseCategory(categories))
   const [date,           setDate]           = useState(initial?.date           ?? '')
   const [day,            setDay]            = useState(initial?.day            ?? '')
   const [startYm,        setStartYm]        = useState(initial?.startYm        ?? '')
