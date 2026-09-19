@@ -45,6 +45,7 @@ Kiro Spec Driven Development を使う場合は `/kiro` skill を呼び出す。
 | 生活費の週数 | `utils/monthly.js` の `livingWeeksFor(ym)`（今日ではなく請求サイクルで数える） |
 | 記録と請求額の差 | `utils/statement.js` の `compare(recorded, statement)`（記録額は画面から渡す） |
 | 通知から拾う文字 | extras 全体を歩く（`NotificationText`）。キーを数え上げない |
+| 支払先ごとの前回の内容 | 登録済みの変動費（`utils/payeeMemory.js` の `suggestFromPayee`）。控えを別に持たない |
 
 ### 一本化しているもの（分岐実装を作らない）
 - 支出の行: `components/CCExpenseViews.jsx` の `ExpenseRow`（行タップで編集・左スワイプで削除）
