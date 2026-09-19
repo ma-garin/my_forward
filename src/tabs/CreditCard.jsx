@@ -20,7 +20,7 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import SwapVertIcon from '@mui/icons-material/SwapVert'
 import SearchIcon from '@mui/icons-material/Search'
 import CloseIcon from '@mui/icons-material/Close'
-import { loadCategories, saveCategories, fmt, ymStr, newId, isActiveForYm, addMonth, currentBillingYm, signedAmount } from '../utils/finance'
+import { loadCategories, saveCategories, defaultExpenseCategory, fmt, ymStr, newId, isActiveForYm, addMonth, currentBillingYm, signedAmount } from '../utils/finance'
 import {
   CARDS, CATEGORY_COLORS, SPEND_TYPES, SPEND_TYPE_COLORS,
   sumLiving,
@@ -331,10 +331,6 @@ function YearlySummary({ year, cardId }) {
 // ─── 2枚合計＋給与比較 ──────────────────────────────────
 
 // ─── 支出入力（フルスクリーン）────────────────────────────────
-
-function defaultExpenseCategory(categories) {
-  return categories.includes('食費') ? '食費' : categories[0] ?? '食費'
-}
 
 // レンダーごとに作り直さない静的スタイル・定数
 const IROW       = { display: 'flex', alignItems: 'center', px: 2, minHeight: 52, borderBottom: '1px solid var(--surface-muted)' }

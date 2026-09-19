@@ -412,6 +412,13 @@ export function saveCategories(list) {
   localStorage.setItem('cc_categories', JSON.stringify(list))
 }
 
+// 新しく支出を入れるときに最初から選んでおくカテゴリ。
+// 画面ごとに決めると、同じ「新規入力」でも初期値が食い違う（通知からの登録が
+// 並びの先頭、手動が食費になっていた）
+export function defaultExpenseCategory(categories) {
+  return categories.includes('食費') ? '食費' : categories[0] ?? 'その他'
+}
+
 // ─── ユーティリティ ──────────────────────────────────────────
 
 export function ymStr(y, m) {
