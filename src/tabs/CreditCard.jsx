@@ -45,6 +45,7 @@ import { onQuickAdd, takePendingQuickAdd } from '../utils/quickAdd'
 import { cycleDatesForYm, cycleLabel, cutoffLabel, paymentLabel } from '../utils/billingCycle'
 import StatementReconcile from '../components/StatementReconcile'
 import { isCardVisible, visibleCardList } from '../utils/cardVisibility'
+import { suggestFromPayee } from '../utils/payeeMemory'
 import { findDuplicate, duplicateMessage } from '../utils/duplicates'
 import { detectSubscriptions, dismissSubscription } from '../utils/subscriptions'
 
@@ -107,29 +108,6 @@ function matchesQuery(item, q) {
   if (!needle) return true
   return [item.payee, item.name, item.category]
     .some((v) => (v ?? '').toLowerCase().includes(needle))
-}
-
-// 支払先ごとに前回選んだ分類・消費分類を覚えておき、次に同じ支払先を選んだときに
-// 埋め直す。履歴（cc_payee_history）は並び順自体が候補の意味を持つので別キーにする。
-const PAYEE_META_KEY = 'cc_payee_meta'
-
-function loadPayeeMeta() {
-  try {
-    const value = JSON.parse(localStorage.getItem(PAYEE_META_KEY) || '{}')
-    return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
-  } catch {
-    return {}
-  }
-}
-
-function savePayeeMeta(payee, meta) {
-  const key = payee.trim()
-  if (!key) return
-  try {
-    localStorage.setItem(PAYEE_META_KEY, JSON.stringify({ ...loadPayeeMeta(), [key]: meta }))
-  } catch {
-    // 補完用の記憶なので、保存失敗時も入力処理は続行する
-  }
 }
 
 // ─── カテゴリ管理ダイアログ ────────────────────────────────
@@ -377,13 +355,15 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
     ? nameHistory.filter(x => x.toLowerCase().includes(name.toLowerCase()) && x !== name).slice(0, 5)
     : nameHistory.slice(0, 5), [name, nameHistory])
 
-  // 支払先を選んだら、その支払先で前回使った分類・消費分類を埋める。
+  // 支払先を入れたら、前に同じ相手で登録した内容を埋める。
   // 消したカテゴリが残っていることがあるので、今あるカテゴリのときだけ反映する。
   const applyPayeeMeta = useCallback((value) => {
-    const meta = loadPayeeMeta()[value.trim()]
+    const meta = suggestFromPayee(value)
     if (!meta) return
     if (!catTouchedRef.current && categories.includes(meta.category)) setCategory(meta.category)
     if (!spendTouchedRef.current && SPEND_TYPES.includes(meta.spendType)) setSpendType(meta.spendType)
+    // 入力済みの項目名は上書きしない（思い出した内容で消さない）
+    setName((prev) => prev.trim() ? prev : meta.name ?? '')
   }, [categories])
 
   useEffect(() => {
@@ -426,10 +406,7 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
     const f = formRef.current
     const a = parseAmount(f.amount)
     if (a <= 0) return
-    if (f.payee.trim()) {
-      addToHistory('cc_payee_history', f.payee.trim())
-      savePayeeMeta(f.payee, { category: f.category, spendType: f.spendType })
-    }
+    if (f.payee.trim()) addToHistory('cc_payee_history', f.payee.trim())
     if (f.name.trim())  addToHistory('cc_name_history',  f.name.trim())
     onSave({ cardId: f.cardId, item: { name: f.name.trim() || f.category, payee: f.payee.trim(), amount: a, category: f.category, date: f.date, spendType: f.spendType, sign: f.refund ? 1 : undefined } })
     if (f.keepOpen) {

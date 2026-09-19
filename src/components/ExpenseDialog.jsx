@@ -6,21 +6,27 @@ import {
 } from '@mui/material'
 import { CARD_LIST, SPEND_TYPES, SPEND_TYPE_COLORS } from '../utils/ccStorage'
 import { ymStr, defaultExpenseCategory } from '../utils/finance'
+import { suggestFromPayee } from '../utils/payeeMemory'
 import AmountField, { parseAmount } from './AmountField'
 
 // 固定費・変動費・カテゴリ別集計のいずれからも同じダイアログで編集する。
 // （画面ごとに別フォームを持つと入力方法が食い違うため、ここに一本化する）
 
 export default function ExpenseDialog({ open, onClose, onSave, onDuplicate, initial, title, categories, cardId, isFixed }) {
+  // 通知から来た下書きは支払先しか持たない。前に同じ相手で登録した内容を
+  // 思い出して埋めておく（編集のときは保存済みの内容が正なので見にいかない）。
+  // 開いたときの 1 回だけ。レンダーごとに引くと過去ぶんの走査が毎回走る
+  const [recalled] = useState(() => (initial?.category ? null : suggestFromPayee(initial?.payee)))
+
   const [card,           setCard]           = useState(cardId)
-  const [name,           setName]           = useState(initial?.name           ?? '')
+  const [name,           setName]           = useState(initial?.name           ?? recalled?.name ?? '')
   const [payee,          setPayee]          = useState(initial?.payee          ?? '')
   const [amount,         setAmount]         = useState(initial?.amount         ?? '')
-  const [category,       setCategory]       = useState(initial?.category       ?? defaultExpenseCategory(categories))
+  const [category,       setCategory]       = useState(initial?.category       ?? (categories.includes(recalled?.category) ? recalled.category : defaultExpenseCategory(categories)))
   const [date,           setDate]           = useState(initial?.date           ?? '')
   const [day,            setDay]            = useState(initial?.day            ?? '')
   const [startYm,        setStartYm]        = useState(initial?.startYm        ?? '')
-  const [spendType,      setSpendType]      = useState(initial?.spendType      ?? '消費')
+  const [spendType,      setSpendType]      = useState(initial?.spendType      ?? (SPEND_TYPES.includes(recalled?.spendType) ? recalled.spendType : '消費'))
   const [recurrence,     setRecurrence]     = useState(initial?.recurrence     ?? 'monthly')
   const [intervalMonths, setIntervalMonths] = useState(initial?.intervalMonths ?? 2)
   const [baseYm,         setBaseYm]         = useState(initial?.baseYm         ?? '')

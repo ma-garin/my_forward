@@ -23,7 +23,7 @@
 | `life_weekly_budget` | `number` | 旧形式: 週予算。`cc_living_unit` に統合済み（読み込み時に自動で引き継ぐ） | 自動移行 |
 | `cc_payee_history` | `string[]` | 支払先の入力履歴（支出追加の候補） | `loadHistory` / `addToHistory`（CreditCard.jsx 内） |
 | `cc_name_history` | `string[]` | 項目名の入力履歴（同上） | 同上 |
-| `cc_payee_meta` | `{ [payee: string]: { category: string, spendType: string } }` | 支払先ごとに前回選んだ分類・消費分類。支出追加で支払先を選ぶと自動で埋める | `loadPayeeMeta` / `savePayeeMeta`（CreditCard.jsx 内） |
+| `cc_payee_meta` | `{ [payee: string]: { category: string, spendType: string } }` | 旧形式: 支払先ごとに前回選んだ分類・消費分類の控え。**読まない。** 同じ事実が変動費本体と控えの 2 箇所にあり、控えは手動入力の画面からしか書かれていなかった（通知から登録しても何も覚えない）。今は過去の変動費から直接思い出す（`utils/payeeMemory.js`） | — |
 | `cc_var_sort` | `'date_asc' \| 'date_desc' \| 'amount_desc' \| 'amount_asc'` | 変動費リストの並び順。表示の好みのみで集計に影響しないため `bumpDataVersion()` は呼ばない | `loadVarSort` / `saveVarSort`（CreditCard.jsx 内） |
 | `cc_var_sort_desc` | `'0' \| '1'` | 旧形式: 日付の昇順/降順のみだった頃の並び順。`cc_var_sort` が無いときだけ読む | 自動移行 |
 | `cc_init_v4` | `string` | 初期データ投入済みフラグ | 自動管理 |
