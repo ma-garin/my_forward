@@ -38,16 +38,18 @@ export default function FixedInventoryCard({ fromYm }) {
         }
         right={
           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 700 }}>
-            年 ¥{fmt(data.annualTotal)}
+            {data.increases.length > 0 && '⚠ '}年 ¥{fmt(data.annualTotal)}
           </Typography>
         }
       />
-      <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Typography variant="caption" color="text.secondary">
-          今後 12 ヶ月ぶん・月あたり ¥{fmt(data.monthlyAverage)}
-        </Typography>
+      {/* 畳んだらヘッダーだけ残す。値上げがあることは
+          ヘッダーの ⚠ で分かるようにしてある */}
+      <Collapse in={open} unmountOnExit>
+        <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
+          <Typography variant="caption" color="text.secondary">
+            今後 12 ヶ月ぶん・月あたり ¥{fmt(data.monthlyAverage)}
+          </Typography>
 
-        {/* 値上げは畳んでいても見えるところに出す（気づかないと直せない） */}
         {data.increases.length > 0 && (
           <Box sx={{ mt: 1, p: 1, borderRadius: 1, bgcolor: 'var(--tint-orange)' }}>
             <Typography variant="caption" fontWeight={700} sx={{ display: 'block' }}>
@@ -61,36 +63,35 @@ export default function FixedInventoryCard({ fromYm }) {
           </Box>
         )}
 
-        <Collapse in={open} timeout="auto" unmountOnExit>
-          <Box sx={{ mt: 1 }}>
-            {data.rows.map((row, i) => (
-              <Box key={`${row._cardId}-${row.id}`}>
-                {i > 0 && <Divider />}
-                <Stack direction="row" alignItems="center" gap={1} sx={{ py: 0.75 }}>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Stack direction="row" alignItems="center" gap={0.6}>
-                      <Typography fontSize={13} noWrap>{row.name}</Typography>
-                      <Chip label={CARDS[row._cardId]?.shortName ?? row._cardId} size="small"
-                        sx={{ height: 15, fontSize: 8, bgcolor: CARDS[row._cardId]?.color, color: '#fff' }} />
-                    </Stack>
-                    <Typography variant="caption" color="text.secondary">
-                      ¥{fmt(row.amount)} / {row._interval}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ textAlign: 'right' }}>
-                    <Typography fontSize={13} fontWeight={700} sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                      ¥{fmt(row._annual)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
-                      {share(row).toFixed(0)}%
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Box>
-            ))}
-          </Box>
-        </Collapse>
-      </CardContent>
+        <Box sx={{ mt: 1 }}>
+          {data.rows.map((row, i) => (
+            <Box key={`${row._cardId}-${row.id}`}>
+              {i > 0 && <Divider />}
+              <Stack direction="row" alignItems="center" gap={1} sx={{ py: 0.75 }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Stack direction="row" alignItems="center" gap={0.6}>
+                    <Typography fontSize={13} noWrap>{row.name}</Typography>
+                    <Chip label={CARDS[row._cardId]?.shortName ?? row._cardId} size="small"
+                      sx={{ height: 15, fontSize: 8, bgcolor: CARDS[row._cardId]?.color, color: '#fff' }} />
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary">
+                    ¥{fmt(row.amount)} / {row._interval}
+                  </Typography>
+                </Box>
+                <Box sx={{ textAlign: 'right' }}>
+                  <Typography fontSize={13} fontWeight={700} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                    ¥{fmt(row._annual)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
+                    {share(row).toFixed(0)}%
+                  </Typography>
+                </Box>
+              </Stack>
+            </Box>
+          ))}
+        </Box>
+        </CardContent>
+      </Collapse>
     </Card>
   )
 }

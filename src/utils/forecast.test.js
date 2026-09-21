@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { forecastCycle, cycleRange } from './forecast'
+import { forecastCycle, cycleRange, dailyAllowance } from './forecast'
 import { CARDS } from './ccStorage'
 
 const JCB = CARDS.jcb      // 15日締め
@@ -102,5 +102,62 @@ describe('予測を出さない場合', () => {
     expect(f.elapsedDays).toBe(31)
     expect(f.remainingDays).toBe(0)
     expect(f.forecast).toBe(31000)
+  })
+})
+
+describe('1 日あたり使える額', () => {
+  it('残り予算を締め日までの残り日数で割る', () => {
+    // 上限 50,000 − 実績 20,000 = 30,000 を 8/10 時点の残り 21 日で
+    const a = dailyAllowance({
+      card: VISA, ym: '2026-08', varTotal: 20000, limit: 50000, now: d(2026, 8, 10),
+    })
+    expect(a.remaining).toBe(30000)
+    expect(a.remainingDays).toBe(21)
+    expect(a.perDay).toBe(1429)
+    expect(a.over).toBe(false)
+  })
+
+  it('固定費も残り予算から引く', () => {
+    // JCB 15日締め。9/16〜10/15 の 30 日、9/21 は残り 24 日
+    // 上限 100,000 − 固定 35,631 − 変動 22,569 = 41,800 ÷ 24 日
+    const a = dailyAllowance({
+      card: JCB, ym: '2026-09', fixedTotal: 35631, varTotal: 22569,
+      limit: 100000, now: d(2026, 9, 21),
+    })
+    expect(a.remainingDays).toBe(24)
+    expect(a.perDay).toBe(1742)
+  })
+
+  it('実績が無いサイクル初日でも出る（予測と違い割り算だけ）', () => {
+    const a = dailyAllowance({ card: VISA, ym: '2026-08', limit: 62000, now: d(2026, 8, 1) })
+    expect(forecastCycle({ card: VISA, ym: '2026-08', now: d(2026, 8, 1) })).toBe(null)
+    expect(a.remainingDays).toBe(30)
+    expect(a.perDay).toBe(2067)
+  })
+
+  it('使い切っていれば 1 日あたりは 0 で超過が立つ', () => {
+    const a = dailyAllowance({
+      card: VISA, ym: '2026-08', varTotal: 60000, limit: 50000, now: d(2026, 8, 10),
+    })
+    expect(a.perDay).toBe(0)
+    expect(a.over).toBe(true)
+    expect(a.remaining).toBe(-10000)
+  })
+
+  it('締め日当日は割る日数が無いので 0', () => {
+    const a = dailyAllowance({
+      card: VISA, ym: '2026-08', varTotal: 40000, limit: 50000, now: d(2026, 8, 31),
+    })
+    expect(a.remainingDays).toBe(0)
+    expect(a.perDay).toBe(0)
+  })
+
+  it('上限が未設定なら出さない', () => {
+    expect(dailyAllowance({ card: VISA, ym: '2026-08', varTotal: 20000, now: d(2026, 8, 10) })).toBe(null)
+  })
+
+  it('今のサイクルでなければ出さない', () => {
+    expect(dailyAllowance({ card: VISA, ym: '2026-07', limit: 50000, now: d(2026, 8, 10) })).toBe(null)
+    expect(dailyAllowance({ card: VISA, ym: '2026-09', limit: 50000, now: d(2026, 8, 10) })).toBe(null)
   })
 })

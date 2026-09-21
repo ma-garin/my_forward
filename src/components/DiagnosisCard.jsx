@@ -20,8 +20,6 @@ const STATUS = {
   na:   { mark: '—', color: 'text.disabled' },
 }
 
-const GRADE_COLOR = { A: 'success.main', B: 'success.main', C: '#e65100', D: 'error.main' }
-
 export default function DiagnosisCard({ ym }) {
   const [open, setOpen] = useState(false)
 
@@ -43,34 +41,20 @@ export default function DiagnosisCard({ ym }) {
         }
         right={
           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 700 }}>
-            {result.score === null ? '記録が足りません' : `${result.score}点`}
+            {result.score === null ? '記録が足りません' : `${result.grade} ${result.score}点`}
           </Typography>
         }
       />
-      <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Stack direction="row" alignItems="baseline" gap={1}>
-          {result.grade && (
-            <Typography variant="h4" fontWeight={700} sx={{ color: GRADE_COLOR[result.grade] }}>
-              {result.grade}
+      {/* 畳んだらヘッダーだけ残す。点数とグレードはヘッダーが持っているので、
+          中身に出すと同じ数字が 2 箇所に並ぶ */}
+      <Collapse in={open} unmountOnExit>
+        <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
+          {result.score === null && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              収入か支出を記録すると診断できます
             </Typography>
           )}
-          <Typography variant="caption" color="text.secondary">
-            {result.score === null
-              ? '収入か支出を記録すると診断できます'
-              : `${result.score}点 / 100点`}
-          </Typography>
-        </Stack>
-
-        {/* 畳んでいても、悪い観点だけは見えるところに出す（気づかないと直せない） */}
-        {!open && result.items.filter((x) => x.status === 'warn' || x.status === 'bad').map((x) => (
-          <Typography key={x.key} variant="caption"
-            sx={{ display: 'block', mt: 0.5, color: STATUS[x.status].color }}>
-            {STATUS[x.status].mark} {x.label}（{x.value}）{x.advice}
-          </Typography>
-        ))}
-
-        <Collapse in={open} unmountOnExit>
-          <Stack gap={1} sx={{ mt: 1 }}>
+          <Stack gap={1}>
             {result.items.map((x) => (
               <Box key={x.key}>
                 <Stack direction="row" alignItems="baseline" justifyContent="space-between">
@@ -91,8 +75,8 @@ export default function DiagnosisCard({ ym }) {
               </Box>
             ))}
           </Stack>
-        </Collapse>
-      </CardContent>
+        </CardContent>
+      </Collapse>
     </Card>
   )
 }

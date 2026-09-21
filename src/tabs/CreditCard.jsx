@@ -37,7 +37,7 @@ import CombinedSummary from '../components/CombinedSummary'
 import BudgetBreakdown from '../components/BudgetBreakdown'
 import MonthNav from '../components/MonthNav'
 import InboxCard from '../components/InboxCard'
-import { forecastCycle } from '../utils/forecast'
+import { forecastCycle, dailyAllowance } from '../utils/forecast'
 import { useInbox } from '../utils/useInbox'
 import { useAfterPaint } from '../utils/useAfterPaint'
 import { pushScreen } from '../utils/useAndroidBack'
@@ -911,6 +911,8 @@ export default function CreditCard() {
         const otherVarTotal = varTotal - livingTotal
         // このペースで使うと締め日にいくらになるか（今のサイクルのときだけ出る）
         const fc = forecastCycle({ card, ym, varTotal, fixedTotal, limit })
+        // 残り予算 ÷ 締め日までの残り日数。実績が無い初日から出せる
+        const allow = dailyAllowance({ card, ym, varTotal, fixedTotal, limit })
 
         return (
           <Card sx={{ mb: 2, bgcolor: card.color, color: '#fff' }}>
@@ -956,10 +958,34 @@ export default function CreditCard() {
                 </Box>
               )}
 
+              {/* 締め日までに 1 日いくらまで使えるか。残額と残り日数だけで
+                  決まるので、ペースの読めない初日から出せる */}
+              {allow && (
+                <Box sx={{ mt: 1, mb: 0.5, py: 0.75, px: 1,
+                  borderRadius: 1, bgcolor: 'rgba(255,255,255,.12)' }}>
+                  <Stack direction="row" alignItems="baseline" justifyContent="space-between" gap={1}>
+                    <Typography variant="caption" sx={{ opacity: .75 }}>
+                      締め日まで 1日あたり
+                    </Typography>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700,
+                      color: allow.over ? '#ef9a9a' : '#a5d6a7' }}>
+                      {allow.remainingDays > 0 ? `¥${fmt(allow.perDay)}` : '—'}
+                    </Typography>
+                  </Stack>
+                  <Typography variant="caption" sx={{ opacity: .6, fontSize: 10, display: 'block' }}>
+                    {allow.over
+                      ? `上限を ¥${fmt(-allow.remaining)} 超えています`
+                      : allow.remainingDays > 0
+                        ? `残り ¥${fmt(allow.remaining)} ÷ あと${allow.remainingDays}日`
+                        : `今日が締め日・残り ¥${fmt(allow.remaining)}`}
+                  </Typography>
+                </Box>
+              )}
+
               {/* 着地の見込み。残り予算だけだと、月初に使いすぎているのか
                   ならして使えているのかが分からない */}
               {fc && (
-                <Box sx={{ mt: limit > 0 ? 0 : 1, mb: 0.5, py: 0.75, px: 1,
+                <Box sx={{ mt: (limit > 0 || allow) ? 0 : 1, mb: 0.5, py: 0.75, px: 1,
                   borderRadius: 1, bgcolor: 'rgba(255,255,255,.08)' }}>
                   <Stack direction="row" alignItems="baseline" justifyContent="space-between" gap={1}>
                     <Typography variant="caption" sx={{ opacity: .75 }}>
@@ -972,8 +998,8 @@ export default function CreditCard() {
                   </Stack>
                   <Typography variant="caption" sx={{ opacity: .6, fontSize: 10, display: 'block' }}>
                     {fc.overBy > 0
-                      ? `上限を ¥${fmt(fc.overBy)} 超えます・残り${fc.remainingDays}日は 1日 ¥${fmt(fc.safePerDay)} まで`
-                      : `1日あたり ¥${fmt(Math.round(fc.pacePerDay))}・残り${fc.remainingDays}日`}
+                      ? `上限を ¥${fmt(fc.overBy)} 超えます・今のペースは 1日 ¥${fmt(Math.round(fc.pacePerDay))}`
+                      : `今のペースは 1日 ¥${fmt(Math.round(fc.pacePerDay))}・残り${fc.remainingDays}日`}
                   </Typography>
                 </Box>
               )}
