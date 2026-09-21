@@ -61,7 +61,7 @@ export default function FixedInventoryCard({ fromYm }) {
           </Box>
         )}
 
-        <Collapse in={open} timeout="auto" unmountOnExit>
+        <Collapse in={open} unmountOnExit>
           <Box sx={{ mt: 1 }}>
             {data.rows.map((row, i) => (
               <Box key={`${row._cardId}-${row.id}`}>

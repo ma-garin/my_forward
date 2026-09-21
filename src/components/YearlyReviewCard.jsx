@@ -44,7 +44,7 @@ export default function YearlyReviewCard({ year: initialYear }) {
         }
         right={
           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 700 }}>
-            {year}年 {data.filledCount > 0 ? `貯蓄率 ${data.savingRate}%` : '記録なし'}
+            {data.filledCount > 0 ? `貯蓄率 ${data.savingRate}%` : '記録なし'}
           </Typography>
         }
       />
