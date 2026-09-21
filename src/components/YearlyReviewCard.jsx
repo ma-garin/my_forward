@@ -44,13 +44,14 @@ export default function YearlyReviewCard({ year: initialYear }) {
         }
         right={
           <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.9)', fontWeight: 700 }}>
-            {data.filledCount > 0 ? `貯蓄率 ${data.savingRate}%` : '記録なし'}
+            {year}年 {data.filledCount > 0 ? `貯蓄率 ${data.savingRate}%` : '記録なし'}
           </Typography>
         }
       />
 
-      <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
-        {/* 年の切り替え。畳んでいても動かせるようにここに置く */}
+      {/* 畳んだらヘッダーだけ残す。どの年の貯蓄率かはヘッダーに出している */}
+      <Collapse in={open} unmountOnExit>
+        <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
         <Stack direction="row" alignItems="center" justifyContent="center" gap={1}>
           <IconButton size="small" aria-label="前の年" onClick={() => setYear((y) => y - 1)}>
             <ChevronLeftIcon fontSize="small" />
@@ -90,53 +91,52 @@ export default function YearlyReviewCard({ year: initialYear }) {
               記録のある {data.filledCount} ヶ月・月あたり 収入 ¥{fmt(data.avgIncome)} / 支出 ¥{fmt(data.avgExpense)}
             </Typography>
 
-            <Collapse in={open} unmountOnExit>
-              <Divider sx={{ my: 1 }} />
-              <Stack direction="row" sx={{ pb: 0.4 }}>
-                <Box sx={{ width: 28 }} />
-                <Typography sx={{ flex: 1, fontSize: 10, fontWeight: 700, color: 'text.disabled', textAlign: 'right' }}>収入</Typography>
-                <Typography sx={{ flex: 1, fontSize: 10, fontWeight: 700, color: 'text.disabled', textAlign: 'right' }}>支出</Typography>
-                <Typography sx={{ flex: 1, fontSize: 10, fontWeight: 700, color: 'text.disabled', textAlign: 'right' }}>差額</Typography>
-              </Stack>
+            <Divider sx={{ my: 1 }} />
+            <Stack direction="row" sx={{ pb: 0.4 }}>
+              <Box sx={{ width: 28 }} />
+              <Typography sx={{ flex: 1, fontSize: 10, fontWeight: 700, color: 'text.disabled', textAlign: 'right' }}>収入</Typography>
+              <Typography sx={{ flex: 1, fontSize: 10, fontWeight: 700, color: 'text.disabled', textAlign: 'right' }}>支出</Typography>
+              <Typography sx={{ flex: 1, fontSize: 10, fontWeight: 700, color: 'text.disabled', textAlign: 'right' }}>差額</Typography>
+            </Stack>
 
-              {data.months.map((m) => (
-                <Box key={m.ym} sx={{ py: 0.4, borderTop: '1px solid var(--surface-line)' }}>
-                  <Stack direction="row" alignItems="center">
-                    <Typography sx={{ width: 28, fontSize: 11, color: 'text.secondary' }}>{m.month}月</Typography>
-                    {m.empty ? (
-                      <Typography sx={{ flex: 3, fontSize: 11, color: 'text.disabled', textAlign: 'right' }}>—</Typography>
-                    ) : (
-                      <>
-                        <Typography sx={{ flex: 1, fontSize: 11, textAlign: 'right' }}>¥{fmt(m.income)}</Typography>
-                        <Typography sx={{ flex: 1, fontSize: 11, textAlign: 'right' }}>¥{fmt(m.expense)}</Typography>
-                        <Typography sx={{ flex: 1, fontSize: 11, fontWeight: 700, textAlign: 'right',
-                          color: m.balance >= 0 ? 'success.main' : 'error.main' }}>
-                          {amt(m.balance)}
-                        </Typography>
-                      </>
-                    )}
-                  </Stack>
-
-                  {/* 横棒。縦棒だと親の高さが要る（過去に棒が消えた） */}
-                  {!m.empty && (
-                    <Stack sx={{ mt: 0.3, ml: 3.5, gap: '2px' }}>
-                      <Box sx={{ height: 4, borderRadius: 2, bgcolor: 'var(--tint-mint)',
-                        width: `${(m.income / peak) * 100}%` }} />
-                      <Box sx={{ height: 4, borderRadius: 2, bgcolor: 'var(--tint-red)',
-                        width: `${(m.expense / peak) * 100}%` }} />
-                    </Stack>
+            {data.months.map((m) => (
+              <Box key={m.ym} sx={{ py: 0.4, borderTop: '1px solid var(--surface-line)' }}>
+                <Stack direction="row" alignItems="center">
+                  <Typography sx={{ width: 28, fontSize: 11, color: 'text.secondary' }}>{m.month}月</Typography>
+                  {m.empty ? (
+                    <Typography sx={{ flex: 3, fontSize: 11, color: 'text.disabled', textAlign: 'right' }}>—</Typography>
+                  ) : (
+                    <>
+                      <Typography sx={{ flex: 1, fontSize: 11, textAlign: 'right' }}>¥{fmt(m.income)}</Typography>
+                      <Typography sx={{ flex: 1, fontSize: 11, textAlign: 'right' }}>¥{fmt(m.expense)}</Typography>
+                      <Typography sx={{ flex: 1, fontSize: 11, fontWeight: 700, textAlign: 'right',
+                        color: m.balance >= 0 ? 'success.main' : 'error.main' }}>
+                        {amt(m.balance)}
+                      </Typography>
+                    </>
                   )}
-                </Box>
-              ))}
+                </Stack>
 
-              <Typography variant="caption" color="text.secondary"
-                sx={{ display: 'block', fontSize: 10, mt: 0.75 }}>
-                収入は手取り（実績があれば実績）＋その他収入。支出はカード・現金＋固定費内訳＋生活費。
-              </Typography>
-            </Collapse>
+                {/* 横棒。縦棒だと親の高さが要る（過去に棒が消えた） */}
+                {!m.empty && (
+                  <Stack sx={{ mt: 0.3, ml: 3.5, gap: '2px' }}>
+                    <Box sx={{ height: 4, borderRadius: 2, bgcolor: 'var(--tint-mint)',
+                      width: `${(m.income / peak) * 100}%` }} />
+                    <Box sx={{ height: 4, borderRadius: 2, bgcolor: 'var(--tint-red)',
+                      width: `${(m.expense / peak) * 100}%` }} />
+                  </Stack>
+                )}
+              </Box>
+            ))}
+
+            <Typography variant="caption" color="text.secondary"
+              sx={{ display: 'block', fontSize: 10, mt: 0.75 }}>
+              収入は手取り（実績があれば実績）＋その他収入。支出はカード・現金＋固定費内訳＋生活費。
+            </Typography>
           </>
         )}
-      </CardContent>
+        </CardContent>
+      </Collapse>
     </Card>
   )
 }

@@ -28,9 +28,6 @@ export default function DiagnosisCard({ ym }) {
 
   if (!result) return null
 
-  // 畳んでいても見せる観点（気づかないと直せない）
-  const alerts = result.items.filter((x) => x.status === 'warn' || x.status === 'bad')
-
   return (
     <Card sx={{ mb: 1.5 }}>
       <CardHeaderBar
@@ -48,29 +45,15 @@ export default function DiagnosisCard({ ym }) {
           </Typography>
         }
       />
-      {/* 畳んだら中身は出さない。点数とグレードはヘッダーが持っているので、
-          ここに出すと同じ数字が 2 箇所に並ぶ（実際にそうなっていた）。
-          出すものが何も無いときは空の余白を作らない */}
-      {(open || result.score === null || alerts.length > 0) && (
-      <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
-        {result.score === null && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-            収入か支出を記録すると診断できます
-          </Typography>
-        )}
-
-        {/* 畳んでいても、悪い観点だけは見えるところに出す（気づかないと直せない） */}
-        {!open && (
-          <Stack gap={0.5}>
-            {alerts.map((x) => (
-              <Typography key={x.key} variant="caption" sx={{ color: STATUS[x.status].color }}>
-                {STATUS[x.status].mark} {x.label}（{x.value}）{x.advice}
-              </Typography>
-            ))}
-          </Stack>
-        )}
-
-        <Collapse in={open} unmountOnExit>
+      {/* 畳んだらヘッダーだけ残す。点数とグレードはヘッダーが持っているので、
+          中身に出すと同じ数字が 2 箇所に並ぶ */}
+      <Collapse in={open} unmountOnExit>
+        <CardContent sx={{ px: 2, py: 1.5, '&:last-child': { pb: 1.5 } }}>
+          {result.score === null && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              収入か支出を記録すると診断できます
+            </Typography>
+          )}
           <Stack gap={1}>
             {result.items.map((x) => (
               <Box key={x.key}>
@@ -92,9 +75,8 @@ export default function DiagnosisCard({ ym }) {
               </Box>
             ))}
           </Stack>
-        </Collapse>
-      </CardContent>
-      )}
+        </CardContent>
+      </Collapse>
     </Card>
   )
 }
