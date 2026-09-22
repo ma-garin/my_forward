@@ -80,8 +80,14 @@ export function ingestNotifications(records) {
 
     const dup = [...inbox, ...added].find((x) => isSamePurchase(x, d))
     if (dup) {
-      // 片方にしか店名がないことがある（Google ウォレットは利用先を持たない）
+      // 片方にしか無い情報で埋める。
+      // ・店名 … Google ウォレットは利用先を持たない
+      // ・日時 … 文面から読めたほうが取引の時刻。読めなかった側は通知が届いた
+      //          時刻なので、日をまたぐと日付（＝請求月）までずれる
       if (!dup.payee && d.payee) dup.payee = d.payee
+      if (!dup.atFromText && d.atFromText) {
+        Object.assign(dup, { at: d.at, date: d.date, atFromText: true })
+      }
       continue
     }
     added.push({ id: newId(), ...d })

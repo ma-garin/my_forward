@@ -106,6 +106,8 @@ Draft = {
   at: number                // 取引時刻(ms)。二重通知の判定に使う
   date: string              // YYYY-MM-DD
   payee: string             // 利用先（Google ウォレットは空）
+  atFromText?: boolean      // at を文面の利用日時から読めた。二重通知をまとめる
+                            // とき、届いた時刻しか知らない方に上書きさせない
 }
 
 // 家計タブ固定費内訳

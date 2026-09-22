@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseCardNotification, cardIdFromText, normalizeText } from './parseCardNotification'
+import { parseCardNotification, cardIdFromText, normalizeText, field } from './parseCardNotification'
 
 // 実機で届いた文面（全角混じり）をそのまま使う
 const VPASS = {
@@ -31,6 +31,7 @@ describe('Vpass（三井住友カード）', () => {
       at: new Date(2026, 7, 14, 12, 12).getTime(),
       date: '2026-08-14',
       payee: 'KAITENSUSHIMISAKISHINJI',
+      atFromText: true,
     })
   })
 
@@ -44,6 +45,64 @@ describe('Vpass（三井住友カード）', () => {
     // 12:19 に届いた通知でも、取引は 12:12
     expect(new Date(parseCardNotification(VPASS).at).getHours()).toBe(12)
     expect(new Date(parseCardNotification(VPASS).at).getMinutes()).toBe(12)
+  })
+})
+
+// MyJCB は同じ中身を【】で囲んだ項目名で送ってくる（実機の通知）
+const MYJCB = {
+  packageName: 'jp.co.jcb.my',
+  postTime: new Date(2026, 8, 22, 18, 58).getTime(),
+  title: 'ショッピングご利用のお知らせ',
+  text: '【カード名称】　【ＯＳ】ＪＣＢゴールド　ＮＬ',
+  bigText: '【カード名称】　【ＯＳ】ＪＣＢゴールド　ＮＬ\n【利用日時】　2026/09/22 18:44\n'
+    + '【利用金額】　1,840円\n【利用先】　カイテンズシミサキ　タカダノババ',
+}
+
+describe('MyJCB（項目名を【】で囲む文面）', () => {
+  it('金額だけでなく日時・利用先・カードも読む', () => {
+    expect(parseCardNotification(MYJCB)).toEqual({
+      source: 'card',
+      cardId: 'jcb',
+      amount: 1840,
+      at: new Date(2026, 8, 22, 18, 44).getTime(),
+      date: '2026-09-22',
+      payee: 'カイテンズシミサキ タカダノババ',
+      atFromText: true,
+    })
+  })
+
+  it('通知が届いた時刻（18:58）ではなく、文面の利用日時（18:44）を使う', () => {
+    const at = new Date(parseCardNotification(MYJCB).at)
+    expect([at.getHours(), at.getMinutes()]).toEqual([18, 44])
+  })
+
+  it('カード名称の中の【ＯＳ】で値が切れない', () => {
+    expect(field(normalizeText(MYJCB.bigText), ['カード名称'])).toBe('【OS】JCBゴールド NL')
+  })
+
+  it('日をまたいで届いても、利用日は文面のまま', () => {
+    // 23:50 の買い物が 0:05 に通知される。届いた時刻で決めると請求月までずれる
+    const d = parseCardNotification({
+      ...MYJCB,
+      postTime: new Date(2026, 8, 23, 0, 5).getTime(),
+      bigText: MYJCB.bigText.replace('2026/09/22 18:44', '2026/09/22 23:50'),
+    })
+    expect(d.date).toBe('2026-09-22')
+  })
+
+  it('年月日・時分の表記でも読む', () => {
+    const d = parseCardNotification({
+      ...MYJCB,
+      bigText: '【カード名称】ＪＣＢゴールド 【利用日時】2026年9月22日 18時44分'
+        + ' 【利用金額】1,840円 【利用先】セブン-イレブン',
+    })
+    expect(d).toMatchObject({ date: '2026-09-22', amount: 1840, payee: 'セブン-イレブン' })
+  })
+
+  it('項目名があっても金額が無ければ拾わない', () => {
+    expect(parseCardNotification({
+      ...MYJCB, text: '', bigText: '【カード名称】ＪＣＢゴールド 【利用日時】2026/09/22 18:44',
+    })).toBe(null)
   })
 })
 
