@@ -53,6 +53,23 @@ describe('通知の取り込み', () => {
     expect(inbox[0].payee).toBe('ユニクロ')
   })
 
+  it.each([['通知が先', 0], ['通知が後', 1]])('二重通知のうち、文面の利用日時を持っている方に合わせる（%s）', (_name, order) => {
+    // 23:50 の買い物。Google ウォレットは日付をまたいだ 0:02 に鳴るので、
+    // 届いた時刻のままだと 8/15 の支出になり、請求月までずれることがある。
+    // どちらを先に処理しても、文面から読めた利用日時が残る
+    const wallet = { ...gpay(1840, 0, 2), postTime: new Date(2026, 7, 15, 0, 2).getTime() }
+    const myjcb = {
+      packageName: 'jp.co.jcb.my',
+      postTime: new Date(2026, 7, 15, 0, 4).getTime(),
+      title: 'ショッピングご利用のお知らせ',
+      text: '【カード名称】　ＪＣＢゴールド\u3000【利用日時】　2026/08/14 23:50'
+        + '\u3000【利用金額】　1,840円\u3000【利用先】　カイテンズシミサキ',
+    }
+    const { inbox } = ingestNotifications(order ? [myjcb, wallet] : [wallet, myjcb])
+    expect(inbox).toHaveLength(1)
+    expect(inbox[0]).toMatchObject({ date: '2026-08-14', payee: 'カイテンズシミサキ' })
+  })
+
   it('同じ金額でも時間が離れていれば別の買い物として残す', () => {
     const { added } = ingestNotifications([vpass(500, 'コンビニ', 9, 0), vpass(500, 'コンビニ', 18, 0)])
     expect(added).toBe(2)

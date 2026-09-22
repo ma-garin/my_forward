@@ -9,6 +9,10 @@ import { CARD_LIST } from './ccStorage'
  *     ◇ご利用カード：三井住友ゴールドＶＩＳＡ（ＮＬ） ◇日時：2026/08/14 12:12
  *     ◇利用先：ユニクロ／ＮＦＣ ◇金額：2,990円
  *
+ *   MyJCB … 同じ中身を【】で囲んだ項目名で送ってくる
+ *     【カード名称】【ＯＳ】ＪＣＢゴールド ＮＬ 【利用日時】2026/09/22 18:44
+ *     【利用金額】1,840円 【利用先】カイテンズシミサキ タカダノババ
+ *
  *   Google ウォレット … 金額とカードだけ（利用先は入らない）
  *     JCB GOLD(ORIGINAL SERIES) ••1004 で ¥740
  *
@@ -67,55 +71,76 @@ const toAmount = (s) => {
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 
-// ─── Vpass ────────────────────────────────────────────────
+// ─── 項目名の付いた文面 ────────────────────────────────────
+//
+// カード会社の利用通知はどれも「項目名＋値」の並びで、違うのは飾りだけ。
+//
+//   Vpass  … ◇日時：2026/08/14 12:12 ◇利用先：ユニクロ ◇金額：2,990円
+//   MyJCB  … 【利用日時】2026/09/22 18:44 【利用金額】1,840円 【利用先】…
+//
+// 会社ごとに読み方を書くと、書いていない会社からは金額しか取れない
+// （MyJCB の日時と利用先を実際に取りこぼしていた）。飾り（◇【】：）は
+// 区切りとして読み飛ばし、**項目名だけ**で拾う。
 
-const VPASS_DATE = /日時[:：]\s*(\d{4})\/(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/
-const VPASS_PAYEE = /利用先[:：]\s*(.+?)(?:\s*◇|\s*ご利用|$)/
-const VPASS_AMOUNT = /金額[:：]\s*([\d,]+)\s*円/
-const VPASS_CARD = /ご利用カード[:：]\s*(.+?)(?:\s*◇|$)/
+const LABELS = {
+  date:   ['ご利用日時', '利用日時', 'ご利用日', '利用日', '日時'],
+  payee:  ['ご利用先', '利用先', '利用店名', '加盟店名', '加盟店'],
+  amount: ['ご利用金額', '利用金額', '金額'],
+  card:   ['ご利用カード', 'カード名称', '利用カード'],
+}
 
-function parseVpass(text, postTime) {
-  const amountM = VPASS_AMOUNT.exec(text)
-  if (!amountM) return null
-  const amount = toAmount(amountM[1])
+const ALL_LABELS = Object.values(LABELS).flat()
+
+// 値の終わりは「次の項目名」まで。飾りで切ると値の中の【】で切れてしまう
+// （MyJCB のカード名称は【ＯＳ】ＪＣＢゴールド ＮＬ）
+const UNTIL_NEXT_LABEL = `(?=\\s*[◇【\\[]?\\s*(?:${ALL_LABELS.join('|')})|$)`
+
+/** 項目名で 1 項目ぶんの値を取り出す（見つからなければ空文字） */
+export function field(text, labels) {
+  const re = new RegExp(`(?:${labels.join('|')})\\s*[】\\]:：]?\\s*(.+?)\\s*${UNTIL_NEXT_LABEL}`)
+  return (re.exec(text)?.[1] ?? '').trim()
+}
+
+// 2026/09/22 18:44 ／ 2026年9月22日 18:44 ／ 2026-09-22 18:44
+const DATE_TIME = /(\d{4})[/年-](\d{1,2})[/月-](\d{1,2})日?(?:\s*(\d{1,2})[:時](\d{2}))?/
+
+function parseLabeled(text, postTime) {
+  const amount = toAmount(field(text, LABELS.amount))
   if (!amount) return null
 
-  const dateM = VPASS_DATE.exec(text)
+  const m = DATE_TIME.exec(field(text, LABELS.date))
   // 日時が読めなければ通知が届いた時刻で代用する（当日中なら実用上ずれない）
-  const at = dateM
-    ? new Date(+dateM[1], +dateM[2] - 1, +dateM[3], +(dateM[4] ?? 0), +(dateM[5] ?? 0)).getTime()
+  const at = m
+    ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] ?? 0), +(m[5] ?? 0)).getTime()
     : postTime
-  const cardText = VPASS_CARD.exec(text)?.[1] ?? text
 
   return {
-    cardId: cardIdFromText(cardText) ?? cardIdFromText(text),
+    // カード名称の欄が無い通知もあるので、無ければ文面全体から探す
+    cardId: cardIdFromText(field(text, LABELS.card)) ?? cardIdFromText(text),
     amount,
     at,
     date: toDateStr(new Date(at)),
-    payee: (VPASS_PAYEE.exec(text)?.[1] ?? '').trim(),
+    payee: field(text, LABELS.payee),
+    // 取引の時刻を文面から読めたか。読めた下書きの日付を、届いた時刻しか
+    // 知らない通知（Google ウォレット）で上書きさせないために持つ
+    ...(m ? { atFromText: true } : {}),
   }
 }
 
-// ─── 決まった形を持たない通知 ───────────────────────────────
+// ─── 項目名を持たない通知 ──────────────────────────────────
 //
-// Vpass のように項目名が付いていない通知（Google ウォレット、カード会社の
-// 公式アプリなど）はここで拾う。送信元を数え上げて分岐すると、数え漏れた
-// アプリの通知が丸ごと落ちる（MyJCB の利用通知が実際に落ちていた）。
+// Google ウォレットのように項目名が付かない通知はここで拾う。送信元を
+// 数え上げて分岐すると、数え漏れたアプリの通知が丸ごと落ちる。
 // 「金額」と「どのカードか」が読めれば下書きにする。
 
 const ANY_AMOUNT = /[¥￥]\s*([\d,]+)|([\d,]+)\s*円/
 
-function parseGeneric(text, postTime, pkg) {
+function parseGeneric(text, postTime) {
   const m = ANY_AMOUNT.exec(text)
   const amount = toAmount(m?.[1] ?? m?.[2] ?? '')
   if (!amount) return null
-  // 文面で決まらなければ送り主で決める（PayPay は文面に名前を書かない）
-  const cardId = cardIdFromText(text) ?? cardIdFromPackage(pkg)
-  // カードが特定できない支払い（交通系のチャージ等）は当てずっぽうで
-  // 登録しても直す手間が増えるだけなので落とす
-  if (!cardId) return null
   return {
-    cardId,
+    cardId: cardIdFromText(text),
     amount,
     at: postTime,
     date: toDateStr(new Date(postTime)),
@@ -125,13 +150,9 @@ function parseGeneric(text, postTime, pkg) {
 
 // ─── 入口 ─────────────────────────────────────────────────
 
-// 項目名の付いた文面（日時・利用先・金額が取れる）かどうか
-const isVpass = (text, pkg) =>
-  /ご利用カード|利用先/.test(text) || /vpass|smbc/i.test(pkg ?? '')
-
 // どこから来たかは記録用のラベル。解析の分岐には使わない
 function sourceOf(text, pkg) {
-  if (isVpass(text, pkg)) return 'vpass'
+  if (/vpass|smbc/i.test(pkg ?? '') || /ご利用カード/.test(text)) return 'vpass'
   if (/google\s*pay|ウォレット/i.test(text) || /walletnfcrel|google.android.apps.wallet/i.test(pkg ?? '')) {
     return 'googlepay'
   }
@@ -142,8 +163,8 @@ function sourceOf(text, pkg) {
  * @param {{ packageName?: string, postTime?: number, title?: string, text?: string,
  *           bigText?: string, subText?: string, infoText?: string, ticker?: string,
  *           allText?: string }} record
- * @returns {null | { source: string, cardId: string|null, amount: number,
- *                    at: number, date: string, payee: string }}
+ * @returns {null | { source: string, cardId: string, amount: number, at: number,
+ *                    date: string, payee: string, atFromText?: boolean }}
  */
 export function parseCardNotification(record) {
   const text = joinFields(record)
@@ -151,11 +172,14 @@ export function parseCardNotification(record) {
   const postTime = Number(record?.postTime) || Date.now()
   const pkg = record?.packageName
 
-  // 項目名が付いていれば日時と利用先まで読む。読めなければ金額とカードだけ拾う
-  const draft = (isVpass(text, pkg) ? parseVpass(text, postTime) : null)
-    ?? parseGeneric(text, postTime, pkg)
+  // 項目名が付いていれば日時・利用先・カードまで読む。無ければ金額だけ拾う
+  const draft = parseLabeled(text, postTime) ?? parseGeneric(text, postTime)
+  if (!draft) return null
 
+  // 文面でカードが決まらなければ送り主で決める（PayPay は文面に名前を書かない）
+  const cardId = draft.cardId ?? cardIdFromPackage(pkg)
   // 支払い元が分からない下書きは、どのカードに足すか決められないので出さない
-  if (!draft?.cardId) return null
-  return { ...draft, source: sourceOf(text, pkg) }
+  if (!cardId) return null
+
+  return { ...draft, cardId, source: sourceOf(text, pkg) }
 }
