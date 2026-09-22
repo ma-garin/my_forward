@@ -62,14 +62,37 @@ git checkout -B <作業ブランチ> origin/main
 
 ## CI（GitHub Actions）
 
-**自動では走らない。** APK ビルド（`android.yml`）も Pages デプロイ（`deploy.yml`）も
-`workflow_dispatch` だけにしてある。push や PR では何も動かない。
+**push や PR では走らない。** APK ビルド（`android.yml`）も Pages デプロイ
+（`deploy.yml`）も、回すと決めたときだけ動く。
 
-必要なときは GitHub の Actions タブから対象のワークフローを選んで
-「Run workflow」で回す。APK を回すとリリース（`android-<run_number>`）が公開され、
-アプリ内の「更新を確認」に出る。**回さないかぎり配布物は更新されない。**
+### APK を配る手順
 
-自動実行に戻すときは、それぞれの `on:` に `pull_request` / `push` を書き足す。
+```bash
+git push origin origin/main:refs/heads/claude/apk-<PR番号>
+```
+
+`android.yml` は `workflow_dispatch` に加えて **`claude/apk-*` への push** でも
+走る（`on:` にそう書いてある）。Actions の画面を開かずに git だけで完結する
+ので、通常はこちらを使う。**API の `workflow_dispatch` は権限が無く 403 に
+なる**ので試さない。回すと `android-<run_number>` のリリースが公開される。
+
+### リリースの公開は「届いた」ではない
+
+アプリの更新確認は `settings/AppInfo.jsx` の**「更新を確認」ボタンを押した
+ときだけ**走る。起動時チェックもプッシュ通知も無いので、リリースを公開しても
+利用者の画面には何も出ない。完了を伝えるときは「押せば入る状態になった」と
+言い、届いたと言わない。リリースの `download_count` が 0 なら、まだ誰も
+取りにいっていない。
+
+Pages（Web 版）は `deploy.yml` を回すまで更新されない。APK を回しても
+Web 版は変わらない。
+
+### 着手前に `on:` を読む
+
+「自動では走らない」とだけ覚えていて Actions の API を叩き、403 を食ってから
+ワークフローを読み直した（実際にやった手戻り）。**回し方はワークフロー本体に
+書いてある。** 推測で叩く前に `.github/workflows/*.yml` の `on:` と先頭の
+コメントを読む。
 
 ## ビルド・確認
 

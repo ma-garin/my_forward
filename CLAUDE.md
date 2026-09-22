@@ -7,6 +7,15 @@
 - プロジェクト内 Markdown は spec.json.language の言語で書く
 - ユーザーの指示に従い、必要なコンテキストを集めて end-to-end で完遂する
 
+## 進め方（手戻りとトークンを減らす）
+- 結論を1行目に置く。理由・経緯は聞かれてから書く
+- **「無い・できない・走らない」と言う前に実物を読む。** 回し方はワークフロー
+  本体（`.github/workflows/*.yml` の `on:` と先頭コメント）に書いてある
+- APK 配布は `git push origin origin/main:refs/heads/claude/apk-<PR番号>`
+  （Actions API の dispatch は権限が無く 403）
+- **リリース公開＝利用者に届いた、ではない。** アプリの更新確認は
+  `settings/AppInfo.jsx` の手動ボタンのみ（起動時チェックも通知も無い）
+
 ## Reference Docs
 詳細は必要なときだけ参照する（トークン節約のため常時読み込み不要）:
 - アーキテクチャ・画面構成・コンポーネントツリー: @doc/architecture.md
