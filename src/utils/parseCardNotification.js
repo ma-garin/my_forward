@@ -37,11 +37,24 @@ export function normalizeText(s) {
     .join('\n')
 }
 
+/**
+ * 人が読む文ではない行。ネイティブ側は extras を全部歩いて文字を集めるので、
+ * 通知の組み立て情報（androidx.core.app.NotificationCompat$InboxStyle）や
+ * 送り主のパッケージ名（jp.co.jcb.my）まで混ざる。
+ *
+ * どのキーから来たかでは判定しない（キーは数え切れない）。値の形で見る。
+ * 店名と取り違えないよう、クラス名（$ を含む識別子）と送り主の名前そのものに限る
+ * （「Amazon.co.jp」のような店名は落とさない）。
+ */
+const isNoiseLine = (line, pkg) =>
+  line === pkg || /^[\w.]+\.\w+\$[\w$]+$/.test(line)
+
 /** 1 件の通知から、文字が入っている欄をつなげる（行の区切りは保つ） */
 function joinFields(record) {
+  const pkg = record?.packageName
   return [record?.title, record?.text, record?.bigText, record?.subText,
     record?.infoText, record?.ticker, record?.allText]
-    .map(normalizeText)
+    .map((v) => normalizeText(v).split('\n').filter((l) => !isNoiseLine(l, pkg)).join('\n'))
     .filter((v, i, a) => v && a.indexOf(v) === i)
     .join('\n')
 }
@@ -103,17 +116,23 @@ const ALL_LABELS = Object.values(LABELS).flat()
 // 行内の空白だけ（\s は改行も含むため、項目の値が次の行へ伸びてしまう）
 const SP = '[^\\S\\n]'
 
+// 項目名で始まる位置（前に飾りが付いていてもよい）
+const LABEL_AHEAD = `${SP}*[◇【\\[]?${SP}*(?:${ALL_LABELS.join('|')})`
+
 // 値の終わりは「次の項目名」か「行末」。
 // 飾りで切ると値の中の【】で切れる（MyJCB のカード名称は【ＯＳ】ＪＣＢゴールド ＮＬ）
 // ので飾りでは切らず、1 行 1 項目という通知の形をそのまま終わりに使う。
-const UNTIL_NEXT_LABEL = `(?=${SP}*[◇【\\[]?${SP}*(?:${ALL_LABELS.join('|')})|\\n|$)`
+const UNTIL_NEXT_LABEL = `(?=${LABEL_AHEAD}|\\n|$)`
 
 /**
  * 項目名で 1 項目ぶんの値を取り出す（見つからなければ空文字）。
- * 値は項目名と同じ行の中だけを見る。次の行は別の項目なので、またがない。
+ *
+ * 値はふつう項目名と同じ行にある。項目名だけの行なら、次の行が値
+ * （InboxStyle は 1 要素 1 行で届くので、【利用先】と店名が別の行に分かれる）。
+ * 次の行も項目名で始まるなら、この欄は空。
  */
 export function field(text, labels) {
-  const re = new RegExp(`(?:${labels.join('|')})${SP}*[】\\]:：]?${SP}*(.+?)${SP}*${UNTIL_NEXT_LABEL}`)
+  const re = new RegExp(`(?:${labels.join('|')})${SP}*[】\\]:：]?${SP}*(?:\\n(?!${LABEL_AHEAD}))?(.+?)${SP}*${UNTIL_NEXT_LABEL}`)
   const v = (re.exec(text)?.[1] ?? '').trim()
   // 欄が空の項目（【利用先】のあとに何も書かれていない）は、飾りだけが残る。
   // 中身が無いものは空として返す
