@@ -15,6 +15,8 @@
   （Actions API の dispatch は権限が無く 403）
 - **リリース公開＝利用者に届いた、ではない。** アプリの更新確認は
   `settings/AppInfo.jsx` の手動ボタンのみ（起動時チェックも通知も無い）
+- **報告の時刻は JST（UTC+9）で書く。** GitHub API・Actions の時刻（`published_at` 等、
+  末尾 `Z`）は UTC なので +9 時間して日付もまたぐ（例: `2026-09-23T15:32Z` → 9/24 00:32 JST）
 
 ## Reference Docs
 詳細は必要なときだけ参照する（トークン節約のため常時読み込み不要）:
