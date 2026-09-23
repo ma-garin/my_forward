@@ -6,6 +6,7 @@ import {
 import RefreshIcon from '@mui/icons-material/Refresh'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import CheckIcon from '@mui/icons-material/Check'
 import {
   isCaptureAvailable, isPermissionGranted, openPermissionSettings,
   getRecords, clearRecords, getAllowedPackages, setAllowedPackages,
@@ -31,6 +32,9 @@ export default function NotificationCaptureSettings() {
   const [query, setQuery] = useState('')
   const [clearOpen, setClearOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  // 1 件だけコピーしたときの「コピー済」。行は postTime で見分ける
+  // （1 つの真偽値だと全部の行に点く。添字は絞り込みで動く）
+  const [copiedAt, setCopiedAt] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
@@ -64,14 +68,27 @@ export default function NotificationCaptureSettings() {
       [r.packageName, r.title, ...bodyLines(r)].some((v) => (v ?? '').toLowerCase().includes(q)))
   }, [records, query])
 
-  const copyAll = async () => {
+  const writeClipboard = async (text) => {
     try {
-      await navigator.clipboard.writeText(JSON.stringify(shown, null, 2))
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(text)
+      return true
     } catch {
-      // クリップボードが使えない環境では何もしない
+      return false // クリップボードが使えない環境では何もしない
     }
+  }
+
+  const copyAll = async () => {
+    if (!(await writeClipboard(JSON.stringify(shown, null, 2)))) return
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  // 読み取りがおかしい通知を 1 件だけ報告するためのコピー。
+  // 記録は保存されているままの形（9 つの欄）で写す。ここでは伏せない
+  const copyOne = async (r) => {
+    if (!(await writeClipboard(JSON.stringify(r, null, 2)))) return
+    setCopiedAt(r.postTime)
+    setTimeout(() => setCopiedAt((v) => (v === r.postTime ? null : v)), 2000)
   }
 
   const toggleSender = async (pkg) => {
@@ -114,10 +131,13 @@ export default function NotificationCaptureSettings() {
         次の通知は<b>支出の下書き</b>になり、クレカタブの「未確定の支出」に並びます。
         押したものだけが家計に入るので、勝手に増えることはありません。
         <br />・<b>Vpass（三井住友カード）</b>… 日時・利用先・金額まで読み取ります
+        <br />・<b>MyJCB</b>… 日時・利用先・金額まで読み取ります
         <br />・<b>Google ウォレット</b>… 金額とカードを読み取ります（利用先は入りません）
         <br />
         同じ買い物でメールや LINE の通知も届きますが、金額を持たないので取り込みません。
         二重に鳴る通知（Vpass と Google ウォレット）は 1 件にまとめます。
+        <br />
+        各記録の右端のコピーで、その 1 件だけを JSON で写せます（読み取りがおかしい通知の報告用）。
       </Alert>
 
       {senders.length > 0 && (
@@ -163,9 +183,17 @@ export default function NotificationCaptureSettings() {
             <Typography sx={{ fontSize: 10, color: 'text.disabled', wordBreak: 'break-all' }}>
               {r.packageName}
             </Typography>
-            <Typography sx={{ fontSize: 10, color: 'text.disabled', whiteSpace: 'nowrap' }}>
-              {fmtTime(r.postTime)}
-            </Typography>
+            <Stack direction="row" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
+              <Typography sx={{ fontSize: 10, color: 'text.disabled', whiteSpace: 'nowrap' }}>
+                {fmtTime(r.postTime)}
+              </Typography>
+              {/* 同じ大きさのアイコンを入れ替えるだけなので、幅が変わらず折り返さない */}
+              <IconButton size="small" aria-label="この記録をコピー" onClick={() => copyOne(r)} sx={{ p: 0.25 }}>
+                {copiedAt === r.postTime
+                  ? <CheckIcon sx={{ fontSize: 14 }} />
+                  : <ContentCopyIcon sx={{ fontSize: 14 }} />}
+              </IconButton>
+            </Stack>
           </Stack>
           {r.title && <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{r.title}</Typography>}
           {bodyLines(r).map((line, j) => (
