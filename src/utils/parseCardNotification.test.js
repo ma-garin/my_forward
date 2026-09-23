@@ -106,6 +106,31 @@ describe('MyJCB（項目名を【】で囲む文面）', () => {
   })
 })
 
+describe('利用先の欄が空の通知', () => {
+  const at = new Date(2026, 8, 23, 9, 8).getTime()
+  const jcb = (body) => parseCardNotification({
+    packageName: 'jp.co.jcb.my', postTime: at, title: 'ご利用のお知らせ', text: '', bigText: body,
+  })
+
+  it('うしろに続くカード名を支払先にしない', () => {
+    // 実機で ¥400 の下書きの支払先が「JCBクレジットカード ••1004」になっていた。
+    // 支払い元それ自身の名前は店名ではない
+    const d = jcb('【利用日時】2026/09/23 09:05\u3000【利用金額】400円\u3000【利用先】\n'
+      + 'JCBクレジットカード ••1004')
+    expect(d).toMatchObject({ cardId: 'jcb', amount: 400, payee: '' })
+  })
+
+  it('飾りだけが残る形でも空にする', () => {
+    expect(jcb('【利用先】\u3000【カード名称】ＪＣＢゴールド\u3000【利用金額】400円').payee).toBe('')
+  })
+
+  it('別のカード名（チャージ先）は利用先として残す', () => {
+    const d = jcb('【カード名称】ＪＣＢゴールド\u3000【利用日時】2026/09/23 09:05'
+      + '\u3000【利用金額】3,000円\u3000【利用先】モバイルSuica')
+    expect(d.payee).toBe('モバイルSuica')
+  })
+})
+
 describe('Google ウォレット', () => {
   it('金額とカードを読む（利用先は空）', () => {
     expect(parseCardNotification(GPAY)).toEqual({

@@ -98,7 +98,10 @@ const UNTIL_NEXT_LABEL = `(?=\\s*[◇【\\[]?\\s*(?:${ALL_LABELS.join('|')})|$)`
 /** 項目名で 1 項目ぶんの値を取り出す（見つからなければ空文字） */
 export function field(text, labels) {
   const re = new RegExp(`(?:${labels.join('|')})\\s*[】\\]:：]?\\s*(.+?)\\s*${UNTIL_NEXT_LABEL}`)
-  return (re.exec(text)?.[1] ?? '').trim()
+  const v = (re.exec(text)?.[1] ?? '').trim()
+  // 欄が空の項目（【利用先】のあとにすぐ次の項目が来る）は、飾りだけが残る。
+  // 中身が無いものは空として返す
+  return /[^\s◇【】[\]:：]/.test(v) ? v : ''
 }
 
 // 2026/09/22 18:44 ／ 2026年9月22日 18:44 ／ 2026-09-22 18:44
@@ -114,13 +117,20 @@ function parseLabeled(text, postTime) {
     ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] ?? 0), +(m[5] ?? 0)).getTime()
     : postTime
 
+  const cardId = cardIdFromText(field(text, LABELS.card)) ?? cardIdFromText(text)
+  const payee = field(text, LABELS.payee)
+
   return {
     // カード名称の欄が無い通知もあるので、無ければ文面全体から探す
-    cardId: cardIdFromText(field(text, LABELS.card)) ?? cardIdFromText(text),
+    cardId,
     amount,
     at,
     date: toDateStr(new Date(at)),
-    payee: field(text, LABELS.payee),
+    // 利用先の欄が空の通知では、そのうしろに続くカード名を拾ってしまう
+    // （「JCBクレジットカード ••1004」が支払先に入っていた）。
+    // 支払い元それ自身の名前は店名ではないので捨てる。別のカード名
+    // （JCB 払いでモバイルSuica にチャージ）は利用先として正しいので残す
+    payee: cardIdFromText(payee) === cardId ? '' : payee,
     // 取引の時刻を文面から読めたか。読めた下書きの日付を、届いた時刻しか
     // 知らない通知（Google ウォレット）で上書きさせないために持つ
     ...(m ? { atFromText: true } : {}),
