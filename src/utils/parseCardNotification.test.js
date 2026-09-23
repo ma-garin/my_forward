@@ -106,6 +106,107 @@ describe('MyJCB（項目名を【】で囲む文面）', () => {
   })
 })
 
+describe('MyJCB の InboxStyle（extras の内部値が混ざる）', () => {
+  // 実機の記録の末尾に、ウエルシア / androidx.core.app.NotificationCompat$InboxStyle /
+  // jp.co.jcb.my が並んでいた。後の 2 つは Android の組み立て情報と送り主の名前
+  const base = {
+    packageName: 'jp.co.jcb.my',
+    postTime: new Date(2026, 8, 23, 12, 34).getTime(),
+    title: 'ショッピングご利用のお知らせ',
+    text: '',
+  }
+  const tail = '\nandroidx.core.app.NotificationCompat$InboxStyle\njp.co.jcb.my'
+
+  it('項目名と店名が別の行でも、店名を利用先にする', () => {
+    const d = parseCardNotification({
+      ...base,
+      allText: '【カード名称】ＪＣＢゴールド\n【利用日時】2026/09/23 12:30\n'
+        + '【利用金額】980円\n【利用先】\nウエルシア' + tail,
+    })
+    expect(d).toMatchObject({ cardId: 'jcb', amount: 980, date: '2026-09-23', payee: 'ウエルシア' })
+  })
+
+  it('項目名と店名が同じ行でも、内部値を利用先に混ぜない', () => {
+    const d = parseCardNotification({
+      ...base,
+      allText: '【カード名称】ＪＣＢゴールド\n【利用日時】2026/09/23 12:30\n'
+        + '【利用金額】980円\n【利用先】 ウエルシア' + tail,
+    })
+    expect(d.payee).toBe('ウエルシア')
+  })
+
+  it('利用先が空で、うしろに内部値しかなければ空', () => {
+    const d = parseCardNotification({
+      ...base,
+      allText: '【カード名称】ＪＣＢゴールド\n【利用金額】980円\n【利用先】' + tail,
+    })
+    expect(d.payee).toBe('')
+  })
+
+  it('ドットを含む店名（Amazon.co.jp）は内部値と取り違えない', () => {
+    const d = parseCardNotification({
+      ...base,
+      allText: '【カード名称】ＪＣＢゴールド\n【利用金額】980円\n【利用先】\nAmazon.co.jp' + tail,
+    })
+    expect(d.payee).toBe('Amazon.co.jp')
+  })
+})
+
+describe('項目の値の範囲', () => {
+  const at = new Date(2026, 8, 23, 9, 8).getTime()
+  const jcb = (body) => parseCardNotification({
+    packageName: 'jp.co.jcb.my', postTime: at, title: 'ご利用のお知らせ', text: '', bigText: body,
+  })
+
+  it('項目名だけの行なら、次の行を値として読む（InboxStyle は項目名と値が別の行）', () => {
+    const d = jcb('【カード名称】ＪＣＢゴールド\n【利用日時】2026/09/23 09:05\n'
+      + '【利用金額】400円\n【利用先】\nセブン-イレブン')
+    expect(d).toMatchObject({ cardId: 'jcb', amount: 400, date: '2026-09-23', payee: 'セブン-イレブン' })
+  })
+
+  it('次の行も項目名で始まるなら、その欄は空', () => {
+    expect(jcb('【利用先】\n【利用金額】400円\n【カード名称】ＪＣＢゴールド').payee).toBe('')
+  })
+
+  it('1 行に複数の項目が並ぶ通知（Vpass）はこれまでどおり読む', () => {
+    const d = parseCardNotification({
+      packageName: 'jp.co.smbc.vpass', postTime: at,
+      text: '◇ご利用カード：三井住友ゴールドＶＩＳＡ ◇日時：2026/09/23 09:05'
+        + ' ◇利用先：ユニクロ ◇金額：2,990円',
+    })
+    expect(d).toMatchObject({ cardId: 'smbc', amount: 2990, payee: 'ユニクロ' })
+  })
+
+  it('normalizeText は改行を残す（行の区切りが値の終わり）', () => {
+    expect(normalizeText('【利用先】\u3000\n\nＡＢＣ　商店')).toBe('【利用先】\nABC 商店')
+  })
+})
+
+describe('利用先の欄が空の通知', () => {
+  const at = new Date(2026, 8, 23, 9, 8).getTime()
+  const jcb = (body) => parseCardNotification({
+    packageName: 'jp.co.jcb.my', postTime: at, title: 'ご利用のお知らせ', text: '', bigText: body,
+  })
+
+  it('うしろに続くカード名を支払先にしない', () => {
+    // 実機で ¥400 の下書きの支払先が「JCBクレジットカード ••1004」になっていた。
+    // 支払い元それ自身の名前は店名ではない
+    const d = jcb('【利用日時】2026/09/23 09:05\u3000【利用金額】400円\u3000【利用先】\n'
+      + 'JCBクレジットカード ••1004')
+    expect(d).toMatchObject({ cardId: 'jcb', amount: 400, payee: '' })
+  })
+
+  it('飾りだけが残る形でも空にする', () => {
+    expect(jcb('【利用先】\u3000【カード名称】ＪＣＢゴールド\u3000【利用金額】400円').payee).toBe('')
+  })
+
+  it('別のカード名（チャージ先）は利用先として残す', () => {
+    const d = jcb('【カード名称】ＪＣＢゴールド\u3000【利用日時】2026/09/23 09:05'
+      + '\u3000【利用金額】3,000円\u3000【利用先】モバイルSuica')
+    expect(d.payee).toBe('モバイルSuica')
+  })
+})
+
 describe('Google ウォレット', () => {
   it('金額とカードを読む（利用先は空）', () => {
     expect(parseCardNotification(GPAY)).toEqual({

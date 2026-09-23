@@ -20,21 +20,43 @@ import { CARD_LIST } from './ccStorage'
  * 金額を持たないので対象外。拾えない文面は null を返し、受信箱に載せない。
  */
 
-// 全角の英数字・記号が混ざる（ＶＩＳＡ／：）。NFKC で半角へ寄せてから読む。
+/**
+ * 全角の英数字・記号が混ざる（ＶＩＳＡ／：）。NFKC で半角へ寄せてから読む。
+ *
+ * **改行は残す。** 通知は 1 行 1 項目で書かれており、行末が値の自然な終わり。
+ * 以前はここで改行も空白に潰しており、項目の値が次の行まで伸びていた
+ * （空欄の【利用先】が、次の行のカード名を飲み込んでいた）。
+ */
 export function normalizeText(s) {
   return (s ?? '')
     .normalize('NFKC')
-    .replace(/[\u3000\s]+/g, ' ')
-    .trim()
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/[\u3000\s]+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n')
 }
 
-/** 1 件の通知から、文字が入っている欄をつなげる */
+/**
+ * 人が読む文ではない行。ネイティブ側は extras を全部歩いて文字を集めるので、
+ * 通知の組み立て情報（androidx.core.app.NotificationCompat$InboxStyle）や
+ * 送り主のパッケージ名（jp.co.jcb.my）まで混ざる。
+ *
+ * どのキーから来たかでは判定しない（キーは数え切れない）。値の形で見る。
+ * 店名と取り違えないよう、クラス名（$ を含む識別子）と送り主の名前そのものに限る
+ * （「Amazon.co.jp」のような店名は落とさない）。
+ */
+const isNoiseLine = (line, pkg) =>
+  line === pkg || /^[\w.]+\.\w+\$[\w$]+$/.test(line)
+
+/** 1 件の通知から、文字が入っている欄をつなげる（行の区切りは保つ） */
 function joinFields(record) {
+  const pkg = record?.packageName
   return [record?.title, record?.text, record?.bigText, record?.subText,
     record?.infoText, record?.ticker, record?.allText]
-    .map(normalizeText)
+    .map((v) => normalizeText(v).split('\n').filter((l) => !isNoiseLine(l, pkg)).join('\n'))
     .filter((v, i, a) => v && a.indexOf(v) === i)
-    .join(' ')
+    .join('\n')
 }
 
 /**
@@ -91,14 +113,30 @@ const LABELS = {
 
 const ALL_LABELS = Object.values(LABELS).flat()
 
-// 値の終わりは「次の項目名」まで。飾りで切ると値の中の【】で切れてしまう
-// （MyJCB のカード名称は【ＯＳ】ＪＣＢゴールド ＮＬ）
-const UNTIL_NEXT_LABEL = `(?=\\s*[◇【\\[]?\\s*(?:${ALL_LABELS.join('|')})|$)`
+// 行内の空白だけ（\s は改行も含むため、項目の値が次の行へ伸びてしまう）
+const SP = '[^\\S\\n]'
 
-/** 項目名で 1 項目ぶんの値を取り出す（見つからなければ空文字） */
+// 項目名で始まる位置（前に飾りが付いていてもよい）
+const LABEL_AHEAD = `${SP}*[◇【\\[]?${SP}*(?:${ALL_LABELS.join('|')})`
+
+// 値の終わりは「次の項目名」か「行末」。
+// 飾りで切ると値の中の【】で切れる（MyJCB のカード名称は【ＯＳ】ＪＣＢゴールド ＮＬ）
+// ので飾りでは切らず、1 行 1 項目という通知の形をそのまま終わりに使う。
+const UNTIL_NEXT_LABEL = `(?=${LABEL_AHEAD}|\\n|$)`
+
+/**
+ * 項目名で 1 項目ぶんの値を取り出す（見つからなければ空文字）。
+ *
+ * 値はふつう項目名と同じ行にある。項目名だけの行なら、次の行が値
+ * （InboxStyle は 1 要素 1 行で届くので、【利用先】と店名が別の行に分かれる）。
+ * 次の行も項目名で始まるなら、この欄は空。
+ */
 export function field(text, labels) {
-  const re = new RegExp(`(?:${labels.join('|')})\\s*[】\\]:：]?\\s*(.+?)\\s*${UNTIL_NEXT_LABEL}`)
-  return (re.exec(text)?.[1] ?? '').trim()
+  const re = new RegExp(`(?:${labels.join('|')})${SP}*[】\\]:：]?${SP}*(?:\\n(?!${LABEL_AHEAD}))?(.+?)${SP}*${UNTIL_NEXT_LABEL}`)
+  const v = (re.exec(text)?.[1] ?? '').trim()
+  // 欄が空の項目（【利用先】のあとに何も書かれていない）は、飾りだけが残る。
+  // 中身が無いものは空として返す
+  return /[^\s◇【】[\]:：]/.test(v) ? v : ''
 }
 
 // 2026/09/22 18:44 ／ 2026年9月22日 18:44 ／ 2026-09-22 18:44
@@ -114,13 +152,20 @@ function parseLabeled(text, postTime) {
     ? new Date(+m[1], +m[2] - 1, +m[3], +(m[4] ?? 0), +(m[5] ?? 0)).getTime()
     : postTime
 
+  const cardId = cardIdFromText(field(text, LABELS.card)) ?? cardIdFromText(text)
+  const payee = field(text, LABELS.payee)
+
   return {
     // カード名称の欄が無い通知もあるので、無ければ文面全体から探す
-    cardId: cardIdFromText(field(text, LABELS.card)) ?? cardIdFromText(text),
+    cardId,
     amount,
     at,
     date: toDateStr(new Date(at)),
-    payee: field(text, LABELS.payee),
+    // 利用先の欄が空の通知では、そのうしろに続くカード名を拾ってしまう
+    // （「JCBクレジットカード ••1004」が支払先に入っていた）。
+    // 支払い元それ自身の名前は店名ではないので捨てる。別のカード名
+    // （JCB 払いでモバイルSuica にチャージ）は利用先として正しいので残す
+    payee: cardIdFromText(payee) === cardId ? '' : payee,
     // 取引の時刻を文面から読めたか。読めた下書きの日付を、届いた時刻しか
     // 知らない通知（Google ウォレット）で上書きさせないために持つ
     ...(m ? { atFromText: true } : {}),
