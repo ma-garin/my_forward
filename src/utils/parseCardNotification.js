@@ -20,21 +20,30 @@ import { CARD_LIST } from './ccStorage'
  * 金額を持たないので対象外。拾えない文面は null を返し、受信箱に載せない。
  */
 
-// 全角の英数字・記号が混ざる（ＶＩＳＡ／：）。NFKC で半角へ寄せてから読む。
+/**
+ * 全角の英数字・記号が混ざる（ＶＩＳＡ／：）。NFKC で半角へ寄せてから読む。
+ *
+ * **改行は残す。** 通知は 1 行 1 項目で書かれており、行末が値の自然な終わり。
+ * 以前はここで改行も空白に潰しており、項目の値が次の行まで伸びていた
+ * （空欄の【利用先】が、次の行のカード名を飲み込んでいた）。
+ */
 export function normalizeText(s) {
   return (s ?? '')
     .normalize('NFKC')
-    .replace(/[\u3000\s]+/g, ' ')
-    .trim()
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/[\u3000\s]+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n')
 }
 
-/** 1 件の通知から、文字が入っている欄をつなげる */
+/** 1 件の通知から、文字が入っている欄をつなげる（行の区切りは保つ） */
 function joinFields(record) {
   return [record?.title, record?.text, record?.bigText, record?.subText,
     record?.infoText, record?.ticker, record?.allText]
     .map(normalizeText)
     .filter((v, i, a) => v && a.indexOf(v) === i)
-    .join(' ')
+    .join('\n')
 }
 
 /**
@@ -91,15 +100,22 @@ const LABELS = {
 
 const ALL_LABELS = Object.values(LABELS).flat()
 
-// 値の終わりは「次の項目名」まで。飾りで切ると値の中の【】で切れてしまう
-// （MyJCB のカード名称は【ＯＳ】ＪＣＢゴールド ＮＬ）
-const UNTIL_NEXT_LABEL = `(?=\\s*[◇【\\[]?\\s*(?:${ALL_LABELS.join('|')})|$)`
+// 行内の空白だけ（\s は改行も含むため、項目の値が次の行へ伸びてしまう）
+const SP = '[^\\S\\n]'
 
-/** 項目名で 1 項目ぶんの値を取り出す（見つからなければ空文字） */
+// 値の終わりは「次の項目名」か「行末」。
+// 飾りで切ると値の中の【】で切れる（MyJCB のカード名称は【ＯＳ】ＪＣＢゴールド ＮＬ）
+// ので飾りでは切らず、1 行 1 項目という通知の形をそのまま終わりに使う。
+const UNTIL_NEXT_LABEL = `(?=${SP}*[◇【\\[]?${SP}*(?:${ALL_LABELS.join('|')})|\\n|$)`
+
+/**
+ * 項目名で 1 項目ぶんの値を取り出す（見つからなければ空文字）。
+ * 値は項目名と同じ行の中だけを見る。次の行は別の項目なので、またがない。
+ */
 export function field(text, labels) {
-  const re = new RegExp(`(?:${labels.join('|')})\\s*[】\\]:：]?\\s*(.+?)\\s*${UNTIL_NEXT_LABEL}`)
+  const re = new RegExp(`(?:${labels.join('|')})${SP}*[】\\]:：]?${SP}*(.+?)${SP}*${UNTIL_NEXT_LABEL}`)
   const v = (re.exec(text)?.[1] ?? '').trim()
-  // 欄が空の項目（【利用先】のあとにすぐ次の項目が来る）は、飾りだけが残る。
+  // 欄が空の項目（【利用先】のあとに何も書かれていない）は、飾りだけが残る。
   // 中身が無いものは空として返す
   return /[^\s◇【】[\]:：]/.test(v) ? v : ''
 }

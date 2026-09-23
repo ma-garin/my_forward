@@ -106,6 +106,35 @@ describe('MyJCB（項目名を【】で囲む文面）', () => {
   })
 })
 
+describe('項目の値は同じ行の中だけを見る', () => {
+  const at = new Date(2026, 8, 23, 9, 8).getTime()
+  const jcb = (body) => parseCardNotification({
+    packageName: 'jp.co.jcb.my', postTime: at, title: 'ご利用のお知らせ', text: '', bigText: body,
+  })
+
+  it('空の項目は、次の行を飲み込まない', () => {
+    // 通知は 1 行 1 項目。行末が値の終わりで、次の行は別の項目
+    const d = jcb('【カード名称】ＪＣＢゴールド\n【利用日時】2026/09/23 09:05\n'
+      + '【利用金額】400円\n【利用先】\nセブン-イレブン')
+    // 誤った値を入れるより空にする（支払先は画面で直せる）
+    expect(d.payee).toBe('')
+    expect(d).toMatchObject({ cardId: 'jcb', amount: 400, date: '2026-09-23' })
+  })
+
+  it('1 行に複数の項目が並ぶ通知（Vpass）はこれまでどおり読む', () => {
+    const d = parseCardNotification({
+      packageName: 'jp.co.smbc.vpass', postTime: at,
+      text: '◇ご利用カード：三井住友ゴールドＶＩＳＡ ◇日時：2026/09/23 09:05'
+        + ' ◇利用先：ユニクロ ◇金額：2,990円',
+    })
+    expect(d).toMatchObject({ cardId: 'smbc', amount: 2990, payee: 'ユニクロ' })
+  })
+
+  it('normalizeText は改行を残す（行の区切りが値の終わり）', () => {
+    expect(normalizeText('【利用先】\u3000\n\nＡＢＣ　商店')).toBe('【利用先】\nABC 商店')
+  })
+})
+
 describe('利用先の欄が空の通知', () => {
   const at = new Date(2026, 8, 23, 9, 8).getTime()
   const jcb = (body) => parseCardNotification({
