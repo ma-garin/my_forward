@@ -41,11 +41,14 @@ describe('今月の支出ウィジェット', () => {
     expect(spendWidgetData(NOW).validTo).toBe('2026-09-15')
   })
 
-  it('着地見込みを出す', () => {
+  it('着地見込みを出す（根拠は直近 3 サイクルの中央値）', () => {
     // サイクルは 8/16 開始。8/26 は 11 日経過、全 31 日
     putVar('jcb', '2026-08', [v('a', 11000, '2026-08-20')])
+    putVar('jcb', '2026-07', [v('p1', 30000, '2026-07-20')])
+    putVar('smbc', '2026-06', [v('p2', 40000, '2026-06-20')])
+    putVar('jcb', '2026-05', [v('p3', 20000, '2026-05-20')])
     const d = spendWidgetData(NOW)
-    expect(d.forecast).toBe(31000)
+    expect(d.forecast).toBe(30000)
     expect(d.remainDays).toBe(20)
   })
 

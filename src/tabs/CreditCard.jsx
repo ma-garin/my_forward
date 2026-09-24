@@ -909,8 +909,13 @@ export default function CreditCard() {
         const barColor = pct >= 90 ? '#ef9a9a' : pct >= 70 ? '#ffe082' : 'rgba(255,255,255,.55)'
         const livingTotal = sumLiving(varList)
         const otherVarTotal = varTotal - livingTotal
-        // このペースで使うと締め日にいくらになるか（今のサイクルのときだけ出る）
-        const fc = forecastCycle({ card, ym, varTotal, fixedTotal, limit })
+        // 締め日にいくらになりそうか（今のサイクルのときだけ出る）。
+        // 根拠は直近 3 サイクルの変動費。今月のペースでは延ばさない
+        const pastVarTotals = [1, 2, 3]
+          .map(k => loadVar(cardId, addMonth(ym, -k)))
+          .filter(list => list.length > 0)
+          .map(list => list.reduce((s, x) => s + signedAmount(x), 0))
+        const fc = forecastCycle({ card, ym, varTotal, fixedTotal, pastVarTotals, limit })
 
         return (
           <Card sx={{ mb: 2, bgcolor: card.color, color: '#fff' }}>
@@ -963,16 +968,20 @@ export default function CreditCard() {
                   borderRadius: 1, bgcolor: 'rgba(255,255,255,.08)' }}>
                   <Stack direction="row" alignItems="baseline" justifyContent="space-between" gap={1}>
                     <Typography variant="caption" sx={{ opacity: .75 }}>
-                      このペースだと締め日に
+                      締め日の見込み
                     </Typography>
                     <Typography variant="subtitle2" sx={{ fontWeight: 700,
                       color: fc.overBy > 0 ? '#ef9a9a' : 'inherit' }}>
                       ¥{fmt(fc.forecast)}
                     </Typography>
                   </Stack>
-                  {/* 根拠を常に見せる。経過日数とペースが無いと「このペース」が読めない */}
+                  {/* 根拠を常に見せる */}
                   <Typography variant="caption" sx={{ opacity: .6, fontSize: 10, display: 'block' }}>
-                    {`${fc.elapsedDays}日で ¥${fmt(varTotal)}・1日 ¥${fmt(Math.round(fc.pacePerDay))} ペース（固定 ¥${fmt(fixedTotal)} は別）`}
+                    {fc.typicalVar == null
+                      ? `固定 ¥${fmt(fixedTotal)} + 今までの変動費 ¥${fmt(varTotal)}（過去の記録が無いので延ばさない）`
+                      : varTotal >= fc.typicalVar
+                        ? `固定 ¥${fmt(fixedTotal)} + 変動費 ¥${fmt(varTotal)}（過去3ヶ月の中央値 ¥${fmt(fc.typicalVar)} を既に超過）`
+                        : `固定 ¥${fmt(fixedTotal)} + 変動費は過去3ヶ月並み ¥${fmt(fc.typicalVar)}（今は ¥${fmt(varTotal)}）`}
                   </Typography>
                   {/* こちらはペースではなく残り予算 ÷ 残り日数。別の計算なので行を分ける */}
                   {limit > 0 && (

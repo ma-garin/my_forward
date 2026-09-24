@@ -1,5 +1,5 @@
 import { CARDS, CARD_LIST, loadVar } from './ccStorage'
-import { currentBillingYm, signedAmount } from './finance'
+import { addMonth, currentBillingYm, signedAmount } from './finance'
 import { forecastCycle, cycleRange } from './forecast'
 import { loadInbox } from './inbox'
 import { weeklyLivingSummary } from './livingSummary'
@@ -26,12 +26,16 @@ export function spendWidgetData(now = new Date()) {
   const card = CARDS.jcb
   const ym = currentBillingYm(card?.cutoffDay ?? 15, now)
 
-  const varTotal = CARD_LIST.reduce(
-    (sum, c) => sum + loadVar(c.id, ym).reduce((s, x) => s + signedAmount(x), 0),
+  const allCardsVar = (m) => CARD_LIST.reduce(
+    (sum, c) => sum + loadVar(c.id, m).reduce((s, x) => s + signedAmount(x), 0),
     0,
   )
+  const hasRecords = (m) => CARD_LIST.some(c => loadVar(c.id, m).length > 0)
+  const varTotal = allCardsVar(ym)
+  // 見込みの根拠はアプリ本体と同じ（直近 3 サイクルの変動費）
+  const pastVarTotals = [1, 2, 3].map(k => addMonth(ym, -k)).filter(hasRecords).map(allCardsVar)
 
-  const fc = forecastCycle({ card, ym, varTotal, now })
+  const fc = forecastCycle({ card, ym, varTotal, fixedTotal: 0, pastVarTotals, now })
   const { end } = cycleRange(card, ym)
 
   return {
