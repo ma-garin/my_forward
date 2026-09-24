@@ -29,32 +29,48 @@ describe('請求サイクルの期間', () => {
 })
 
 describe('着地の見込み', () => {
-  it('経過ぶんのペースで月末まで延ばす', () => {
-    // 8/1〜8/31 の 31 日。8/10 時点（10日経過）で 20,000 円
-    // → 1日 2,000 円 → 月末 62,000 円
-    const f = forecastCycle({ card: VISA, ym: '2026-08', varTotal: 20000, now: d(2026, 8, 10) })
+  it('変動費は過去 3 サイクルの中央値を使う（今月のペースで延ばさない）', () => {
+    // 8/10 時点で 20,000 円。ペースで延ばせば 62,000 円だが、過去は 30,000 前後
+    const f = forecastCycle({
+      card: VISA, ym: '2026-08', varTotal: 20000, pastVarTotals: [28000, 30000, 45000], now: d(2026, 8, 10),
+    })
     expect(f.elapsedDays).toBe(10)
     expect(f.totalDays).toBe(31)
-    expect(f.forecast).toBe(62000)
+    expect(f.typicalVar).toBe(30000)
+    expect(f.forecast).toBe(30000)
+  })
+
+  it('今月が既に過去の中央値を超えていれば今月の実績を使う', () => {
+    const f = forecastCycle({
+      card: VISA, ym: '2026-08', varTotal: 40000, pastVarTotals: [28000, 30000], now: d(2026, 8, 10),
+    })
+    expect(f.typicalVar).toBe(29000)
+    expect(f.forecast).toBe(40000)
+  })
+
+  it('過去の記録が無ければ今までの分だけ（延ばさない）', () => {
+    const f = forecastCycle({ card: VISA, ym: '2026-08', varTotal: 20000, now: d(2026, 8, 10) })
+    expect(f.typicalVar).toBe(null)
+    expect(f.forecast).toBe(20000)
   })
 
   it('固定費は日割りせず、そのまま足す', () => {
     const f = forecastCycle({
-      card: VISA, ym: '2026-08', varTotal: 20000, fixedTotal: 5000, now: d(2026, 8, 10),
+      card: VISA, ym: '2026-08', varTotal: 20000, fixedTotal: 5000, pastVarTotals: [30000], now: d(2026, 8, 10),
     })
-    expect(f.forecast).toBe(67000)
+    expect(f.forecast).toBe(35000)
   })
 
   it('上限を超えそうなら超過額を出す', () => {
     const f = forecastCycle({
-      card: VISA, ym: '2026-08', varTotal: 20000, limit: 50000, now: d(2026, 8, 10),
+      card: VISA, ym: '2026-08', varTotal: 20000, pastVarTotals: [62000], limit: 50000, now: d(2026, 8, 10),
     })
     expect(f.overBy).toBe(12000)
   })
 
   it('上限に収まる見込みなら超過は 0', () => {
     const f = forecastCycle({
-      card: VISA, ym: '2026-08', varTotal: 20000, limit: 80000, now: d(2026, 8, 10),
+      card: VISA, ym: '2026-08', varTotal: 20000, pastVarTotals: [62000], limit: 80000, now: d(2026, 8, 10),
     })
     expect(f.overBy).toBe(0)
   })
@@ -80,7 +96,6 @@ describe('着地の見込み', () => {
     const f = forecastCycle({ card: JCB, ym: '2026-08', varTotal: 10000, now: d(2026, 8, 25) })
     expect(f.elapsedDays).toBe(10)
     expect(f.totalDays).toBe(31)
-    expect(f.forecast).toBe(31000)
   })
 })
 
