@@ -970,11 +970,19 @@ export default function CreditCard() {
                       ¥{fmt(fc.forecast)}
                     </Typography>
                   </Stack>
+                  {/* 根拠を常に見せる。経過日数とペースが無いと「このペース」が読めない */}
                   <Typography variant="caption" sx={{ opacity: .6, fontSize: 10, display: 'block' }}>
-                    {fc.overBy > 0
-                      ? `上限を ¥${fmt(fc.overBy)} 超えます・残り${fc.remainingDays}日は 1日 ¥${fmt(fc.safePerDay)} まで`
-                      : `1日あたり ¥${fmt(Math.round(fc.pacePerDay))}・残り${fc.remainingDays}日`}
+                    {`${fc.elapsedDays}日で ¥${fmt(varTotal)}・1日 ¥${fmt(Math.round(fc.pacePerDay))} ペース（固定 ¥${fmt(fixedTotal)} は別）`}
                   </Typography>
+                  {/* こちらはペースではなく残り予算 ÷ 残り日数。別の計算なので行を分ける */}
+                  {limit > 0 && (
+                    <Typography variant="caption" sx={{ opacity: .6, fontSize: 10, display: 'block',
+                      color: fc.overBy > 0 ? '#ef9a9a' : 'inherit' }}>
+                      {fc.overBy > 0
+                        ? `上限を ¥${fmt(fc.overBy)} 超えます・残り${fc.remainingDays}日は 1日 ¥${fmt(fc.safePerDay)} まで`
+                        : `残り${fc.remainingDays}日は 1日 ¥${fmt(fc.safePerDay)} まで`}
+                    </Typography>
+                  )}
                 </Box>
               )}
 
