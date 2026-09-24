@@ -655,6 +655,8 @@ export default function SalaryHistory() {
         const avgH  = summary.overtimeHours / (summary.months || 1)
         const maxR  = salaries.reduce((m, r) => r.overtimeHours > (m?.overtimeHours ?? -1) ? r : m, null)
         const minR  = salaries.reduce((m, r) => (r.overtimeHours ?? 999) < (m?.overtimeHours ?? 999) ? r : m, null)
+        // 1 時間あたりの残業代。時間が無い月は割れないので出さない
+        const perHour = (pay, hours) => hours > 0 ? `¥${fmt(Math.round((pay ?? 0) / hours))}` : '—'
         return (
           <SectionCard title="B. 残業分析">
             <Stack direction="row" gap={1} sx={{ mb: 1.5 }}>
@@ -675,7 +677,7 @@ export default function SalaryHistory() {
               <Table size="small">
                 <TableHead>
                   <TableRow sx={{ bgcolor: 'var(--surface-line)' }}>
-                    {['月', '残業時間', '残業代'].map(h => (
+                    {['月', '残業時間', '残業代', '時間あたり'].map(h => (
                       <TableCell key={h} align={h === '月' ? 'left' : 'right'}
                         sx={{ fontSize: 11, fontWeight: 700, py: 0.75 }}>{h}</TableCell>
                     ))}
@@ -687,12 +689,14 @@ export default function SalaryHistory() {
                       <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: 600 }}>{r.month}月</TableCell>
                       <TableCell align="right" sx={{ fontSize: 12, py: 0.75 }}>{r.overtimeHours ?? '—'}h</TableCell>
                       <TableCell align="right" sx={{ fontSize: 12, py: 0.75, color: '#e53935' }}>¥{fmt(r.overtime)}</TableCell>
+                      <TableCell align="right" sx={{ fontSize: 12, py: 0.75 }}>{perHour(r.overtime, r.overtimeHours)}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow sx={{ bgcolor: '#fbe9e7' }}>
                     <TableCell sx={{ fontSize: 12, py: 0.75, fontWeight: 700 }}>合計</TableCell>
                     <TableCell align="right" sx={{ fontSize: 12, py: 0.75, fontWeight: 700 }}>{summary.overtimeHours.toFixed(1)}h</TableCell>
                     <TableCell align="right" sx={{ fontSize: 12, py: 0.75, fontWeight: 700, color: '#e53935' }}>¥{fmt(summary.overtime)}</TableCell>
+                    <TableCell align="right" sx={{ fontSize: 12, py: 0.75, fontWeight: 700 }}>{perHour(summary.overtime, summary.overtimeHours)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
