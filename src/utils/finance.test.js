@@ -34,3 +34,35 @@ describe('振替は支出に数えない', () => {
     expect(countsAsSpending(row('b', 100, { transfer: true }))).toBe(false)
   })
 })
+
+describe('給与シミュレーションの月またぎ', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('保存していない月は、いちばん近い過去の保存月を読むだけで書き込まない', async () => {
+    const { loadSalaryMonth, saveSalaryMonth, SALARY_MONTHLY_KEY } = await import('./finance')
+    saveSalaryMonth('2026-09', { fixed: { shokunokyuu: 300000 }, customUnit: '2500', overtime: 10 })
+    const nov = loadSalaryMonth('2026-11')
+    expect(nov.customUnit).toBe('2500')
+    expect(nov.fixed.shokunokyuu).toBe(300000)
+    expect(Object.keys(JSON.parse(localStorage.getItem(SALARY_MONTHLY_KEY)).months)).toEqual(['2026-09'])
+  })
+
+  it('9 月で直した単価・固定項目は、同じ値のままの後の月にも届く', async () => {
+    const { loadSalaryMonth, saveSalaryMonth } = await import('./finance')
+    saveSalaryMonth('2026-09', { fixed: { shokunokyuu: 300000 }, customUnit: '2500', overtime: 10 })
+    // 10 月は残業時間だけ変えて保存（単価・固定項目は 9 月と同じ）
+    saveSalaryMonth('2026-10', { ...loadSalaryMonth('2026-10'), overtime: 30 })
+    // 11 月は基本給を自分で変えている
+    saveSalaryMonth('2026-11', { ...loadSalaryMonth('2026-11'), fixed: { shokunokyuu: 320000 } })
+
+    saveSalaryMonth('2026-09', { fixed: { shokunokyuu: 310000 }, customUnit: '2600', overtime: 10 })
+
+    const oct = loadSalaryMonth('2026-10')
+    expect(oct.fixed.shokunokyuu).toBe(310000)
+    expect(oct.customUnit).toBe('2600')
+    expect(oct.overtime).toBe(30)
+    const nov = loadSalaryMonth('2026-11')
+    expect(nov.fixed.shokunokyuu).toBe(320000)   // 自分で変えた月は触らない
+    expect(nov.customUnit).toBe('2600')
+  })
+})

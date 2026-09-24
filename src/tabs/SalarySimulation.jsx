@@ -338,10 +338,6 @@ export default function SalarySimulation() {
   const bonusMonth = isBonusMonth(ym)
   const bonusCycleInfo = getBonusCycleInfo(ym, bonusCycleSettings)
 
-  const persistCurrent = useCallback(() => {
-    save(ym, fixed, overtime, customUnit, payItems, dedItems, bonusTakeHome)
-  }, [ym, fixed, overtime, customUnit, payItems, dedItems, bonusTakeHome])
-
   const loadYm = useCallback((nextYm) => {
     const next = loadSalaryMonth(nextYm)
     setYm(nextYm)
@@ -354,10 +350,9 @@ export default function SalarySimulation() {
     setEditMode(false)
   }, [])
 
-  const changeMonth = (n) => {
-    persistCurrent()
-    loadYm(addMonth(ym, n))
-  }
+  // 見ただけの月は保存しない（保存すると、あとで前の月を直しても届かなくなる）。
+  // 編集は各ハンドラがその場で保存している
+  const changeMonth = (n) => loadYm(addMonth(ym, n))
 
   const parsedCustomUnit = customUnit === '' ? null : (parseInt(customUnit, 10) || null)
   const { unitR, unitF, unitC, otF, otC } = calcAllOvertime(fixed, overtime, parsedCustomUnit)
@@ -397,10 +392,7 @@ export default function SalarySimulation() {
     }
   }
 
-  const toggleEdit = () => {
-    if (editMode) persistCurrent()
-    setEditMode((v) => !v)
-  }
+  const toggleEdit = () => setEditMode((v) => !v)
 
   const editCustomItem = (list, setList, id, field, val) => {
     const next = list.map(x => x.id === id ? { ...x, [field]: val } : x)
