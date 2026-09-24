@@ -218,34 +218,61 @@ function ensureLegacySalaryMigrated(store, ym) {
   return next
 }
 
+/**
+ * その月の給与シミュレーション。
+ *
+ * 保存されていない月は、いちばん近い過去の保存月の内容をそのまま使う
+ * （読むだけで書き込まない）。以前は初めて読んだ時点で前月の写しを
+ * 保存していたため、家計タブの年間サマリーが 12 ヶ月ぶん読むだけで
+ * 10 月以降が確定してしまい、その後に 9 月で直した単価や固定項目が
+ * 翌月以降に届かなかった。
+ */
 export function loadSalaryMonth(ym = currentBillingYm()) {
-  let store = ensureLegacySalaryMigrated(readMonthlySalaryStore(), ym)
+  const store = ensureLegacySalaryMigrated(readMonthlySalaryStore(), ym)
   if (store.months[ym]) return normalizeSalaryMonth(store.months[ym])
 
-  const prevYm = addMonth(ym, -1)
-  if (store.months[prevYm]) {
-    const copied = { ...normalizeSalaryMonth(store.months[prevYm]), bonusTakeHome: '' }
-    const next = { ...store, months: { ...store.months, [ym]: copied } }
-    writeMonthlySalaryStore(next)
-    return copied
-  }
+  const baseYm = latestSavedYmBefore(store, ym)
+  if (baseYm) return { ...normalizeSalaryMonth(store.months[baseYm]), bonusTakeHome: '' }
 
   return normalizeSalaryMonth(loadLegacySalaryMonth() ?? {})
 }
 
+function latestSavedYmBefore(store, ym) {
+  return Object.keys(store.months).filter(k => k < ym).sort().pop() ?? null
+}
+
+// 月をまたいで引き継ぐ項目。残業時間と賞与はその月だけのもの
+const CARRY_FIELDS = ['customUnit', 'payItems', 'dedItems']
+
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+
 export function saveSalaryMonth(ym, data) {
   const store = readMonthlySalaryStore()
+  const before = loadSalaryMonth(ym)
   const normalized = normalizeSalaryMonth(data)
   if (!isBonusMonth(ym)) normalized.bonusTakeHome = ''
-  const next = {
-    ...store,
-    migratedLegacy: true,
-    months: {
-      ...store.months,
-      [ym]: normalized,
-    },
+  const months = { ...store.months, [ym]: normalized }
+
+  // 直した項目は、まだ同じ値のままの後の月にも届ける。
+  // 後の月で別の値に変えてあるものは、その月の判断なので触らない
+  const laterYms = Object.keys(months).filter(k => k > ym).sort()
+  for (const later of laterYms) {
+    const m = normalizeSalaryMonth(months[later])
+    let touched = false
+    for (const key of Object.keys(normalized.fixed)) {
+      if (!same(before.fixed[key], normalized.fixed[key]) && same(m.fixed[key], before.fixed[key])) {
+        m.fixed[key] = normalized.fixed[key]; touched = true
+      }
+    }
+    for (const key of CARRY_FIELDS) {
+      if (!same(before[key], normalized[key]) && same(m[key], before[key])) {
+        m[key] = normalized[key]; touched = true
+      }
+    }
+    if (touched) months[later] = m
   }
-  writeMonthlySalaryStore(next)
+
+  writeMonthlySalaryStore({ ...store, migratedLegacy: true, months })
 }
 
 export function calcSalaryTakeHomeFromData(data) {
