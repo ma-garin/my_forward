@@ -442,7 +442,7 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
       {/* カード */}
       <Box sx={IROW}>
         <Typography sx={ILABEL}>カード</Typography>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', minWidth: 0 }}>
           {visibleCardList().map(c => (
             <Chip key={c.id} label={c.shortName} size="small" onClick={() => setCardId(c.id)}
               sx={{ fontWeight: 600, fontSize: 12, bgcolor: cardId === c.id ? c.color : 'transparent',

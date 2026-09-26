@@ -4,7 +4,8 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material'
-import { CARD_LIST, SPEND_TYPES, SPEND_TYPE_COLORS } from '../utils/ccStorage'
+import { CARDS, SPEND_TYPES, SPEND_TYPE_COLORS } from '../utils/ccStorage'
+import { visibleCardList } from '../utils/cardVisibility'
 import { ymStr, defaultExpenseCategory } from '../utils/finance'
 import { suggestFromPayee } from '../utils/payeeMemory'
 import AmountField, { parseAmount } from './AmountField'
@@ -19,6 +20,12 @@ export default function ExpenseDialog({ open, onClose, onSave, onDuplicate, init
   const [recalled] = useState(() => (initial?.category ? null : suggestFromPayee(initial?.payee)))
 
   const [card,           setCard]           = useState(cardId)
+  // 並べるのは手動入力と同じ「表示中のカード」。ただし開いた記録のカードが
+  // 隠されていても、そのカードは出す（出さないと現在値が選べない）
+  const [cardChoices] = useState(() => {
+    const shown = visibleCardList()
+    return shown.some((c) => c.id === cardId) || !CARDS[cardId] ? shown : [...shown, CARDS[cardId]]
+  })
   const [name,           setName]           = useState(initial?.name           ?? recalled?.name ?? '')
   const [payee,          setPayee]          = useState(initial?.payee          ?? '')
   const [amount,         setAmount]         = useState(initial?.amount         ?? '')
@@ -85,8 +92,9 @@ export default function ExpenseDialog({ open, onClose, onSave, onDuplicate, init
           {/* 支払い方法（カード）。編集時も別カードへ付け替えられる。 */}
           <Stack direction="row" alignItems="center" gap={1}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12, minWidth: 52 }}>カード</Typography>
-            <Stack direction="row" gap={0.75}>
-              {CARD_LIST.map(c => (
+            {/* 5 枚以上でダイアログ幅を超えるので折り返す（1 行に押し込むと端が切れる） */}
+            <Stack direction="row" gap={0.75} sx={{ flexWrap: 'wrap', minWidth: 0 }}>
+              {cardChoices.map(c => (
                 <Chip key={c.id} label={c.shortName} size="small" onClick={() => setCard(c.id)}
                   sx={{
                     fontWeight: 600, fontSize: 12,
