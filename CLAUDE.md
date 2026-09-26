@@ -63,6 +63,7 @@ Kiro Spec Driven Development を使う場合は `/kiro` skill を呼び出す。
 - 支出の行: `components/CCExpenseViews.jsx` の `ExpenseRow`（行タップで編集・左スワイプで削除）
 - 編集フォーム: `components/ExpenseDialog.jsx`
 - 金額入力: `components/AmountField.jsx`（`CalcPad` の値は ref で渡す）
+- 支払い元の選択チップ: `components/CardChips.jsx`（折り返し・選択色・隠したカードの扱いを持つ）
 
 ### 仕様メモ
 - 消費分類（消費/投資/浪費）は変動費のみ。固定費は持たない

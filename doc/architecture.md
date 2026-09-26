@@ -85,6 +85,7 @@ SettingsMain.jsx → SalarySettings.jsx / CardSettings.jsx / DataSettings.jsx
 | `ExpenseGroupHeader` | 同上 | グループ見出し（変動費=日付 / 固定費=支払日） |
 | `ExpenseDialog` | `components/ExpenseDialog.jsx` | 固定費・変動費・カテゴリ別集計の編集ダイアログ |
 | `AmountField` / `CalcPad` | `components/AmountField.jsx` | 金額入力（電卓シート） |
+| `CardChips` | `components/CardChips.jsx` | 支払い元の選択チップ（クレカタブの切替・手動入力・編集ダイアログ）。折り返しと、今選んでいるカードは隠されていても出す扱いをここに持つ |
 | `SwipeRow` | `components/SwipeRow.jsx` | 行タップ + 左スワイプ削除 |
 | `MonthNav` | `components/MonthNav.jsx` | 月ナビ（前後移動 + 年月タップで直接ジャンプ） |
 | `SearchScreen` | `components/SearchScreen.jsx` | 全カード・全期間の横断検索（支出一覧タブの虫めがね） |

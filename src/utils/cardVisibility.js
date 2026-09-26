@@ -77,10 +77,13 @@ export const paymentCardKey = (cardId) => `card.${cardId}`
  *
  * 隠すのは並びだけ。合計や家計タブの合算からは外さない——外すと、隠した
  * とたんに支出が減って見える（記録は残っているのに数字だけ変わる）。
+ *
+ * `keepId` は隠されていても並べるカード。開いた記録のカードを選択肢から
+ * 落とすと現在値が選べなくなるので、編集画面はこれで足す。
  */
-export function visibleCardList() {
+export function visibleCardList(keepId) {
   const hidden = loadHiddenCards()
-  const shown = CARD_LIST.filter((c) => !hidden.includes(paymentCardKey(c.id)))
+  const shown = CARD_LIST.filter((c) => c.id === keepId || !hidden.includes(paymentCardKey(c.id)))
   // 全部隠すと開けるものが無くなるので、その場合は元の一覧を返す
   return shown.length > 0 ? shown : CARD_LIST
 }

@@ -62,6 +62,14 @@ describe('支払い元の表示/非表示', () => {
     expect(visibleCardList()).toHaveLength(CARD_LIST.length)
   })
 
+  it('keepId は隠されていても並べる（開いた記録のカードを選べなくしない）', () => {
+    setCardVisible(paymentCardKey('paypay'), false)
+    expect(visibleCardList().map((c) => c.id)).not.toContain('paypay')
+    expect(visibleCardList('paypay').map((c) => c.id)).toContain('paypay')
+    // 順番は CARD_LIST のまま（末尾に足すのではなく元の位置で残す）
+    expect(visibleCardList('paypay').map((c) => c.id)).toEqual(CARD_LIST.map((c) => c.id))
+  })
+
   it('画面のカードと保存先を共有しても混ざらない', () => {
     setCardVisible('kk.diagnosis', false)
     expect(visibleCardList().map((c) => c.id)).toEqual(CARD_LIST.map((c) => c.id))
