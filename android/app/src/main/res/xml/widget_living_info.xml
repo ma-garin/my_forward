@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    更新はアプリ側から明示的に行う（updatePeriodMillis=0）。
-    数字を計算できるのはアプリだけなので、システムに定期更新させても
-    同じ値を貼り直すだけで電池を使うだけになる。
+    支出の数字はアプリ側から明示的に更新する。
+    ただし「今日使える額」（残り ÷ 残り日数）は日付が変わるだけで動くので、
+    1 時間ごとに描き直す。描き直しは保存済みの値を割るだけで、計算は走らない。
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="180dp"
     android:minHeight="70dp"
     android:targetCellWidth="3"
     android:targetCellHeight="1"
-    android:updatePeriodMillis="0"
+    android:updatePeriodMillis="3600000"
     android:initialLayout="@layout/widget_living"
     android:previewLayout="@layout/widget_living"
     android:description="@string/widget_living_description"

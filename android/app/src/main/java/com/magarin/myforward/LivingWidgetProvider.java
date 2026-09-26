@@ -60,12 +60,19 @@ public class LivingWidgetProvider extends AppWidgetProvider {
 
         if (hasData && fresh) {
             int budget = prefs.getInt(KEY_BUDGET, 0);
-            views.setTextViewText(R.id.widget_value, budget > 0
-                ? "残り " + yen(prefs.getInt(KEY_REMAIN, 0))
-                : yen(prefs.getInt(KEY_USED, 0)));
-            views.setTextViewText(R.id.widget_sub, budget > 0
-                ? yen(prefs.getInt(KEY_USED, 0)) + " / " + yen(budget)
-                : "予算未設定");
+            int remain = prefs.getInt(KEY_REMAIN, 0);
+            if (budget <= 0) {
+                views.setTextViewText(R.id.widget_value, yen(prefs.getInt(KEY_USED, 0)));
+                views.setTextViewText(R.id.widget_sub, "予算未設定");
+            } else if (remain <= 0) {
+                views.setTextViewText(R.id.widget_value, "超過 " + yen(-remain));
+                views.setTextViewText(R.id.widget_sub, yen(prefs.getInt(KEY_USED, 0)) + " / " + yen(budget));
+            } else {
+                // 今日使える額は日付が変わるだけで動くので、アプリの計算を待たずにここで割る
+                int days = daysLeft(prefs.getString(KEY_WEEK_TO, null));
+                views.setTextViewText(R.id.widget_value, "今日 " + yen(remain / days));
+                views.setTextViewText(R.id.widget_sub, "残り " + yen(remain) + "・あと" + days + "日");
+            }
             views.setProgressBar(R.id.widget_bar, 100, clamp(prefs.getInt(KEY_PCT, 0)), false);
             views.setViewVisibility(R.id.widget_bar, budget > 0 ? View.VISIBLE : View.GONE);
         } else {
@@ -87,6 +94,20 @@ public class LivingWidgetProvider extends AppWidgetProvider {
         if (from == null || to == null) return false;
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
         return from.compareTo(today) <= 0 && today.compareTo(to) <= 0;
+    }
+
+    /** 今日から週の終わり（to）までの日数。今日を含む。最低 1 */
+    private static int daysLeft(String to) {
+        if (to == null) return 1;
+        try {
+            SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+            Date today = f.parse(f.format(new Date()));
+            Date end = f.parse(to);
+            long days = Math.round((end.getTime() - today.getTime()) / 86_400_000.0) + 1;
+            return (int) Math.max(1, days);
+        } catch (java.text.ParseException e) {
+            return 1;
+        }
     }
 
     private static PendingIntent openIntent(Context context, String data) {
