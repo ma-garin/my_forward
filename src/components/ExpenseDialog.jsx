@@ -4,11 +4,11 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material'
-import { CARDS, SPEND_TYPES, SPEND_TYPE_COLORS } from '../utils/ccStorage'
-import { visibleCardList } from '../utils/cardVisibility'
+import { SPEND_TYPES, SPEND_TYPE_COLORS } from '../utils/ccStorage'
 import { ymStr, defaultExpenseCategory } from '../utils/finance'
 import { suggestFromPayee } from '../utils/payeeMemory'
 import AmountField, { parseAmount } from './AmountField'
+import CardChips from './CardChips'
 
 // 固定費・変動費・カテゴリ別集計のいずれからも同じダイアログで編集する。
 // （画面ごとに別フォームを持つと入力方法が食い違うため、ここに一本化する）
@@ -20,12 +20,6 @@ export default function ExpenseDialog({ open, onClose, onSave, onDuplicate, init
   const [recalled] = useState(() => (initial?.category ? null : suggestFromPayee(initial?.payee)))
 
   const [card,           setCard]           = useState(cardId)
-  // 並べるのは手動入力と同じ「表示中のカード」。ただし開いた記録のカードが
-  // 隠されていても、そのカードは出す（出さないと現在値が選べない）
-  const [cardChoices] = useState(() => {
-    const shown = visibleCardList()
-    return shown.some((c) => c.id === cardId) || !CARDS[cardId] ? shown : [...shown, CARDS[cardId]]
-  })
   const [name,           setName]           = useState(initial?.name           ?? recalled?.name ?? '')
   const [payee,          setPayee]          = useState(initial?.payee          ?? '')
   const [amount,         setAmount]         = useState(initial?.amount         ?? '')
@@ -92,18 +86,7 @@ export default function ExpenseDialog({ open, onClose, onSave, onDuplicate, init
           {/* 支払い方法（カード）。編集時も別カードへ付け替えられる。 */}
           <Stack direction="row" alignItems="center" gap={1}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 12, minWidth: 52 }}>カード</Typography>
-            {/* 5 枚以上でダイアログ幅を超えるので折り返す（1 行に押し込むと端が切れる） */}
-            <Stack direction="row" gap={0.75} sx={{ flexWrap: 'wrap', minWidth: 0 }}>
-              {cardChoices.map(c => (
-                <Chip key={c.id} label={c.shortName} size="small" onClick={() => setCard(c.id)}
-                  sx={{
-                    fontWeight: 600, fontSize: 12,
-                    bgcolor: card === c.id ? c.color : 'transparent',
-                    color: card === c.id ? '#fff' : 'text.secondary',
-                    border: `1px solid ${c.color}`,
-                  }} />
-              ))}
-            </Stack>
+            <CardChips value={card} onChange={setCard} gap={0.75} />
           </Stack>
           {!isFixed && (
             <TextField label="日付" type="date" size="small" fullWidth

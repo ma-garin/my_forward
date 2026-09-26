@@ -30,6 +30,7 @@ import {
 } from '../utils/ccStorage'
 import AmountField, { CalcPad, parseAmount } from '../components/AmountField'
 import ExpenseDialog from '../components/ExpenseDialog'
+import CardChips from '../components/CardChips'
 import { VarExpenseTable, DailyBarChart, ExpenseRow, ExpenseGroupHeader } from '../components/CCExpenseViews'
 import { CategoryChart, CategoryBreakdown, SpendTypeChart } from '../components/CategoryViews'
 import LivingExpenseCard from '../components/LivingExpenseCard'
@@ -442,13 +443,7 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
       {/* カード */}
       <Box sx={IROW}>
         <Typography sx={ILABEL}>カード</Typography>
-        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', minWidth: 0 }}>
-          {visibleCardList().map(c => (
-            <Chip key={c.id} label={c.shortName} size="small" onClick={() => setCardId(c.id)}
-              sx={{ fontWeight: 600, fontSize: 12, bgcolor: cardId === c.id ? c.color : 'transparent',
-                color: cardId === c.id ? '#fff' : 'text.secondary', border: `1px solid ${c.color}` }} />
-          ))}
-        </Stack>
+        <CardChips value={cardId} onChange={setCardId} />
       </Box>
 
       {/* 分類 */}
@@ -882,19 +877,7 @@ export default function CreditCard() {
 
       {/* カード選択 */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-        <Stack direction="row" spacing={1}>
-          {visibleCardList().map((c) => (
-            <Chip key={c.id} label={c.shortName} onClick={() => switchCard(c.id)}
-              variant={cardId === c.id ? 'filled' : 'outlined'}
-              sx={{
-                fontWeight: 600, fontSize: 12,
-                bgcolor: cardId === c.id ? c.color : 'transparent',
-                color: cardId === c.id ? '#fff' : 'text.secondary',
-                borderColor: c.color,
-              }}
-            />
-          ))}
-        </Stack>
+        <CardChips value={cardId} onChange={switchCard} size="medium" />
         <IconButton size="small" aria-label="カテゴリ設定" onClick={() => setCatDlgOpen(true)}>
           <SettingsIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
         </IconButton>
