@@ -39,9 +39,19 @@ final class NotificationStore {
         }
     }
 
-    /** 先頭（＝最新）に 1 件足して、上限を超えた古い分を捨てる */
+    /**
+     * 先頭（＝最新）に 1 件足して、上限を超えた古い分を捨てる。
+     * 同じ通知（送り主と投稿時刻が同じ）が記録済みなら足さない。通知欄の
+     * 読み直し（NotificationCaptureService.syncActive）は開くたびに同じ通知を見る
+     */
     static synchronized void addRecord(Context context, JSONObject record) {
         JSONArray current = getRecords(context);
+        String pkg = record.optString("packageName");
+        long postTime = record.optLong("postTime");
+        for (int i = 0; i < current.length(); i++) {
+            JSONObject r = current.optJSONObject(i);
+            if (r != null && r.optLong("postTime") == postTime && pkg.equals(r.optString("packageName"))) return;
+        }
         JSONArray next = new JSONArray();
         next.put(record);
         for (int i = 0; i < current.length() && next.length() < MAX_RECORDS; i++) {

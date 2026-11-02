@@ -43,9 +43,13 @@ public class NotificationCapturePlugin extends Plugin {
         call.resolve();
     }
 
-    /** 記録済みの通知を新しい順で返す */
+    /**
+     * 記録済みの通知を新しい順で返す。
+     * 返す前に通知欄に残っている通知を拾い直す（リスナーが切れていた間の分）
+     */
     @PluginMethod
     public void getRecords(PluginCall call) {
+        NotificationCaptureService.syncActive(getContext());
         JSObject result = new JSObject();
         result.put("records", NotificationStore.getRecords(getContext()));
         call.resolve(result);
