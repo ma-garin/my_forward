@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { parseCardNotification, explainCardNotification, cardIdFromText, normalizeText, field } from './parseCardNotification'
+import { CARD_LIST, DEFAULT_CARD_LIST, saveCards } from './ccStorage'
 
 // 実機で届いた文面（全角混じり）をそのまま使う
 const VPASS = {
@@ -373,5 +374,29 @@ describe('取り込まない理由', () => {
 
   it('文字が無ければ理由を返す', () => {
     expect(explainCardNotification({ packageName: 'x' })).toEqual({ reason: '文字が無い' })
+  })
+})
+
+describe('短縮名を自分で付け直したカード', () => {
+  // 実機の設定: VISA の短縮名が「VISA-NL-G」。通知のカード名にはそのまま入っていない
+  const renamed = DEFAULT_CARD_LIST.map((c) => (c.id === 'smbc' ? { ...c, shortName: 'VISA-NL-G' } : c))
+  let saved
+  beforeEach(() => { saved = CARD_LIST.map((c) => ({ ...c })); saveCards(renamed) })
+  afterEach(() => saveCards(saved))
+
+  it('Vpass の通知を VISA の下書きにする', () => {
+    expect(parseCardNotification(VPASS)).toMatchObject({ cardId: 'smbc', amount: 1320 })
+  })
+
+  it('短縮名と正式名の語で引く（VISA / NL / 三井住友）', () => {
+    expect(cardIdFromText('三井住友ゴールドVISA(NL)')).toBe('smbc')
+  })
+
+  it('1 語しか合わなければ決めない（ゴールドは JCB にも出てくる）', () => {
+    expect(cardIdFromText('ゴールドジム')).toBe(null)
+  })
+
+  it('JCB は今までどおり短縮名で引く', () => {
+    expect(cardIdFromText('JCB GOLD(ORIGINAL SERIES)')).toBe('jcb')
   })
 })
