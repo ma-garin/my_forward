@@ -65,9 +65,9 @@ final class NotificationStore {
     }
 
     /**
-     * 記録するパッケージ名。空なら全部記録する。
-     * 最初はどのアプリがどんな文面で通知するか分からないので、既定は「全部」。
-     * 送信元が分かったら絞り込んで、無関係な通知を貯めないようにする。
+     * 設定画面で表示を絞り込む送り主（空なら全部表示）。
+     * 記録はこれに関係なく全部取る。以前はここで記録まで絞っており、
+     * チップを押したまま忘れると、その送り主以外の利用通知が届かなくなっていた
      */
     static JSONArray getAllowedPackages(Context context) {
         String raw = prefs(context).getString(KEY_ALLOWED, "[]");
@@ -82,12 +82,4 @@ final class NotificationStore {
         prefs(context).edit().putString(KEY_ALLOWED, packages.toString()).apply();
     }
 
-    static boolean isAllowed(Context context, String packageName) {
-        JSONArray allowed = getAllowedPackages(context);
-        if (allowed.length() == 0) return true;
-        for (int i = 0; i < allowed.length(); i++) {
-            if (packageName.equals(allowed.optString(i))) return true;
-        }
-        return false;
-    }
 }

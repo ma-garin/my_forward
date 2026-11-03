@@ -11,6 +11,9 @@ import {
   isCaptureAvailable, isPermissionGranted, openPermissionSettings,
   getRecords, clearRecords, getAllowedPackages, setAllowedPackages,
 } from '../utils/notificationCapture'
+import { explainCardNotification } from '../utils/parseCardNotification'
+import { CARDS } from '../utils/ccStorage'
+import { fmt } from '../utils/finance'
 
 const fmtTime = (ms) => {
   const d = new Date(ms)
@@ -23,6 +26,25 @@ const bodyLines = (r) => [r.text, r.bigText, r.subText, r.infoText, r.ticker, r.
   .flatMap((v) => (v ?? '').split('\n'))
   .map((v) => v.trim())
   .filter((v, i, a) => v && a.indexOf(v) === i)
+
+// その記録が「未確定の支出」になるか。ならないなら理由を出す
+// （取り込まれない通知を、端末の上で原因まで追えるように）
+function ReadResult({ record }) {
+  const { draft, reason } = explainCardNotification(record)
+  if (!draft) {
+    return (
+      <Typography sx={{ fontSize: 11, color: 'text.disabled', mt: 0.25 }}>
+        → 取り込まない：{reason}
+      </Typography>
+    )
+  }
+  return (
+    <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'success.main', mt: 0.25 }}>
+      → 未確定の支出へ：{CARDS[draft.cardId]?.shortName ?? draft.cardId} {fmt(draft.amount)}
+      {draft.payee ? ` ${draft.payee}` : ''}（{draft.date}）
+    </Typography>
+  )
+}
 
 export default function NotificationCaptureSettings() {
   const available = isCaptureAvailable()
@@ -61,12 +83,14 @@ export default function NotificationCaptureSettings() {
     return Object.entries(map).sort((a, b) => b[1] - a[1])
   }, [records])
 
+  // 送信元チップは表示の絞り込み。記録は常に全部取っている
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return records
-    return records.filter((r) =>
+    const bySender = allowed.length ? records.filter((r) => allowed.includes(r.packageName)) : records
+    if (!q) return bySender
+    return bySender.filter((r) =>
       [r.packageName, r.title, ...bodyLines(r)].some((v) => (v ?? '').toLowerCase().includes(q)))
-  }, [records, query])
+  }, [records, query, allowed])
 
   const writeClipboard = async (text) => {
     try {
@@ -143,7 +167,7 @@ export default function NotificationCaptureSettings() {
       {senders.length > 0 && (
         <>
           <Typography sx={{ fontSize: 12, color: 'text.secondary', mb: 0.75 }}>
-            送信元（タップで記録対象を絞り込み / 未選択なら全部記録）
+            送信元（タップで表示を絞り込み / 未選択なら全部表示。記録は常に全部）
           </Typography>
           <Stack direction="row" flexWrap="wrap" useFlexGap gap={0.75} sx={{ mb: 2 }}>
             {senders.map(([pkg, count]) => (
@@ -201,6 +225,7 @@ export default function NotificationCaptureSettings() {
               {line}
             </Typography>
           ))}
+          <ReadResult record={r} />
         </Box>
       ))}
 

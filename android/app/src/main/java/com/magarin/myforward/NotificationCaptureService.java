@@ -91,7 +91,9 @@ public class NotificationCaptureService extends NotificationListenerService {
             String packageName = sbn.getPackageName();
             if (packageName == null) return;
             if (packageName.equals(getPackageName())) return; // 自分の通知は無視
-            if (!NotificationStore.isAllowed(this, packageName)) return;
+            // 送り主では絞らない。設定画面の送信元チップは「表示」の絞り込みで、
+            // 記録まで絞ると、押したことを忘れた送り主（Vpass）の利用通知が
+            // 黙って捨てられる。どの通知を使うかは読む側（parseCardNotification）が決める
 
             Bundle extras = notification.extras;
 
