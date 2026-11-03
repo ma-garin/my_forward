@@ -27,12 +27,17 @@ import { CARD_LIST } from './ccStorage'
  * 以前はここで改行も空白に潰しており、項目の値が次の行まで伸びていた
  * （空欄の【利用先】が、次の行のカード名を飲み込んでいた）。
  */
+// カタカナの長音を全角マイナスで送ってくる（Vpass の「グロ－バルワ－ク」）。
+// NFKC で「-」になるので、カナに挟まれていれば長音に戻す。ン・ッのあとは
+// 長音にならないので語の区切りとして残す（セブン-イレブン）
+const DASH_AS_CHOON = /(?<=\p{Script=Katakana})(?<![ンッ])[-‐−](?=\p{Script=Katakana})/gu
+
 export function normalizeText(s) {
   return (s ?? '')
     .normalize('NFKC')
     .replace(/\r\n?/g, '\n')
     .split('\n')
-    .map((line) => line.replace(/[\u3000\s]+/g, ' ').trim())
+    .map((line) => line.replace(/[\u3000\s]+/g, ' ').replace(DASH_AS_CHOON, 'ー').trim())
     .filter(Boolean)
     .join('\n')
 }

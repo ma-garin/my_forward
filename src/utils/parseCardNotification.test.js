@@ -400,3 +400,44 @@ describe('短縮名を自分で付け直したカード', () => {
     expect(cardIdFromText('JCB GOLD(ORIGINAL SERIES)')).toBe('jcb')
   })
 })
+
+describe('Vpass の実記録（com.smbc_card.vpass）', () => {
+  // 2026-11-03 設定 → 通知の取り込み からコピーしたまま
+  const REC = {
+    "packageName": "com.smbc_card.vpass",
+    "postTime": 1793691497809,
+    "title": "ご利用のお知らせ",
+    "text": "◇ご利用カード：三井住友ゴールドＶＩＳＡ（ＮＬ）　◇日時：2026/11/03 16:38　◇利用先：グロ－バルワ－ク  ＧＩＮＺＡ　◇金額：21,470円",
+    "bigText": "◇ご利用カード：三井住友ゴールドＶＩＳＡ（ＮＬ）　◇日時：2026/11/03 16:38　◇利用先：グロ－バルワ－ク  ＧＩＮＺＡ　◇金額：21,470円",
+    "subText": "",
+    "infoText": "",
+    "ticker": "",
+    "allText": "ご利用のお知らせ\n◇ご利用カード：三井住友ゴールドＶＩＳＡ（ＮＬ）　◇日時：2026/11/03 16:38　◇利用先：グロ－バルワ－ク  ＧＩＮＺＡ　◇金額：21,470円\nandroidx.core.app.NotificationCompat$BigTextStyle\ncom.smbc_card.vpass"
+  }
+
+  it('VISA の下書きになる（全角マイナスの長音は「ー」に戻す）', () => {
+    expect(parseCardNotification(REC)).toEqual({
+      cardId: 'smbc',
+      amount: 21470,
+      at: new Date(2026, 10, 3, 16, 38).getTime(),
+      date: '2026-11-03',
+      payee: 'グローバルワーク GINZA',
+      atFromText: true,
+      source: 'vpass',
+    })
+  })
+
+  it('短縮名が VISA-NL-G でも VISA の下書きになる', () => {
+    const saved = CARD_LIST.map((c) => ({ ...c }))
+    saveCards(DEFAULT_CARD_LIST.map((c) => (c.id === 'smbc' ? { ...c, shortName: 'VISA-NL-G' } : c)))
+    try {
+      expect(parseCardNotification(REC)).toMatchObject({ cardId: 'smbc', amount: 21470 })
+    } finally {
+      saveCards(saved)
+    }
+  })
+
+  it('セブン-イレブンのハイフンは長音にしない（ンのあと）', () => {
+    expect(normalizeText('ｾﾌﾞﾝ-ｲﾚﾌﾞﾝ')).toBe('セブン-イレブン')
+  })
+})

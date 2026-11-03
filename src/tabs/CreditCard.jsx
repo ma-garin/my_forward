@@ -593,17 +593,18 @@ function AddExpenseScreen({ open, prefill, onClose, onSave, categories, defaultD
 // ─── メインコンポーネント ─────────────────────────
 
 // 既定の表示月。判定は finance.currentBillingYm が持っているので、ここでは
-// 呼ぶだけにする（同じ「今どの請求月か」を 2 箇所で計算しない）
-function defaultBillingMonth() {
-  const [year, month] = currentBillingYm(CARDS.jcb?.cutoffDay ?? 0).split('-').map(Number)
+// 呼ぶだけにする（同じ「今どの請求月か」を 2 箇所で計算しない）。
+// 締め日はカードごとに違う。JCB（15 日締め）の判定を全カードに使っていたため、
+// 11/3 に VISA（月末締め）を開くと 10 月が出ていた
+function defaultBillingMonth(cardId) {
+  const [year, month] = currentBillingYm(CARDS[cardId]?.cutoffDay ?? 0).split('-').map(Number)
   return { year, month }
 }
 
 export default function CreditCard() {
-  const { year: defaultYear, month: defaultMonth } = defaultBillingMonth()
   const [cardId,  setCardId]  = useState(() => visibleCardList()[0]?.id ?? 'jcb')
-  const [year,    setYear]    = useState(defaultYear)
-  const [month,   setMonth]   = useState(defaultMonth)
+  const [year,    setYear]    = useState(() => defaultBillingMonth(cardId).year)
+  const [month,   setMonth]   = useState(() => defaultBillingMonth(cardId).month)
 
   const card = CARDS[cardId]
   const ym   = ymStr(year, month)
@@ -671,11 +672,18 @@ export default function CreditCard() {
 
   const todayStr = new Date().toISOString().slice(0, 10)
 
+  // 前のカードの「今の請求月」を見ていたなら、切り替え先の今の請求月へ移る。
+  // 自分で別の月へ動かしていたなら、その月のまま見比べられるようにする
   const switchCard = (id) => {
+    const prev = defaultBillingMonth(cardId)
+    const next = ymStr(prev.year, prev.month) === ym ? defaultBillingMonth(id) : { year, month }
+    const nextYm = ymStr(next.year, next.month)
     setCardId(id)
+    setYear(next.year)
+    setMonth(next.month)
     setFixedList(loadFixed(id))
-    setVarList(loadVar(id, ym))
-    setBilledIds(loadBilled(id, ym))
+    setVarList(loadVar(id, nextYm))
+    setBilledIds(loadBilled(id, nextYm))
   }
 
   const goToMonth = useCallback((y, m) => {
