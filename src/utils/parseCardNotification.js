@@ -59,20 +59,42 @@ function joinFields(record) {
     .join('\n')
 }
 
+// カード名を語に分ける（英数字・漢字・カタカナ・ひらがなの切れ目で切る）。
+// 1 文字の語（VISA-NL-G の G）はどこにでも出てくるので使わない
+const WORD = /[A-Z0-9]+|\p{Script=Han}+|[\p{Script=Katakana}ー]+|\p{Script=Hiragana}+/gu
+const wordsOf = (s) =>
+  [...new Set((normalizeText(s).toUpperCase().match(WORD) ?? []).filter((w) => w.length >= 2))]
+
 /**
  * 文面に出てくるカード名から支払い元を決める。
- * CARDS の shortName で引くので、カードを増やしてもここは触らなくてよい。
+ * CARDS の shortName・name で引くので、カードを増やしてもここは触らなくてよい。
+ *
+ * 短縮名は利用者が自由に付ける（実機では「VISA-NL-G」）。通知のカード名
+ * 「三井住友ゴールドＶＩＳＡ（ＮＬ）」に短縮名がそのまま入っているとは限らず、
+ * 丸ごと一致だけで見ていたときは支払い元が決まらず、VISA の通知を全部捨てていた。
+ * 丸ごと一致しなければ、短縮名と正式名の語（VISA / NL / 三井住友 …）がいくつ
+ * 文面に出てくるかで決める。2 語以上で、ほかのカードと同点でないときだけ採る
+ * （「ゴールド」1 語は JCBゴールド にも三井住友ゴールド にも出てくる）。
  */
 export function cardIdFromText(text) {
-  const upper = text.toUpperCase()
+  const upper = normalizeText(text).toUpperCase()
   // 長い名前から順に見る（短い名前が別カードの一部に含まれることがある）
   const candidates = CARD_LIST
     .filter((c) => c.id !== 'cash')
     .sort((a, b) => b.shortName.length - a.shortName.length)
   for (const c of candidates) {
-    if (upper.includes(c.shortName.toUpperCase())) return c.id
+    if (upper.includes(normalizeText(c.shortName).toUpperCase())) return c.id
   }
-  return null
+
+  let best = null
+  let bestScore = 0
+  let tie = false
+  for (const c of candidates) {
+    const score = wordsOf(`${c.shortName} ${c.name ?? ''}`).filter((w) => upper.includes(w)).length
+    if (score > bestScore) [best, bestScore, tie] = [c.id, score, false]
+    else if (score > 0 && score === bestScore) tie = true
+  }
+  return bestScore >= 2 && !tie ? best : null
 }
 
 /**
@@ -223,7 +245,7 @@ export function explainCardNotification(record) {
   // 文面でカードが決まらなければ送り主で決める（PayPay は文面に名前を書かない）
   const cardId = draft.cardId ?? cardIdFromPackage(pkg)
   // 支払い元が分からない下書きは、どのカードに足すか決められないので出さない
-  if (!cardId) return { reason: '支払い元が決まらない（カード設定の短縮名が文面に無い）' }
+  if (!cardId) return { reason: '支払い元が決まらない（文面のカード名がカード設定のどれとも合わない）' }
 
   return { draft: { ...draft, cardId, source: sourceOf(text, pkg) } }
 }
