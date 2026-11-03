@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseCardNotification, cardIdFromText, normalizeText, field } from './parseCardNotification'
+import { parseCardNotification, explainCardNotification, cardIdFromText, normalizeText, field } from './parseCardNotification'
 
 // 実機で届いた文面（全角混じり）をそのまま使う
 const VPASS = {
@@ -344,5 +344,34 @@ describe('PayPay（文面にカード名が入らない）', () => {
     expect(parseCardNotification({
       packageName: 'com.example.pay', postTime: at, title: '支払い', text: '1,200円',
     })).toBe(null)
+  })
+})
+
+describe('取り込まない理由', () => {
+  // 仮: 2026-11-03 の通知欄の画面写真から起こした文面。実記録が取れたら差し替える
+  const VPASS_1103 = {
+    packageName: 'jp.co.smbc.vpass',
+    postTime: new Date(2026, 10, 3, 16, 38).getTime(),
+    title: 'ご利用のお知らせ',
+    text: '◇ご利用カード：三井住友ゴールドＶＩＳＡ（ＮＬ）　◇日時：2026/11/03 16:38　◇利用先：グローバルワーク　ＧＩＮＺＡ　◇金額：21,470円',
+  }
+
+  it('読めた通知は下書きを返す', () => {
+    const { draft } = explainCardNotification(VPASS_1103)
+    expect(draft).toMatchObject({ cardId: 'smbc', amount: 21470, payee: 'グローバルワーク GINZA', date: '2026-11-03' })
+  })
+
+  it('金額が無ければ理由を返す', () => {
+    expect(explainCardNotification({ packageName: 'jp.naver.line.android', title: '三井住友カード', text: 'カードご利用のお知らせ' }))
+      .toEqual({ reason: '金額が無い' })
+  })
+
+  it('支払い元が決まらなければ理由を返す', () => {
+    expect(explainCardNotification({ packageName: 'x', text: '三井住友カード ••4119 で ￥3,870' }).reason)
+      .toMatch(/支払い元が決まらない/)
+  })
+
+  it('文字が無ければ理由を返す', () => {
+    expect(explainCardNotification({ packageName: 'x' })).toEqual({ reason: '文字が無い' })
   })
 })

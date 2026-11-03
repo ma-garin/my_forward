@@ -205,6 +205,30 @@ function sourceOf(text, pkg) {
 }
 
 /**
+ * 通知 1 件を読んだ結果。下書きになるか、ならないならその理由。
+ * 設定 → 通知の取り込み が各記録の下に出す（取り込まれない理由を端末で見られる）。
+ *
+ * @returns {{ draft: object } | { reason: string }}
+ */
+export function explainCardNotification(record) {
+  const text = joinFields(record)
+  if (!text) return { reason: '文字が無い' }
+  const postTime = Number(record?.postTime) || Date.now()
+  const pkg = record?.packageName
+
+  // 項目名が付いていれば日時・利用先・カードまで読む。無ければ金額だけ拾う
+  const draft = parseLabeled(text, postTime) ?? parseGeneric(text, postTime)
+  if (!draft) return { reason: '金額が無い' }
+
+  // 文面でカードが決まらなければ送り主で決める（PayPay は文面に名前を書かない）
+  const cardId = draft.cardId ?? cardIdFromPackage(pkg)
+  // 支払い元が分からない下書きは、どのカードに足すか決められないので出さない
+  if (!cardId) return { reason: '支払い元が決まらない（カード設定の短縮名が文面に無い）' }
+
+  return { draft: { ...draft, cardId, source: sourceOf(text, pkg) } }
+}
+
+/**
  * @param {{ packageName?: string, postTime?: number, title?: string, text?: string,
  *           bigText?: string, subText?: string, infoText?: string, ticker?: string,
  *           allText?: string }} record
@@ -212,19 +236,5 @@ function sourceOf(text, pkg) {
  *                    date: string, payee: string, atFromText?: boolean }}
  */
 export function parseCardNotification(record) {
-  const text = joinFields(record)
-  if (!text) return null
-  const postTime = Number(record?.postTime) || Date.now()
-  const pkg = record?.packageName
-
-  // 項目名が付いていれば日時・利用先・カードまで読む。無ければ金額だけ拾う
-  const draft = parseLabeled(text, postTime) ?? parseGeneric(text, postTime)
-  if (!draft) return null
-
-  // 文面でカードが決まらなければ送り主で決める（PayPay は文面に名前を書かない）
-  const cardId = draft.cardId ?? cardIdFromPackage(pkg)
-  // 支払い元が分からない下書きは、どのカードに足すか決められないので出さない
-  if (!cardId) return null
-
-  return { ...draft, cardId, source: sourceOf(text, pkg) }
+  return explainCardNotification(record).draft ?? null
 }

@@ -54,7 +54,7 @@ export async function clearRecords() {
   }
 }
 
-/** 記録対象のパッケージ名（空配列＝すべて記録） */
+/** 設定画面で表示を絞り込む送り主（空配列＝すべて表示）。記録は絞らない */
 export async function getAllowedPackages() {
   if (!isCaptureAvailable()) return []
   try {
