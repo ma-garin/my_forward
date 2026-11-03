@@ -119,6 +119,15 @@ describe('承認', () => {
     expect(loadVar('smbc', '2026-08')[0]).toMatchObject({ name: '昼食', amount: 1300, spendType: '浪費' })
   })
 
+  it('先に登録した支出より古い日付でも、日付の順に入る', () => {
+    ingestNotifications([vpass(2990, 'ユニクロ', 10, 54)])
+    localStorage.setItem('cc_var_smbc_2026-08', JSON.stringify([
+      { id: 'later', name: '後', amount: 100, category: 'その他', spendType: '消費', date: '2026-08-20' },
+    ]))
+    acceptDraft(loadInbox()[0].id)
+    expect(loadVar('smbc', '2026-08').map((x) => x.date)).toEqual(['2026-08-14', '2026-08-20'])
+  })
+
   it('承認したら受信箱から消える', () => {
     ingestNotifications([vpass(1320, 'スシロー', 12, 12)])
     acceptDraft(loadInbox()[0].id)

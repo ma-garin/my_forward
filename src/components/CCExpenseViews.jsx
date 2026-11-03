@@ -5,7 +5,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import SwipeRow from './SwipeRow'
 import { fmt, signedAmount, countsAsSpending } from '../utils/finance'
-import { CATEGORY_COLORS, BORDER_LIGHT, SPEND_TYPE_COLORS } from '../utils/ccStorage'
+import { CATEGORY_COLORS, BORDER_LIGHT, SPEND_TYPE_COLORS, byDate as byDateAsc } from '../utils/ccStorage'
 
 // ─── 共通スタイル ─────────────────────────────────────────
 // レンダーごとに新しいオブジェクトを作らないよう、モジュール定数として持つ。
@@ -185,8 +185,10 @@ export function VarExpenseTable({ varList, sort = 'date_asc', emptyText, onEdit,
 
     const out = []
     let running = 0
-    // varList は日付の古い順で保存されている（ccStorage の byDate）
-    varList.forEach(item => {
+    // 日付ごとにまとめるので、ここで必ず古い順に並べる。保存の順を当てにすると、
+    // 順が崩れた月（受信箱から末尾に足していた）で同じ日付の見出しが 2 つでき、
+    // 見出しの key が重なって、カードを切り替えても前のカードの行が残っていた
+    ;[...varList].sort(byDateAsc).forEach(item => {
       // 累計・日付ごとの合計も signedAmount で積む。ここで item.amount を
       // 直に足すと、返金や振替を含んだ額が出て、カード上部の使用額と食い違う
       const value = signedAmount(item)

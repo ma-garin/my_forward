@@ -5,7 +5,7 @@
 | キー | 型 | 内容 | 読み書き関数 |
 |------|---|------|------------|
 | `cc_fixed_{cardId}` | `FixedItem[]` | カード固定費リスト | `loadFixed(cardId)` / `saveFixed(cardId, list)` |
-| `cc_var_{cardId}_{ym}` | `VarItem[]` | カード変動費（月別） | `loadVar(cardId, ym)` / `saveVar(cardId, ym, list)` |
+| `cc_var_{cardId}_{ym}` | `VarItem[]` | カード変動費（月別）。**日付の古い順**（`saveVar` が保存のたびにそろえる。呼ぶ側に任せると末尾に足すだけの経路ができ、一覧の日付がばらける） | `loadVar(cardId, ym)` / `saveVar(cardId, ym, list)` |
 | `cc_billed_{cardId}_{ym}` | `string[]` | 引き落とし済みID | `loadBilled(cardId, ym)` / `saveBilled(cardId, ym, ids)` |
 | `cc_limit_{cardId}` | `number` | 月間利用上限額 | `loadLimit(cardId)` / `saveLimit(cardId, v)` |
 | `cc_cards` | `Card[]` | 支払い元（カード・電子マネー・現金）の**唯一の出どころ**。初回に `DEFAULT_CARD_LIST` を書く | `loadCards()` / `saveCards(list)`（ccStorage.js） |
