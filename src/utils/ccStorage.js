@@ -324,10 +324,17 @@ export function saveFixed(cardId, list) { try { localStorage.setItem(fixedKey(ca
 export function loadVar(cardId, ym) {
   try { return JSON.parse(localStorage.getItem(varKey(cardId, ym)) || '[]') } catch { return [] }
 }
-export function saveVar(cardId, ym, list) { try { localStorage.setItem(varKey(cardId, ym), JSON.stringify(list)); bumpDataVersion() } catch(e) { console.warn('saveVar failed', e) } }
-
 // 変動費の並び順（日付昇順）。散らばったインライン比較をここに一本化する。
-export const byDate = (a, b) => (a.date ?? '') < (b.date ?? '') ? -1 : 1
+// 同じ日付は 0 を返す（入れた順を保つ。1 を返すと並べ替えのたびに入れ替わる）
+export const byDate = (a, b) => {
+  const x = a.date ?? ''
+  const y = b.date ?? ''
+  return x < y ? -1 : x > y ? 1 : 0
+}
+
+// 保存は必ず日付の古い順にそろえる。呼ぶ側に並べ替えを任せていたため、
+// 受信箱からの登録（acceptDraft）が末尾に足すだけになり、一覧の日付がばらけた
+export function saveVar(cardId, ym, list) { try { localStorage.setItem(varKey(cardId, ym), JSON.stringify([...list].sort(byDate))); bumpDataVersion() } catch(e) { console.warn('saveVar failed', e) } }
 
 // 日付とカードから請求月を返す。カードごとに締め日が違うため、
 // 「どのカードの何月分か」を求めるときは必ずこれを通す。
